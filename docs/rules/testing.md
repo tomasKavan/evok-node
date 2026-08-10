@@ -72,10 +72,16 @@ crash".
 ### Seed backlog: one test per upstream finding
 
 [`research/04-known-bugs-and-lessons.md`](../research/04-known-bugs-and-lessons.md) documents
-~40 real production failures with their mechanisms. **Each becomes a test before the
-corresponding feature is written.** That is a ready-made, evidence-based regression suite for
-bugs we have not written yet, and it is the highest-value test backlog available to us. Tag them
-`upstream-regression` so the set is greppable.
+**29 real production failures** with their mechanisms, and the 40 design rules they imply. **Each
+finding becomes a test before the corresponding feature is written.** That is a ready-made,
+evidence-based regression suite for bugs we have not written yet, and it is the highest-value test
+backlog available to us. Tag them `upstream-regression` so the set is greppable.
+
+The only exemption is a finding dispositioned `construction` in
+[`../plan/bug-dispositions.md`](../plan/bug-dispositions.md), where the mechanism is a type or an
+exhaustive switch and a test would be asserting that the compiler works. **That is three findings out
+of 29** — 1.3, 2.4 and 3.3. If you find yourself claiming a fourth, you are probably describing code
+you intend to write correctly, which is what a test is for.
 
 ## Coverage
 

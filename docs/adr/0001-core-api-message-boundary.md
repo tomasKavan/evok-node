@@ -1,4 +1,4 @@
-# ADR-0013 — The core↔API contract is a serialisable message boundary
+# ADR-0001 — The core↔API contract is a serialisable message boundary
 
 - **Status:** Accepted
 - **Date:** 2026-08-10
@@ -6,7 +6,8 @@
 
 ## Context
 
-ADR-0002 made `core/` usable without the API layer, and research/05 §5 concluded that a unix
+The library-first decision in research/05 §7.2 made `core/` usable without the API layer, and §5
+concluded that a unix
 socket or in-process mode would then be "purely additive later". That holds only if the boundary is
 *already* expressible as messages. The post-1.0 direction has several API surfaces over one core —
 classic compat, a new API, an admin surface, plugin-contributed routes — which makes running core
@@ -20,8 +21,8 @@ in-process and fatal across one. Discovering that later means a rewrite of every
 
 The core↔API contract is defined as **serialisable message envelopes with an explicit codec
 boundary**, from the first commit. Commands and events are data, validated by schema, with no host
-object types in their shape. Delivery for 1.0 is in-process; the transport is still deferred per
-ADR/research §7.3.
+object types in their shape. Delivery for 1.0 is in-process; the low-level transport itself remains
+deferred per research/05 §7.3.
 
 The `protocol` package holds this internal contract alongside the public wire schemas. Enforcement
 is by review plus a schema round-trip property test on every envelope type — anything that does not

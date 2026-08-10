@@ -1,12 +1,12 @@
-# ADR-0017 — SQLite for user data, with YAML export/import
+# ADR-0005 — SQLite for user data, with YAML export/import
 
 - **Status:** Accepted — `node:sqlite` stability to confirm against the pinned Node 24 minor
 - **Date:** 2026-08-10
-- **Refs:** docs/GOALS.md invariant 5 · ADR-0016 · ADR-0006 (Node.js 24) · docs/research/04-known-bugs-and-lessons.md finding 3.9, rule 25 · docs/research/10-test-kit.md (test-host hardware)
+- **Refs:** docs/GOALS.md invariant 5 · ADR-0004 · docs/research/04-known-bugs-and-lessons.md finding 3.9, rule 25 · docs/research/05-evok-node-design-notes.md §8.6 (Node.js 24) · docs/research/10-test-kit.md (test-host hardware)
 
 ## Context
 
-ADR-0016 gives user data its own store. It has to survive a crash mid-write — EVOK's
+ADR-0004 gives user data its own store. It has to survive a crash mid-write — EVOK's
 truncate-then-write lost alias files (finding 3.9) — and it has to hold data that is not flat:
 groups with members, explicit ordering, labels, and SPA layout drawings as blobs. Writes are
 user-initiated and therefore rare; reads are frequent.
@@ -45,9 +45,11 @@ Makes hard: the on-disk format is opaque, so support and backup flows must go th
 Schema migrations become a thing we own and test — with fixtures, since a migration that corrupts
 user data is as bad as the bug we are fixing.
 
-**Open, and it gates nothing yet.** In Node 24 `node:sqlite` is available without a flag but is a
-release candidate rather than fully stable. Confirm against the exact minor we pin before the store
-is implemented; if the API is still moving, `better-sqlite3` is the fallback and we take on ARM
+**Open, and it gates nothing yet.** In Node 24 `node:sqlite` is available without the
+`--experimental-sqlite` flag but is **not marked fully stable**; sources disagree on whether the
+pinned minor sits at "active development" or "release candidate" on Node's stability index, and that
+distinction matters enough to check rather than assume. Confirm against the exact minor before the
+store is implemented; if the API is still moving, `better-sqlite3` is the fallback and we take on ARM
 prebuilds. Tracked in `plan/STATUS.md` open questions.
 
 **Rejected:** YAML or JSON files with atomic writes. Hand-editable and dependency-free, and it would

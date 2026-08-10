@@ -1,6 +1,6 @@
 # The plan
 
-## Three kinds of document, three jobs
+## Four kinds of document, four jobs
 
 | | Question it answers | Lifetime | Style |
 |---|---|---|---|
@@ -58,6 +58,6 @@ diffs fail; uniqueness property test passes for all 83 model×section combinatio
 ## Cold start
 
 An agent picking this up with no context should read, in order: `CLAUDE.md` →
-`docs/plan/STATUS.md` → the current milestone file → the rules file for the area it is touching →
-the research file for the domain it is touching. That path should take ten minutes and be
-sufficient. If it isn't, that's a bug in these documents — fix it.
+[`docs/GOALS.md`](../GOALS.md) → `docs/plan/STATUS.md` → the current milestone file → the rules file
+for the area it is touching → the research file for the domain it is touching. That path should take
+ten minutes and be sufficient. If it isn't, that's a bug in these documents — fix it.

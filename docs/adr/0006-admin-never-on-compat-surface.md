@@ -1,8 +1,8 @@
-# ADR-0018 — Administration never rides on the classic surface
+# ADR-0006 — Administration never rides on the classic surface
 
 - **Status:** Accepted — mechanism deliberately deferred
 - **Date:** 2026-08-10
-- **Refs:** docs/GOALS.md invariant 2, invariant 3 · docs/research/04-known-bugs-and-lessons.md rule 29, finding 4.6 · docs/research/07-client-compatibility.md · ADR-0005 (nginx front end)
+- **Refs:** docs/GOALS.md invariant 2, invariant 3 · docs/research/04-known-bugs-and-lessons.md rule 29, finding 4.6 · docs/research/07-client-compatibility.md §5 (nginx front end)
 
 ## Context
 
@@ -41,7 +41,8 @@ be admin-only. Some diagnostics are genuinely useful to plain clients; research/
 anything touching processes or network configuration held back for the admin surface.
 
 **Now owed, before the admin surface is built:** the authentication scheme, the default-on/default-off
-posture, and how this interacts with ADR-0005's nginx front end. Listed in `GOALS.md` §Open.
+posture, and how this interacts with the nginx front end (research/07 §5). All three are listed in
+`GOALS.md` §Open.
 
 **Rejected:** authenticating the compat surface. It would break every existing client and defeat the
 project's reason to exist. **Also rejected:** deciding the mechanism now — see above.

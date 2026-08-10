@@ -192,10 +192,10 @@ above are additive later. If the API layer owns state, none of them are.
 
 > **Strengthened 2026-08-10.** "Additive later" was too weak. Because the post-1.0 direction
 > includes several API surfaces over one core ([`GOALS.md`](../GOALS.md)), the core↔API contract is
-> now required to be a **serialisable message boundary from the first commit** — invariant 1. A
+> now required to be a **serialisable message boundary from the first commit** — GOALS invariant 1. A
 > programmatic interface satisfying the paragraph above still fails if it passes callbacks, class
 > instances or Buffers across the boundary, because then the process split is a rewrite rather than
-> a deployment change. Delivery stays in-process for 1.0. See ADR-0013.
+> a deployment change. Delivery stays in-process for 1.0. See ADR-0001.
 
 Second implication: the event envelope and command schema should be **transport-agnostic and
 serialisation-agnostic** from the start — define them as TS types with a codec boundary, not
@@ -229,6 +229,12 @@ Beyond the 40 rules in `04-known-bugs-and-lessons.md`, these are product-level:
 ## 7. Decisions taken (2026-07-27)
 
 ### 7.1 Hardware scope for v1: **everything the maps cover**
+
+> **Superseded 2026-08-10 — read §8.3 first.** This section's scope was narrowed the following day:
+> the intersection is Neuron + Patron + Gate + Unipi 1.1 + Extensions, **Edge is a fast follow after
+> 1.0, and Axon is dropped** with no support claimed (§8.3, research/09 §5,
+> [`GOALS.md`](../GOALS.md)). Everything below about *definition-format consequences* still stands and
+> is why the overlay format must accommodate Edge in M3 — only the model list is superseded.
 
 Patron, Neuron, Axon, Edge, Unipi 1.1 / Lite, Extensions. Consequences that must be designed
 in from the start rather than bolted on:
@@ -274,7 +280,7 @@ Implications:
 
 > **Resolved 2026-08-10.** The deferred packaging questions are settled: `Conflicts: evok`, with
 > the shared OS dependencies declared by us so removing evok cannot autoremove them, and a one-shot
-> migration rather than reading EVOK's config at runtime. See ADR-0014 and ADR-0015. Config loading
+> migration rather than reading EVOK's config at runtime. See ADR-0002 and ADR-0003. Config loading
 > still accepts an object rather than a path, per the bullet above.
 
 ### 7.3 Latency: **defer the low-level transport**

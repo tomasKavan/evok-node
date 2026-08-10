@@ -19,7 +19,7 @@ set up now. **No implementation code exists yet, and the repository has no commi
   [docs](../rules/docs.md), [git](../rules/git.md).
 - **Goals consolidated (2026-08-10).** [`GOALS.md`](../GOALS.md) is authoritative: the goal, the
   measurable form of it, what 1.0 is, post-1.0 direction, seven invariants, the drop-in guarantee,
-  non-goals. Six new ADRs (0013–0018) record the decisions behind it. Scattered goal statements in
+  non-goals. Six new ADRs (0001–0006) record the decisions behind it. Scattered goal statements in
   research files carry dated superseded-by notes.
 
 ## In progress
@@ -39,18 +39,23 @@ set up now. **No implementation code exists yet, and the repository has no commi
 |---|---|
 | Golden transcript capture | **Human task, time-sensitive.** Must be recorded from stock EVOK 3.0.6 on L527/M527/S167 *before* anything replaces EVOK on those units. Unrecoverable afterwards. |
 | Stock `hw_definitions` + `autogen.yaml` + firmware versions | Same trip as the transcript capture. |
-| Stock `config.yaml` + `/var/lib/evok/alias.yaml` | Same trip. These are the migration tool's golden fixtures (ADR-0015). |
-| evok packaging metadata — `apt-cache show evok`, `dpkg -L evok`, systemd unit names, its nginx site file | Same trip. Decides the `Conflicts:`/`Depends:` list in ADR-0014 and how the `:80` site conflict is handled. **Do not `apt purge evok` before migrating** — purge destroys the fixtures above. |
+| Stock `config.yaml` + `/var/lib/evok/alias.yaml` | Same trip. These are the migration tool's golden fixtures (ADR-0003). |
+| evok packaging metadata — `apt-cache show evok`, `dpkg -L evok`, systemd unit names, its nginx site file | Same trip. Decides the `Conflicts:`/`Depends:` list in ADR-0002 and how the `:80` site conflict is handled. **Do not `apt purge evok` before migrating** — purge destroys the fixtures above. |
+| `start_index` old-behaviour baseline | **Same trip, and easy to forget.** Finding 1.1's `test` disposition needs a transcript of stock EVOK mis-registering a deliberately split RO definition (two blocks of 7 with `start_index`) on the L527's section 3. After `Conflicts: evok` this requires reinstalling EVOK on a unit; capture it while it is already there. |
+| Second Patron M527 as rig test host | Purchase, not a trip. Named in research/10 but missing from the roadmap's purchase track until now. Blocks all tier-1 hardware tests. |
 | Tier-1 hardware tests | Rig not built. Needs a second Patron M527 as test host, wiring, `rig` service. |
 | RS485 baud-encoding, DirectSwitch write path, unit-0 aggregate reads | Verification on hardware. See [research/05](../research/05-evok-node-design-notes.md) §7.4. |
 | Neuron and Unipi 1.1 support | Hardware not yet purchased. Map-driven and simulator-verified until then. |
 
 ## Known permanent gaps
 
-- **No purchasable Unipi device has >16 channels of one type**, so the highest-severity bug class
-  (silently driving the wrong relay) can never be verified on hardware. Mitigated by generated
-  address tables plus a fatal-on-duplicate-registration assertion. See
-  [research/10 §4](../research/10-test-kit.md).
+- **No purchasable Unipi device has >16 channels of one type in a single section**, so the
+  *missing-bank-stride* half of the highest-severity bug class (silently driving the wrong relay) can
+  never be verified on hardware. Mitigated by generated address tables plus a
+  fatal-on-duplicate-registration assertion. The `start_index` half **is** reproducible on the L527's
+  section 3 via a deliberately split definition and the RO→DI loopback. See
+  [research/10 §4](../research/10-test-kit.md) and
+  [`bug-dispositions.md`](bug-dispositions.md) finding 1.1.
 
 ## Open questions
 
@@ -58,7 +63,7 @@ set up now. **No implementation code exists yet, and the repository has no commi
 2. Which Debian generation each Patron runs — ideally one on 12 and one on 13.
 3. `node:sqlite` stability on the Node 24 minor we pin — it is available without a flag but is a
    release candidate, not fully stable. Fallback is `better-sqlite3`, which needs armhf/arm64
-   prebuilds. See ADR-0017.
+   prebuilds. See ADR-0005.
 4. Deferred by design, listed so they are not mistaken for oversights: trigger-engine fail-safe
    semantics, the admin-surface authentication mechanism, and the plugin isolation model. See
    [`GOALS.md`](../GOALS.md) §Open.

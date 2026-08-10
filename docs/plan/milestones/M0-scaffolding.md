@@ -83,11 +83,13 @@ offers the templates.
 
 ### T0.7 — ADRs from settled research decisions `area/ci` `risk/normal`
 
-One ADR per decision already made, dated and referencing the research section that justifies it:
-EVOK 3.x-only scope · library-first packaging · `modbus-serial` + wrapper rather than our own
-framer · overlay hardware definitions · nginx as the `:80` front end · Node 24 · fastify · npm
-workspaces · scoped package names · hardware scope with Edge as fast-follow · the compat flag set ·
-sysfs-only rig with no shared code.
+One ADR per decision already made, dated and referencing the research section that justifies it. The
+list is the "Awaiting write-up" table in [`../../adr/README.md`](../../adr/README.md), which is
+authoritative: twelve decisions, from EVOK 3.x-only scope through the licence choice.
+
+**Numbers are allocated on write, not reserved** — each of those takes the next free number as it is
+written, continuing from 0007. ADRs 0001–0006 already exist (goals consolidation, 2026-08-10) and are
+not part of this task.
 
 **Done when:** `docs/adr/` contains one file per decision, each with Context / Decision /
 Consequences and a link to the research section. These exist so an agent does not re-derive them

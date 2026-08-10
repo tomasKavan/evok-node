@@ -1,8 +1,8 @@
-# ADR-0015 — Migrate EVOK's config once; no runtime fallback to `/etc/evok`
+# ADR-0003 — Migrate EVOK's config once; no runtime fallback to `/etc/evok`
 
 - **Status:** Accepted
 - **Date:** 2026-08-10
-- **Refs:** docs/GOALS.md §The drop-in guarantee · docs/research/03-config-and-hw-definitions.md §1, §3 · ADR-0014
+- **Refs:** docs/GOALS.md §The drop-in guarantee · docs/research/03-config-and-hw-definitions.md §1, §3 · ADR-0002
 
 ## Context
 
@@ -11,8 +11,9 @@ back to `/etc/evok/config.yaml` plus `/var/lib/evok/alias.yaml`, with config fla
 source won for each concern.
 
 That puts EVOK's config and alias formats — and their traps, catalogued in research/03: the
-`autogen.yaml` deep-merge, the quoted-`version` alias trap that silently yields `{}`, the
-non-atomic writes — permanently inside the daemon's startup path. It also creates precedence logic
+`autogen.yaml` deep-merge, the alias file silently yielding `{}` for any unexpected `version` (the
+docs' own example writes `version: 2.0` unquoted, which YAML parses as a float), the non-atomic
+writes — permanently inside the daemon's startup path. It also creates precedence logic
 whose failures are undiagnosable in the field: "which file won?" is exactly the class of question
 research/04 §4.6 shows Unipi's support load is made of.
 
@@ -22,10 +23,19 @@ our own store and the two sources diverge silently.
 
 ## Decision
 
-**A one-shot migration**, runnable as a standalone tool and automatically on first start when
-`/etc/evok` exists. It reads `/etc/evok/config.yaml` and `/var/lib/evok/alias.yaml` and writes
-`/etc/evok-node/config.yaml` plus our own store (ADR-0017). After that the two installations share
+**A one-shot migration tool**, run explicitly by the operator or by packaging — **never by the
+daemon.** It reads `/etc/evok/config.yaml` and `/var/lib/evok/alias.yaml` and writes
+`/etc/evok-node/config.yaml` plus our own store (ADR-0005). After that the two installations share
 no state.
+
+That the migrator, not the daemon, writes the config file is what keeps ADR-0004 and `CLAUDE.md`
+rule 16 absolute. If no config exists, the daemon reports that and exits non-zero naming what to do;
+it does not helpfully generate one.
+
+**Greenfield installs do not depend on the migrator.** A machine that never ran EVOK has nothing to
+migrate, so packaging ships a **default config as a conffile**. The migrator is the path *from* EVOK,
+not the only path in — otherwise a fresh install would exit non-zero pointing at a tool with no
+inputs.
 
 The daemon has **no knowledge of EVOK's config or alias formats**. That knowledge lives only in the
 migration tool.
@@ -46,7 +56,7 @@ rollback, because EVOK's files are untouched.
 Makes hard: nothing at runtime. The cost is one more artefact to build and a documented step for the
 operator.
 
-**Ordering trap.** With ADR-0014's `Conflicts: evok`, evok is already removed by the time evok-node
+**Ordering trap.** With ADR-0002's `Conflicts: evok`, evok is already removed by the time evok-node
 installs. `apt remove` leaves the inputs in place, so migration still works — but `apt purge` does
 not, hence the standalone tool and the explicit "migrate before purging" warning.
 

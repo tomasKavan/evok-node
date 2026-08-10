@@ -1,4 +1,4 @@
-# ADR-0014 — `Conflicts: evok`, with shared OS dependencies declared by us
+# ADR-0002 — `Conflicts: evok`, with shared OS dependencies declared by us
 
 - **Status:** Accepted — dependency list pending the capture trip
 - **Date:** 2026-08-10
@@ -24,7 +24,7 @@ capture trip shows evok pulls in. Otherwise removing evok can autoremove the pac
 runtime and migration depend on.
 
 `apt remove evok` leaves `/etc/evok/*` (conffiles) and `/var/lib/evok/alias.yaml` (runtime state,
-outside dpkg's remove scope) intact, so ADR-0015's migration still has its inputs afterwards.
+outside dpkg's remove scope) intact, so ADR-0003's migration still has its inputs afterwards.
 `apt purge` destroys both, so the documentation says plainly: **migrate before purging.**
 
 ## Consequences
@@ -41,6 +41,6 @@ of evok's nginx `:80` site file cannot be written until we have `apt-cache show 
 `default_server` means nginx will not reload, so this is a real conflict and not a detail. Recorded
 in `plan/STATUS.md` as a blocked item on the same trip as the golden transcripts.
 
-**Compensating control:** invariant 7 — startup preflight refuses to run, naming the conflicting
+**Compensating control:** GOALS invariant 7 — startup preflight refuses to run, naming the conflicting
 unit, if evok or `unipitcp` holds the ttys. That covers the case where someone defeats the packaging
 by installing from npm rather than the `.deb`.

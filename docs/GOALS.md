@@ -21,12 +21,15 @@ We inherit the *interface*, not the *design*.
 1. **Every finding in the bug corpus has a disposition.** The 29 findings in
    [research/04](research/04-known-bugs-and-lessons.md) — tiers 1.x through 4.x, with ~90 raw
    findings behind them in the appendix — are tracked in
-   [`plan/bug-dispositions.md`](plan/bug-dispositions.md). Each resolves to exactly one of:
-   *fixed with a regression test* · *fixed by construction* (the design makes it unrepresentable)
-   · *compat-flagged* (fixed, with opt-in bug-compatible behaviour) · *won't fix* (with a reason)
-   · *unverifiable without hardware* (with what is missing).
-2. **The invariants in [`CLAUDE.md`](../CLAUDE.md) hold.** They are binary and mostly
-   CI-enforced. A PR either satisfies them or it does not.
+   [`plan/bug-dispositions.md`](plan/bug-dispositions.md). Each resolves to one of: *fixed with a
+   regression test* · *fixed by construction* (the design makes it unrepresentable) ·
+   *compat-flagged* (fixed, with opt-in bug-compatible behaviour) · *won't fix* (with a reason).
+   A fix may additionally be marked *unverifiable* where hardware we do not have would be needed to
+   prove it, naming the gap.
+2. **The inviolable rules in [`CLAUDE.md`](../CLAUDE.md) hold.** They are binary and mostly
+   CI-enforced. A PR either satisfies them or it does not. (Those are numbered separately from the
+   invariants in this file. Cite them as "`CLAUDE.md` rule N" and "`GOALS.md` invariant N" — never
+   as a bare number.)
 
 No uptime figures, latency SLOs or jitter budgets are committed here. Numbers invented before
 measurement get quietly relaxed; the M6 soak measures real behaviour, and targets may be added
@@ -50,8 +53,14 @@ scheduled.
 - **Web SPA.** Not a port of `evok-web-jq` but a replacement: compact modern status display,
   filtering, sorting and search, control and configuration, and status rendered on PLC layout
   drawings rather than only in tables. This is the `inspector` package in
-  [`CLAUDE.md`](../CLAUDE.md), promoted from debug tool to product. Cheap on the compat side —
-  [research/07](research/07-client-compatibility.md) found `evok-web-jq` touches very little.
+  [`CLAUDE.md`](../CLAUDE.md), promoted from debug tool to product. `evok-web-jq` is a small dependent
+  — research/05 §2.1 found it touches very little, and only requirement 22 in
+  [research/07](research/07-client-compatibility.md) is exclusive to it — but replacing it retires
+  nothing, because invariant 3 keeps the compat surface regardless of who uses it.
+- **Edge support.** A fast follow-up to 1.0, decided in research/05 §8.3. It is listed here as
+  direction, but with one obligation that lands **now**: the overlay hardware-definition format must
+  already accommodate per-channel mode sets, per-model mode enums and unit-0 devices, or the first
+  minor release breaks the format.
 - **Logs and debug tooling over the API**, surfaced in the SPA.
 - **PLC introspection**: processes, resource consumption, network status and configuration.
 - **Plugins** extending the API, and optionally the SPA, with non-Unipi devices reachable from the
@@ -81,14 +90,22 @@ post-1.0.
    its shapes** — compat sees the flat projection of our model, nothing more.
 4. **One instance, one PLC.** As EVOK. Circuit ids stay flat. A SPA may point at several
    instances and aggregate client-side.
-5. **Three kinds of data, three lifecycles.** Conflating them is where EVOK's alias handling
+5. **Four kinds of data, four lifecycles.** Conflating the first two is where EVOK's alias handling
    failed (finding 3.9).
 
    | | Contents | Written by | Where |
    |---|---|---|---|
-   | Config | Operator intent: buses, ports, scan rates, enabled APIs, auth, compat flags | A human, by hand | `/etc/evok-node/config.yaml` — **the daemon never writes it** |
+   | Config | Operator intent: buses, ports, scan rates, enabled APIs, auth, compat flags | A human by hand, or the migration tool at install — **never the daemon** | `/etc/evok-node/config.yaml` |
    | User data | Aliases, groups, ordering, labels, layout drawings, rules, plugin settings | Users, through the API at runtime | `/var/lib/evok-node/` — durable store |
+   | Platform facts | What the hardware *is*: `autogen.yaml`, `hw_definitions/*.yaml`, our overlays, our generated autogen equivalent | The OS image and `unipi-os-configurator`, **or us** — never a human by hand | OS image paths as EVOK reads them, plus our own overlay and cache paths |
    | Readings | Current values, health, counters | The scan loop | Memory only, never persisted |
+
+   Platform facts are descriptions of hardware, not intent. We read EVOK's, in EVOK's format and in
+   place, unaffected by ADR-0003's migration. We also **generate our own** — research/05 §2.5 requires
+   an autogen equivalent so we do not hard-depend on `unipi-os-configurator`, and §2.6 requires
+   extending the definition format by overlay (research/05 §8.5). **Frozen per load, not once per process**:
+   immutable and `readonly` while loaded (`CLAUDE.md` rule 10), and reloaded when hardware change is
+   detected, because continuous discovery is the fix for finding 2.1.
 
 6. **A plugin cannot compromise the core.** It may not starve the scan loop, hold a bus past its
    lease, or take core down with it. A plugin needing bus access gets a leased, time-budgeted
@@ -101,14 +118,19 @@ post-1.0.
 
 What a user installing evok-node is promised:
 
-- `Conflicts: evok`. Both cannot be installed at once — and since they cannot both run anyway,
-  nothing is lost. We declare the shared OS dependencies ourselves so removing evok cannot
-  autoremove them out from under us.
+- `Conflicts: evok`. Both cannot be installed at once. Since they cannot both *run* anyway, the only
+  thing this costs is a fast switch back. We declare the shared OS dependencies ourselves so
+  removing evok cannot autoremove them out from under us.
 - **A one-shot migration** reads `/etc/evok/config.yaml` and `/var/lib/evok/alias.yaml` and writes
-  our own config and store. The daemon has no knowledge of EVOK's config or alias formats; that
-  knowledge lives in the migration tool alone, where it is a pure function and fixture-testable.
+  our own config and store. It is a separate tool, run by the operator or by packaging — never by
+  the daemon, which has no knowledge of EVOK's config or alias formats and writes no config at all.
+  That knowledge lives in the migration tool alone, where it is a pure function and
+  fixture-testable.
 - `/etc/evok` is left pristine. **Rollback is `apt install evok`.**
 - The migration tool warns about anything it cannot represent, at a moment a human is watching.
+- **A greenfield install works without EVOK ever having been present.** Packaging ships a default
+  config; the migration tool is for machines coming *from* EVOK, not a prerequisite. The daemon exits
+  non-zero with an actionable message if config is absent — it does not generate one.
 
 ## Non-goals
 
@@ -117,9 +139,10 @@ Each is a thing a reasonable contributor might otherwise assume we want.
 - **EVOK v2 compatibility.** Upstream declares v2→v3 migration unsupported.
 - **Bug-for-bug fidelity.** We fix by default. Opt-in `compat` flags exist only for shape
   differences a working client could depend on — never to reproduce a `TypeError`.
-- **Axon engineering effort.** Discontinued. Supported because the register maps are there and
-  the model matches Neuron; it gets no dedicated work.
-  ([research/09](research/09-test-hardware-coverage.md))
+- **Axon.** Out of scope, and no support is claimed. Its map CSVs stay in
+  `docs/modbus-reg-map/axon/` as free cross-check data for the Neuron register model — that is all.
+  ([research/09 §5](research/09-test-hardware-coverage.md), superseding the round-1 framing in
+  research/05 §7.1)
 - **Any safety certification or SIL claim.** The trigger engine is process control. "Critical"
   in this document means *the user cares*, never *safety-rated*.
 - **A visual flow editor.** The rule engine is configuration, not a canvas.
@@ -132,6 +155,10 @@ Each is a thing a reasonable contributor might otherwise assume we want.
 ## Open
 
 - Fail-safe semantics for the trigger engine.
-- Authentication mechanism for the admin surface (invariant 2).
+- Authentication mechanism for the admin surface (invariant 2), its default-on or default-off
+  posture, and how it interacts with the nginx front end (research/07 §5).
 - Plugin isolation model — in-process with budgets, or out-of-process.
 - Whether the post-1.0 surfaces are versioned as 2.x or shipped under a separate API path.
+- Write-arbitration semantics once more than one API process can issue commands (ADR-0001).
+- How much of `inspector` ships inside 1.0. The roadmap lands it after M4 as a consumer of the
+  public API; the full SPA above is post-1.0. The line between them is not yet drawn.
