@@ -1,0 +1,33 @@
+{
+  "name": "@evok-node/core",
+  "version": "0.0.0",
+  "description": "Registry, device model, scheduler and aliases. The daemon without any API surface.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "!dist/**/*.test.*"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "tsc -b --clean"
+  },
+  "dependencies": {
+    "@evok-node/protocol": "0.0.0",
+    "@evok-node/modbus": "0.0.0",
+    "@evok-node/hw-definitions": "0.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}

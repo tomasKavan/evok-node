@@ -1,0 +1,32 @@
+{
+  "files": [],
+  "references": [
+    {
+      "path": "packages/protocol"
+    },
+    {
+      "path": "packages/modbus"
+    },
+    {
+      "path": "packages/hw-definitions"
+    },
+    {
+      "path": "packages/core"
+    },
+    {
+      "path": "packages/server"
+    },
+    {
+      "path": "packages/client"
+    },
+    {
+      "path": "packages/simulator"
+    },
+    {
+      "path": "packages/inspector"
+    },
+    {
+      "path": "packages/rig"
+    }
+  ]
+}

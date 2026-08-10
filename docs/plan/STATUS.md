@@ -5,8 +5,9 @@
 ## Where we are
 
 Research is complete and lives in [`docs/research/`](../research/). Goals and non-goals are now
-settled in [`docs/GOALS.md`](../GOALS.md). Project governance (rules, plan structure, ADRs) is being
-set up now. **No implementation code exists yet, and the repository has no commits.**
+settled in [`docs/GOALS.md`](../GOALS.md). The workspace skeleton now builds and tests, with nine
+empty packages behind a strict TypeScript base. **No implementation code exists yet** — every
+package's entrypoint is a placeholder export.
 
 ## Done
 
@@ -21,11 +22,17 @@ set up now. **No implementation code exists yet, and the repository has no commi
   measurable form of it, what 1.0 is, post-1.0 direction, seven invariants, the drop-in guarantee,
   non-goals. Six new ADRs (0001–0006) record the decisions behind it. Scattered goal statements in
   research files carry dated superseded-by notes.
+- **M0 T0.1, T0.2, T0.4 (2026-08-10).** npm workspaces with the nine `@evok-node/*` packages, each
+  with a README naming what it must not depend on; shared strict TS base with the six T0.2 flags,
+  ES2023/NodeNext/Node 24, build order carried by project references; vitest in workspace mode, one
+  project per package, coverage floors wired and switched off. `fixtures/` created,
+  `.prettierignore`d, fixture directories in `CODEOWNERS`.
 
 ## In progress
 
-- **M0 — scaffolding.** Repo layout, npm workspaces, strict TS, eslint + dependency-cruiser,
-  vitest, CI skeleton, ADRs written up from the research decisions.
+- **M0 — scaffolding.** Remaining: **T0.3** eslint + dependency-cruiser (the load-bearing layering
+  guard — nothing yet stops `core` importing `server`), **T0.5** CI workflows, **T0.6** repo hygiene
+  and the licence choice, **T0.7** ADRs for the twelve settled decisions, **T0.8** `npm run verify`.
 
 ## Next
 
@@ -67,3 +74,24 @@ set up now. **No implementation code exists yet, and the repository has no commi
 4. Deferred by design, listed so they are not mistaken for oversights: trigger-engine fail-safe
    semantics, the admin-surface authentication mechanism, and the plugin isolation model. See
    [`GOALS.md`](../GOALS.md) §Open.
+5. **Two workspace dependency edges are deliberately undeclared** (T0.1), because declaring one
+   wrongly is what `dependency-cruiser` then enforces:
+   - `simulator → modbus`. May the simulator reuse our framer, or must it have its own? `CLAUDE.md`
+     rule 2 forbids exactly this sharing for `rig` — "the instrument must not share code with what it
+     measures" — and the simulator is the instrument for every transport test we can run without
+     hardware. Decide before M1.
+   - `inspector → client`. T0.3 says `client` and `inspector` depend only on `protocol`, but the
+     obvious implementation of `inspector` is a consumer of our own client. Either the rule means
+     "no `core`, no `server`" and `client` is allowed, or `inspector` re-implements the calls.
+     Decide before `inspector` starts, after M4.
+6. **`typescript` is pinned to `~6.0.3`, not the current `latest` (7.0.2).** `typescript-eslint`
+   declares `typescript >=4.8.4 <6.1.0`, so T0.3's type-checked lint config — the load-bearing
+   layering and no-`any` guard — cannot run on TS 7. The pin is a `~` range on purpose: `^6.0.3`
+   would silently allow 6.1 and break lint. Revisit when `typescript-eslint` supports the native
+   compiler.
+7. **[`rules/code.md`](../rules/code.md) §Types overstates one flag** and should be corrected by one
+   line. It says a `switch` with no `default` plus `noFallthroughCasesInSwitch` makes a missed case a
+   compile error. It does not: `noFallthroughCasesInSwitch` reports fallthrough (TS7029). What
+   catches a *missing* case is a declared return type with no `default` under `noImplicitReturns`
+   (TS2366), or an exhaustiveness assignment to `never`. Both are demonstrated in T0.2's verification
+   and `noImplicitReturns` is in the shared base because of it.

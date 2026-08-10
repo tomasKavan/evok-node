@@ -1,0 +1,12 @@
+# Generated and captured fixtures are read-only measurements, not code.
+# A format pass that rewrites them destroys the evidence a failing test is pointing at.
+# CLAUDE.md rule 14, docs/rules/testing.md.
+fixtures/generated/
+fixtures/captured/
+
+# Official Unipi register maps: ground truth, imported verbatim.
+docs/modbus-reg-map/
+
+node_modules/
+dist/
+coverage/
