@@ -6,3 +6,9 @@
  * first real export.
  */
 export const packageName: string = '@evok-node/core';
+
+// SCRATCH: T0.3 verification, reverted in the next commit.
+export function scratchAny(input: unknown): string {
+  const loose: any = input;
+  return String(loose);
+}
