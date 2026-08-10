@@ -13,11 +13,18 @@ there will not be a usage section here until there is something behind it. See
 
 ```bash
 npm install
-npm run build   # tsc -b across all packages, in reference order
-npm test        # vitest, tier 0 only
+npm run build     # tsc -b across all packages, in reference order
+npm run lint      # eslint, type-checked config
+npm run layering  # dependency-cruiser: the package DAG. Needs a build first
+npm test          # vitest, tier 0 only
 ```
 
-Requires Node 24. `npm run coverage` reports per-package coverage; the per-module floors from the
+These are the same checks the `pr` workflow runs, one job each; M0 T0.8 collapses them into a single
+`npm run verify` so that local green means CI green. `npm run layering` needs `dist/` to exist,
+because workspace imports resolve through `node_modules`.
+
+Requires Node 24 — declared once, in the root `package.json` `engines.node`, which is also where CI
+reads it from. `npm run coverage` reports per-package coverage; the per-module floors from the
 [testing rules](docs/rules/testing.md) are wired in `vitest.config.ts` behind a single switch and are
 off until there is something to cover.
 
