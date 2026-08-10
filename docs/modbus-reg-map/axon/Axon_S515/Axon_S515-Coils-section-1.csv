@@ -1,0 +1,21 @@
+Via Unit 0,Via Unit 1,R/W,Content,Category
+0,0,RW,User Programmable LED 1.1,Basic
+1,1,RW,User Programmable LED 1.2,Basic
+2,2,RW,User Programmable LED 1.3,Basic
+3,3,RW,User Programmable LED 1.4,Basic
+4,4,RW,User Programmable LED 1.5,Basic
+5,5,RW,User Programmable LED 1.6,Basic
+6,6,RW,User Programmable LED 1.7,Basic
+7,7,RW,User Programmable LED 1.8,Basic
+8,8,RW,User Programmable LED 1.9,Basic
+9,9,RW,User Programmable LED 1.10,Basic
+10,10,RW,User Programmable LED 1.11,Basic
+11,11,RW,User Programmable LED 1.12,Basic
+12,12,RW,User Programmable LED 1.13,Basic
+13,13,RW,User Programmable LED 1.14,Basic
+1000,1000,RW,MWD reset indication,Advanced
+1002,1002,RW,Reset section MCU,Advanced
+1003,1003,RW,Save current configuration and use on startup,Advanced
+1004,1004,RW,(Internal) Firmware programming toggle,Expert
+1005,1005,RW,(Internal) Firmware reprogramming toggle,Expert
+1006,1006,RW,(Internal) Firmware calibration programming toggle,Expert
