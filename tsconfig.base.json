@@ -1,0 +1,40 @@
+{
+  // Shared strict base. Every package extends this and overrides nothing here.
+  // M0/T0.2 — docs/plan/milestones/M0-scaffolding.md, docs/rules/code.md.
+  "compilerOptions": {
+    "target": "ES2023",
+    "lib": ["ES2023"],
+    "module": "NodeNext",
+    "moduleResolution": "NodeNext",
+    "moduleDetection": "force",
+    "types": ["node"],
+
+    // The flags T0.2 names. Each one closes a failure mode from the upstream bug
+    // corpus; see docs/rules/code.md for which.
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "isolatedDeclarations": true,
+
+    // `noImplicitReturns` is what actually turns a missing `switch` case into a
+    // compile error, given a declared return type and no `default`.
+    // `noFallthroughCasesInSwitch` only catches fallthrough.
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "verbatimModuleSyntax": true,
+    "isolatedModules": true,
+
+    // Project references carry the build order, so composite output is mandatory.
+    "composite": true,
+    "declaration": true,
+    "declarationMap": true,
+    "sourceMap": true,
+    "noEmitOnError": true,
+
+    "skipLibCheck": true,
+    "forceConsistentCasingInFileNames": true
+  }
+}
