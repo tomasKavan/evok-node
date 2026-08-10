@@ -6,3 +6,8 @@
  * first real export.
  */
 export const packageName: string = '@evok-node/core';
+
+// SCRATCH: T0.3 verification, reverted in the next commit.
+export function scratchFloating(): void {
+  Promise.resolve('unawaited').then((v) => v.length);
+}
