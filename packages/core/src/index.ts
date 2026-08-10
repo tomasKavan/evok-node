@@ -6,7 +6,3 @@
  * first real export.
  */
 export const packageName: string = '@evok-node/core';
-
-// SCRATCH: T0.3 verification, reverted in the next commit.
-import { packageName as serverName } from '@evok-node/server';
-export const scratchUsesServer: string = serverName;
