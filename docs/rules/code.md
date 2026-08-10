@@ -40,8 +40,9 @@ no unchecked path to a branded value.
 
 **Discriminated unions over booleans and optional fields.** A device is
 `{kind:'di', …} | {kind:'ao', …}`, not one interface with everything optional. Then a `switch`
-with no `default` plus `noFallthroughCasesInSwitch` makes a missed case a compile error — which
-is exactly the class of bug that left EVOK's `ds_mode` permanently stuck.
+with no `default`, in a function with a declared return type, makes a missed case a compile error
+under `noImplicitReturns` — `noFallthroughCasesInSwitch` catches fallthrough, not a missing case —
+which is exactly the class of bug that left EVOK's `ds_mode` permanently stuck.
 
 **Decode is a total function.** `decode(registers) => State`, every branch returning a value.
 Never mutate state in place with implicit fall-through.
