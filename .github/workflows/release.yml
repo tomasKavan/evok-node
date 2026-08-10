@@ -1,0 +1,23 @@
+# Skeleton. Build, publish to npm, GitHub release from changesets.
+# docs/rules/git.md §CI workflows and triggers. changesets lands in M0 T0.6 and
+# there is nothing publishable before then.
+#
+# No `workflow_dispatch` on purpose: a manually dispatchable release is a footgun
+# once this job really publishes. The manual path is the `prerelease` workflow, which
+# M0 T0.5 does not create — see the PR body.
+name: release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  publish:
+    name: publish
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "::warning title=Skeleton::release is not implemented — changesets lands in M0 T0.6"

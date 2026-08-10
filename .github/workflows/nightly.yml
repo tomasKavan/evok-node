@@ -1,0 +1,21 @@
+# Skeleton. Soak tests, mutation testing on codecs and addressing, dependency audit.
+# docs/rules/git.md §CI workflows and triggers. Nothing to soak or mutate until M1.
+name: nightly
+
+on:
+  schedule:
+    # 03:17 UTC. Off the hour deliberately — the top of the hour is when every
+    # scheduled job on GitHub's shared runners queues at once.
+    - cron: '17 3 * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  soak:
+    name: soak and mutation
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "::warning title=Skeleton::nightly is not implemented — no codecs or addressing to mutate yet"

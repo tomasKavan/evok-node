@@ -1,0 +1,28 @@
+# Skeleton. Tier 1 on the rig, preceded by `rig loopback verify` so that a hardware
+# failure says immediately whether the rig or the code is wrong.
+# Blocked on the rig: the second Patron M527 test host is approved but not ordered
+# (docs/plan/STATUS.md §Blocked).
+name: hardware
+
+on:
+  workflow_dispatch:
+  workflow_call:
+  pull_request:
+    types: [labeled, synchronize]
+
+permissions:
+  contents: read
+
+jobs:
+  rig-tier-1:
+    name: rig tier 1
+    if: >
+      github.event_name != 'pull_request' ||
+      contains(github.event.pull_request.labels.*.name, 'hardware-required')
+    # Deliberately not `runs-on: [self-hosted, evok-rig]` yet: a self-hosted label
+    # with no runner behind it queues a workflow forever instead of failing, and a
+    # check that hangs is worse than one that is honest about being empty.
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          echo "::warning title=Skeleton::hardware tier 1 is not implemented — needs the rig"

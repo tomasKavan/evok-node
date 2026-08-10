@@ -1,0 +1,98 @@
+# The tier-0 gate. Defined once here and reused by `main` via `workflow_call`, so
+# that "local green means CI green" has exactly one definition to match (M0 T0.8).
+#
+# Contents come from docs/rules/git.md §CI workflows and triggers. Four of those
+# checks have nothing behind them yet and are registered as placeholders — see the
+# comment on each. They exist now so branch protection is configured once.
+name: pr
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+  workflow_call:
+
+permissions:
+  contents: read
+
+concurrency:
+  # Superseded pushes to a PR are cancelled; pushes to `main` are not.
+  group: pr-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
+jobs:
+  format:
+    name: format
+    runs-on: ubuntu-latest
+    steps:
+      # Placeholder: prettier is not a dependency yet — it lands in M0 T0.6, which
+      # replaces this step with `npx prettier --check .`.
+      - run: |
+          echo "::warning title=Vacuous check::format checks nothing until M0 T0.6 installs prettier"
+
+  lint:
+    name: lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: ./.github/actions/setup
+      - run: npm run lint
+
+  typecheck:
+    name: typecheck
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: ./.github/actions/setup
+      # `tsc -b` is the typecheck and the build in one: project references require
+      # `composite`, and a composite project cannot be typechecked with `--noEmit`.
+      - run: npm run build
+
+  layering:
+    name: layering
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: ./.github/actions/setup
+      # dependency-cruiser resolves workspace imports through node_modules, so the
+      # symlinked packages must have been built at least once.
+      - run: npm run build
+      - run: npm run layering
+
+  test:
+    name: test
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: ./.github/actions/setup
+      - run: npm test
+
+  coverage:
+    name: coverage
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: ./.github/actions/setup
+      # Runs for real; enforces nothing. The per-module floors are wired in
+      # vitest.config.ts behind one switch and are off until there is something to
+      # cover (M0 T0.4).
+      - run: |
+          echo "::warning title=Floors off::coverage floors are wired but disabled — vitest.config.ts"
+      - run: npm run coverage
+
+  fixture-drift:
+    name: fixture-drift
+    runs-on: ubuntu-latest
+    steps:
+      # Placeholder: the generator that produces fixtures/generated/ lands in M1.
+      # Then this job regenerates and fails on any diff (docs/rules/git.md).
+      - run: |
+          echo "::warning title=Vacuous check::fixture-drift checks nothing until M1 lands the generator"
+
+  changeset:
+    name: changeset
+    runs-on: ubuntu-latest
+    steps:
+      # Placeholder: changesets is not a dependency yet — it lands in M0 T0.6, which
+      # replaces this step with the changeset-present check (exempting chore/docs).
+      - run: |
+          echo "::warning title=Vacuous check::changeset presence is not enforced until M0 T0.6"

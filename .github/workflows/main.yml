@@ -1,0 +1,44 @@
+# Everything in `pr`, plus the hardware tier and a from-scratch build of all
+# packages. docs/rules/git.md §CI workflows and triggers.
+name: main
+
+on:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: main
+  cancel-in-progress: false
+
+jobs:
+  checks:
+    # The identical tier-0 gate, not a copy of it.
+    uses: ./.github/workflows/pr.yml
+
+  build:
+    name: build all packages
+    needs: checks
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
+      - uses: ./.github/actions/setup
+      - run: npm run build
+      # T0.1's contract: every package emits declarations. Asserted rather than
+      # assumed, because `tsc -b` is silent about a package it decided to skip.
+      - name: Every package emitted declarations
+        run: |
+          missing=0
+          for dir in packages/*/; do
+            if [ ! -f "${dir}dist/index.d.ts" ]; then
+              echo "::error title=No declarations::${dir}dist/index.d.ts was not emitted"
+              missing=1
+            fi
+          done
+          exit "$missing"
+
+  hardware:
+    needs: checks
+    uses: ./.github/workflows/hardware.yml
