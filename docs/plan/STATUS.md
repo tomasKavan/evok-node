@@ -42,17 +42,22 @@ package's entrypoint is a placeholder export.
 
 ## Blocked / waiting on hardware
 
+**The capture trip is scheduled for the week of 2026-08-10, and all three Patrons are confirmed
+still stock.** The first five rows below are one session; the runbook is
+[`capture-trip.md`](capture-trip.md).
+
 | Item | Waiting on |
 |---|---|
-| Golden transcript capture | **Human task, time-sensitive.** Must be recorded from stock EVOK 3.0.6 on L527/M527/S167 *before* anything replaces EVOK on those units. Unrecoverable afterwards. |
-| Stock `hw_definitions` + `autogen.yaml` + firmware versions | Same trip as the transcript capture. |
-| Stock `config.yaml` + `/var/lib/evok/alias.yaml` | Same trip. These are the migration tool's golden fixtures (ADR-0003). |
-| evok packaging metadata — `apt-cache show evok`, `dpkg -L evok`, systemd unit names, its nginx site file | Same trip. Decides the `Conflicts:`/`Depends:` list in ADR-0002 and how the `:80` site conflict is handled. **Do not `apt purge evok` before migrating** — purge destroys the fixtures above. |
-| `start_index` old-behaviour baseline | **Same trip, and easy to forget.** Finding 1.1's `test` disposition needs a transcript of stock EVOK mis-registering a deliberately split RO definition (two blocks of 7 with `start_index`) on the L527's section 3. After `Conflicts: evok` this requires reinstalling EVOK on a unit; capture it while it is already there. |
-| Second Patron M527 as rig test host | Purchase, not a trip. Named in research/10 but missing from the roadmap's purchase track until now. Blocks all tier-1 hardware tests. |
-| Tier-1 hardware tests | Rig not built. Needs a second Patron M527 as test host, wiring, `rig` service. |
-| RS485 baud-encoding, DirectSwitch write path, unit-0 aggregate reads | Verification on hardware. See [research/05](../research/05-evok-node-design-notes.md) §7.4. |
-| Neuron and Unipi 1.1 support | Hardware not yet purchased. Map-driven and simulator-verified until then. |
+| Golden transcript capture | **Human task, time-sensitive.** Must be recorded from stock EVOK 3.0.6 on L527/M527/S167 — **and the Gate, if it still runs stock EVOK**, since research/09 §2 makes the zero-local-I/O payload a named requirement — *before* anything replaces EVOK on those units. Unrecoverable afterwards. Runbook phases 1, 3, 4. |
+| Stock `hw_definitions` + `autogen.yaml` + firmware versions | Same trip as the transcript capture. Runbook phase 1. |
+| Stock `config.yaml` + `/var/lib/evok/alias.yaml` | Same trip. These are the migration tool's golden fixtures (ADR-0003). Runbook phase 1. |
+| evok packaging metadata — `apt-cache show evok`, `dpkg -L evok`, systemd unit names, its nginx site file | Same trip. Decides the `Conflicts:`/`Depends:` list in ADR-0002 and how the `:80` site conflict is handled. **Do not `apt purge evok` before migrating** — purge destroys the fixtures above. Runbook phase 1. |
+| `start_index` old-behaviour baseline | **Same trip, and easy to forget.** Finding 1.1's `test` disposition needs a transcript of stock EVOK mis-registering a deliberately split RO definition (two blocks of 7 with `start_index`) on the L527's section 3. After `Conflicts: evok` this requires reinstalling EVOK on a unit; capture it while it is already there. Runbook phase 5. |
+| Second Patron M527 as rig test host | **Purchase approved 2026-08-10, not yet ordered.** Blocks all tier-1 hardware tests. **Image it with Debian 12** — see open question 2. |
+| xS51 extension | **Purchase approved 2026-08-10, not yet ordered.** AI/AO over RTU (float32 AI, raw-count AO, 6-mode enum on an extension) is otherwise only reachable via the local TCP path. |
+| Tier-1 hardware tests | Rig not built. Needs the second Patron M527 as test host, wiring, `rig` service. |
+| RS485 baud-encoding, DirectSwitch write path, unit-0 aggregate reads, register 1007 semantics | Verification on hardware. See [research/05](../research/05-evok-node-design-notes.md) §7.4. Partly answerable on the capture trip — runbook phase 6. |
+| Neuron and Unipi 1.1 support | Hardware not yet purchased. Map-driven and simulator-verified until then. When a Neuron is bought, buy an **L203**. |
 
 ## Known permanent gaps
 
@@ -66,8 +71,16 @@ package's entrypoint is a placeholder export.
 
 ## Open questions
 
-1. Which extension models are actually on hand (an xS51 is the top purchase).
-2. Which Debian generation each Patron runs — ideally one on 12 and one on 13.
+1. ~~Which extension models are actually on hand~~ **Answered 2026-08-10: xS11 and xG18.** The
+   xS11 was only inferred from the 16 ms RS-485 measurement in research/09; it is now confirmed.
+   The xG18 is a bonus — 1-Wire over RTU is coverable today, not a priority-5 purchase. No xS51,
+   so AI/AO over RTU stays unverifiable until the approved order arrives.
+2. ~~Which Debian generation each Patron runs~~ **Answered 2026-08-10: all three on Debian 13.**
+   The Debian 12 identity path (sysfs `by-sys/iogroup[1-3]/sys_board_{name,serial}` + `autogen.yaml`
+   `device_info`, no `unipiid`) therefore has no test host. **Decision: image the incoming M527 #2
+   as Debian 12** — it arrives blank, so this costs nothing and destroys no fixtures. Reflashing an
+   existing Patron would wipe stock EVOK and was rejected for that reason. research/10's `rig.yaml`
+   example assumes `m527: os: debian12`, which now describes the *second* M527.
 3. `node:sqlite` stability on the Node 24 minor we pin — it is available without a flag but is a
    release candidate, not fully stable. Fallback is `better-sqlite3`, which needs armhf/arm64
    prebuilds. See ADR-0005.

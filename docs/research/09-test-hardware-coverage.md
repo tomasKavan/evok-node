@@ -4,6 +4,15 @@ Available now: **Patron M527, Patron S167-LTE, Patron L527, Gate** (+ at least o
 extension, inferred from the 16 ms RS-485 measurement — confirm). Neuron and Unipi 1.1 to be
 bought approaching 1.0; Edge when the fast-follow starts.
 
+> **Correction, 2026-08-10.** The xS11 is **confirmed** on hand, and an **xG18 is also on hand** —
+> so 1-Wire over RTU (§5 priority 5) is coverable now and is not a purchase. **No xS51**; it is
+> approved but not yet ordered, and until it arrives AI/AO over RTU remains reachable only through
+> the local TCP path. Also confirmed: **all three Patrons and the Gate run Debian 13**, so §5's "run one
+> Patron on each generation" is met instead by imaging the incoming second M527 as Debian 12 rather
+> than reflashing a unit — reflashing would destroy the stock-EVOK fixtures. See
+> [`docs/plan/STATUS.md`](../plan/STATUS.md) open questions 1–2 and
+> [`docs/plan/capture-trip.md`](../plan/capture-trip.md).
+
 This document maps what that hardware does and does not exercise, derived from
 `derived/model-io-census.csv`.
 
