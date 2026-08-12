@@ -1,7 +1,7 @@
 # `@evok-node/main`
 
 Parses config, validates it, spawns and supervises drivers and APIs, handles reload. **On no request
-path, ever** (ADR-0011).
+path, ever** (ADR-0001).
 
 What it validates is resource exclusivity, because nothing else sees enough config to: two drivers on one
 transport endpoint, two APIs on one listen port, an api's `drivers:` list naming a driver that does not

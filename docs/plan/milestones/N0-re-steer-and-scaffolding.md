@@ -1,10 +1,10 @@
 # N0 — Re-steer & scaffolding
 
-*Was M0. Renamed and partly rewritten 2026-08-12 for ADR-0008 — the shape the scaffolding targets
+*Was M0. Renamed and partly rewritten 2026-08-12 for ADR-0001 — the shape the scaffolding targets
 changed, so T0.1 and T0.3 had to change with it. T0.2 and T0.4–T0.8 are untouched in substance.*
 
 **Goal:** a repository an agent can work in without being able to break the invariants by
-accident, in the shape ADR-0008 settled.
+accident, in the shape ADR-0001 settled.
 
 **Exit criteria:** `npm run verify` passes from a clean clone; CI runs tier 0 on every PR; a
 deliberate layering violation and a deliberate `any` both fail the build; ADRs exist for every
@@ -49,11 +49,11 @@ config module, barrel files outside package entrypoints.
 `node_modules` will happily resolve an undeclared import, so nothing else prevents a driver from
 importing an api, or `main` from importing either. Rules are generated from one table: the layering
 DAG in `.dependency-cruiser.cjs`, mirrored in `CLAUDE.md` §Layout; no cycles; `rig` imports nothing of
-ours (RC-11); `simulator` excludes `modbus` (ADR-0007).
+ours (RC-11); `simulator` excludes `modbus` (ADR-0011).
 
 **Rewritten 2026-08-12** for RC-10's new form. It is now a *partition* — no driver imports an api and
 no api imports a driver — rather than the old one-directional `core`↛`server` rule, and `main`'s
-absence of any static edge to a concrete driver or api is what makes ADR-0011 enforceable rather than
+absence of any static edge to a concrete driver or api is what makes ADR-0001 enforceable rather than
 aspirational.
 
 **Done when:** each of these fails CI in a scratch commit that is then reverted — an import from
@@ -100,23 +100,19 @@ offers the templates.
 
 One ADR per decision already made, dated and referencing the research section that justifies it. The
 list is the "Awaiting write-up" table in [`../../adr/README.md`](../../adr/README.md), which is
-authoritative: twelve decisions, from EVOK 3.x-only scope through the licence choice.
-
-**Numbers are allocated on write, not reserved** — each of those takes the next free number as it is
-written, continuing from **0013**. ADRs 0001–0006 already exist (goals consolidation, 2026-08-10),
-0007 is the simulator's framer (written with T0.3), and 0008–0012 are the re-steer (2026-08-12).
-None are part of this task.
-
-**Two of the twelve need rereading against ADR-0008 before they are written up**, rather than
-transcribed: "library first, service second" (research/05 §7.2) now means a driver or an api package
-rather than `core`, and "nginx remains the `:80` front end" (research/07 §5) meets the decision that
-`api-nextgen` serves `ui` at `/` itself.
+authoritative.
 
 **Done when:** `docs/adr/` contains one file per decision, each with Context / Decision /
 Consequences and a link to the research section. These exist so an agent does not re-derive them
-from first principles and quietly choose differently. ✅ *2026-08-12 — ADRs 0013–0023. Eleven of the
-twelve; the licence choice is T0.6's, since MIT vs Apache-2.0 is not decided and an ADR cannot record
-a decision nobody has taken.*
+from first principles and quietly choose differently.
+
+✅ *2026-08-12 — eleven of the twelve written; the licence choice is T0.6's, since MIT vs Apache-2.0
+is not decided and an ADR cannot record a decision nobody has taken. The set then reached 23 files and
+was **consolidated to thirteen** in the same milestone: seven of them described one architecture and
+four described one surface, several still named the dissolved `core` and `protocol` packages, and the
+old ADR-0006's deferred mechanism had already been replaced by the projection table. Numbering was
+restarted, since nothing had shipped. The old→new redirect table is in
+[`../../adr/README.md`](../../adr/README.md) and is deleted at the `0.x-alpha` smoothing pass (RD-5).*
 
 ---
 

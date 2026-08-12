@@ -3,7 +3,7 @@
 **Updated:** 2026-08-12 · **Closed:** 0 of 29
 
 > **Milestones remapped 2026-08-12** for the N0–N10 restructure in
-> [`roadmap.md`](roadmap.md) (ADR-0008). Mechanical for 26 rows — `M2`→`N3`, `M3`→`N4`, `M4`→`N9`,
+> [`roadmap.md`](roadmap.md) (ADR-0001). Mechanical for 26 rows — `M2`→`N3`, `M3`→`N4`, `M4`→`N9`,
 > `M5`/`M6`→`N10`. Three rows moved on their merits: **2.1** to N5, **2.7** to N2, and three
 > WebSocket/write-path rows (2.3, 3.2, 3.7) now read `N6, N9` because the mechanism is built in the
 > nextgen surface and the compat projection inherits it. No finding's content changed.
@@ -41,7 +41,7 @@ was misnamed: #192 says *"If a device is defined in the configuration, a communi
 performed at startup. If this test fails, the device is not registered"*, and
 `ModbusSlave.readboards()` catches `ConnectionException`, logs "No board detected" and returns with no
 retry. Registration was always declarative from config — the bug is that it was *gated on a one-shot
-reachability probe*. Under ADR-0008 the endpoint list is a `readonly` structure derived from frozen
+reachability probe*. Under ADR-0001 the endpoint list is a `readonly` structure derived from frozen
 config (RC-4) and reachability is a separate field, so "unreachable ⇒ unregistered" has no code path
 to occur in. Whether that clears the bar is rule 2's call, made by the reviewer at N5, not asserted
 here. Genuine discovery survives only on buses that have it, as a declared driver capability.
@@ -153,7 +153,7 @@ Notes on the ones that are not straightforward:
 - **4.5** splits: rejecting `scan_frequency: 0` is a load-time validation closeable at N4; the idle
   CPU comparison against stock EVOK needs the N10 soak and the baseline measurements from the capture
   trip.
-- **4.7** closes via ADR-0002's packaging decision and the Debian 12 + 13 install tests, not by
+- **4.7** closes via ADR-0006's packaging decision and the Debian 12 + 13 install tests, not by
   fixing detection logic.
 - **4.8** closes with declarative interlocks in the device layer — which are also the foundation the
   post-1.0 trigger engine builds on.

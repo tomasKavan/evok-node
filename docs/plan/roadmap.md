@@ -7,14 +7,14 @@ N0–N10 is the entire scope of 1.0 as defined in [`../GOALS.md`](../GOALS.md): 
 complete, every bug disposition closed, nothing else. Post-1.0 direction is at the bottom of this
 file and is **not** milestoned.
 
-**Restructured 2026-08-12** from the seven milestones M0–M6, per ADR-0008. Same scope and same
+**Restructured 2026-08-12** from the seven milestones M0–M6, per ADR-0001. Same scope and same
 definition of 1.0 — a different build order, with more and smaller milestones (RP-5). The old
 identifiers survive in the `Was` column because `bug-dispositions.md` and the research notes cite
 them. Rationale: [research/12](../research/12-modularisation.md).
 
 | | Milestone | Was | Goal | Exit criteria |
 |---|---|---|---|---|
-| **N0** | Re-steer & scaffolding | M0 | A repo an agent can work in safely, in the shape ADR-0008 settled | thirteen workspaces build; strict TS, eslint, dependency-cruiser and vitest green; CI runs tier 0 on PR; ADRs 0008–0012 written |
+| **N0** | Re-steer & scaffolding | M0 | A repo an agent can work in safely, in the shape ADR-0001 settled | thirteen workspaces build; strict TS, eslint, dependency-cruiser and vitest green; CI runs tier 0 on PR; the ADR set written and consolidated to thirteen |
 | **N1** | Fixtures & simulator | M1 | The permanent substitute for unbuyable hardware | address tables generated for all 83 model×sections; simulator serves any model; codec golden tables pass; fixture-drift check enforced in CI |
 | **N2** | Messaging & main | — | A daemon that spawns, supervises and reloads, with nothing to drive yet | envelope schemas round-trip (ADR-0001); config parse with resource-exclusivity validation; boot-fatal / reload-non-fatal asymmetry tested (RC-32); spawn, supervise and reload verified against a **stub driver** |
 | **N3** | Transport | M2 | Modbus that cannot silently return the wrong data | all eight wrapper guarantees implemented and tested; stale-frame-desync and TID-boundary tests pass; fault-injection matrix green |
@@ -23,7 +23,7 @@ them. Rationale: [research/12](../research/12-modularisation.md).
 | **N6** | Nextgen API | — | A public surface that new drivers extend without touching it | WS then HTTP; hardens N5's draft and adds no driver-specific shape (RC-30); reserved route prefixes chosen once, since `ui` is served at `/`; backpressure and keepalive correct here first |
 | **N7** | Extensions driver | — | The second driver, which is what proves the first one's abstraction | `driver-extension` over RTU + nextgen support; **`driver-kit`'s boundary revisited** now a second implementation exists; per-driver quarantine and t3.5 pacing on real wire |
 | **N8** | 1-Wire driver | — | The non-Modbus driver, and the one with real discovery | `driver-onewire` over owserver; discovery interval and topology-change capability; device-level and reading-level addressing both served |
-| **N9** | Compat surface | M4 | Byte-compatible with real clients | golden transcripts replay clean; all 22 requirements in research/07 covered; projection table derived from introspection (ADR-0010) and injective; at most one onboard driver, zero being the Gate; Node-RED and HA acceptance pass through nginx |
+| **N9** | Compat surface | M4 | Byte-compatible with real clients | golden transcripts replay clean; all 22 requirements in research/07 covered; projection table derived from introspection (ADR-0003) and injective; at most one onboard driver, zero being the Gate; Node-RED and HA acceptance pass through nginx |
 | **N10** | Operability, hardening & release | M5 + M6 | Trustworthy on real hardware over time | `doctor`, `/diagnostics`, `/metrics`, structured logs, supervised buses; soak clean; hardware checklist closed; Debian 12 + 13 install tested; **`bug-dispositions.md` fully closed**; migration + rollback tested; docs smoothing pass; `0.1.0-beta` |
 
 ### Parallel human tracks
@@ -31,7 +31,7 @@ them. Rationale: [research/12](../research/12-modularisation.md).
 | Track | When | Blocks |
 |---|---|---|
 | **Golden transcript capture** | **now, before touching the Patrons** | N1 golden tests, N9 entirely |
-| **evok packaging metadata capture** | same trip | the `Conflicts:`/dependency list in ADR-0002, migration fixtures in ADR-0003, nginx site handling |
+| **evok packaging metadata capture** | same trip | the `Conflicts:`/dependency list in ADR-0006, migration fixtures in ADR-0006, nginx site handling |
 | Rig build — wiring, test-host Patron prep | during N0–N3 | N3 hardware verification, all tier-1 tests |
 | Hardware purchases (**second Patron M527 as rig test host**, xS51, Neuron L203, Unipi 1.1) | M527 before N3; the rest before N10 | the M527 blocks the rig and therefore every tier-1 test; the others block Neuron and Unipi 1.1 verification |
 
@@ -62,7 +62,7 @@ happens to expose first.
 close semantics, write-returns-post-write-value — are surface-agnostic mechanisms that get built
 correctly in N6, leaving the compat versions as projections of already-correct machinery. What
 protects the model from being shaped by EVOK is architectural (G-3, RC-24), not the ordering; the
-ordering is the second line. ADR-0008.
+ordering is the second line. ADR-0001.
 
 **Edge is a fast follow after 1.0**, but the overlay definition format in N4 must already
 accommodate it — per-channel mode sets, **per-model mode enums** and unit-0 devices — or the first
@@ -86,8 +86,8 @@ They are here so the sequencing above can be read against where the project is g
 |---|---|---|
 | Web SPA | full replacement for `evok-web-jq`: compact status, filter/sort/search, control, configuration, status on PLC layout drawings | the `ui` package boundary; the shape of user data (groups, ordering, labels, layouts) in G-5 |
 | Logs & debug | log access over the API, debug tooling in the SPA | structured logging in N10 must be queryable, not just writable; logs are a driver endpoint whose shape is a stream, not a reading |
-| System introspection | processes, resource consumption, network status and configuration | G-2 — a privileged surface cannot share the compat surface's trust level. Arrives as `driver-system`, a driver whose transport is the filesystem and process-exec (ADR-0008) |
-| Plugins | non-Unipi devices reachable from the PLC: DALI, M-Bus | G-6 — a leased, time-budgeted bus transaction through the owning driver, never a second Modbus client. ADR-0008's manifest loading and RC-30 are what make a plugin driver possible without an API release |
+| System introspection | processes, resource consumption, network status and configuration | G-2 — a privileged surface cannot share the compat surface's trust level. Arrives as `driver-system`, a driver whose transport is the filesystem and process-exec (ADR-0001) |
+| Plugins | non-Unipi devices reachable from the PLC: DALI, M-Bus | G-6 — a leased, time-budgeted bus transaction through the owning driver, never a second Modbus client. ADR-0001's manifest loading and RC-30 are what make a plugin driver possible without an API release |
 | Trigger engine | lightweight rule machine, no visual editor, for pump control and lighting timers | declarative interlocks (research/05 §6.4) are its foundation and land in the device layer |
 | Edge support | fast follow-up to 1.0, per research/05 §8.3 | the overlay definition format must accommodate per-channel mode sets, per-model mode enums and unit-0 devices **in N4**, or the first minor release breaks it |
 

@@ -45,7 +45,7 @@ That is the scope of N0–N10 in [`plan/roadmap.md`](plan/roadmap.md), which exi
 survived beta on real hardware; it adds no new capability. Everything in the next section ships
 after it.
 
-**The path changed, the definition did not (2026-08-12).** ADR-0008 re-steered the build order: the
+**The path changed, the definition did not (2026-08-12).** ADR-0001 re-steered the build order: the
 core is built first and the compat surface arrives as the last consumer rather than the first thing
 implemented. The reason compat cannot set the project's constraints is architectural — it emits a
 derived projection (G-3, RC-24) — and ordering is the secondary safeguard. Only 7 of the 29 findings
@@ -90,20 +90,20 @@ post-1.0.
    split a rewrite. Supersedes the "purely additive later" framing in
    [research/05](research/05-evok-node-design-notes.md) §5 and §7.3.
 
-   **Amended 2026-08-12** (ADR-0008): the boundary is *N drivers ↔ M APIs*, not one core ↔ one API
+   **Amended 2026-08-12** (ADR-0001): the boundary is *N drivers ↔ M APIs*, not one core ↔ one API
    layer. ADR-0001's substance stands; what changed is the number of participants, that drivers hold
    the only copy of state while APIs are stateless translators, and that `main` sits on no request
-   path at all (ADR-0011). Rationale: [research/12](research/12-modularisation.md).
+   path at all (ADR-0001). Rationale: [research/12](research/12-modularisation.md).
 2. **G-2 — Administration and introspection never ride on the classic surface.** Compat mode and
    new-API-with-admin are a configuration choice. The compat surface is unauthenticated by
    inheritance; a privileged config-and-control surface cannot share that trust level. Mechanism —
    ports, paths, authentication — is deferred to its own ADR.
 
-   **Note, 2026-08-12.** Under ADR-0008 this became structural rather than a policy: `api-compat` can
+   **Note, 2026-08-12.** Under ADR-0001 this became structural rather than a policy: `api-compat` can
    only emit what its projection table describes, and that table has no entry for a `system` driver.
    Admin cannot reach the compat surface even if an administrator lists it in `drivers:`. Explicitly
    *not* implemented as a trust label on the driver — what a surface exposes is the surface's own
-   business (RC-24, ADR-0008).
+   business (RC-24, ADR-0001).
 3. **G-3 — The compat surface is permanent, first-class, and never deprecated.** It is the reason the
    project exists. No feature may break it, and **no internal metadata leaks into its shapes** —
    compat sees the flat projection of our model, never our groups, ordering, labels or any other
@@ -124,7 +124,7 @@ post-1.0.
    | Readings | Current values, health, counters | The scan loop | Memory only, never persisted |
 
    Platform facts are descriptions of hardware, not intent. We read EVOK's, in EVOK's format and in
-   place, unaffected by ADR-0003's migration. We also **generate our own** — research/05 §2.5 requires
+   place, unaffected by ADR-0006's migration. We also **generate our own** — research/05 §2.5 requires
    an autogen equivalent so we do not hard-depend on `unipi-os-configurator`, and §2.6 requires
    extending the definition format by overlay (research/05 §8.5). **Frozen per load, not once per process**:
    immutable and `readonly` while loaded (RC-4), and reloaded when hardware change is detected.
@@ -140,8 +140,8 @@ post-1.0.
 6. **G-6 — A plugin cannot compromise the daemon.** It may not starve a scan loop, hold a bus past its
    lease, or take the process down with it. A plugin needing bus access gets a leased, time-budgeted
    transaction through the driver that owns that bus — never a client of its own on a port a scan loop
-   owns. (Reworded 2026-08-12: "the core" was a package that ADR-0008 dissolved. Unchanged in
-   substance, and ADR-0008's manifest loading is the mechanism this will use.)
+   owns. (Reworded 2026-08-12: "the core" was a package that ADR-0001 dissolved. Unchanged in
+   substance, and ADR-0001's manifest loading is the mechanism this will use.)
 7. **G-7 — evok and evok-node never run at the same time.** Not a policy: two processes cannot both own
    `/dev/ttyNS0`. Startup preflight refuses to start if evok is active or the ttys are held — loudly,
    and **naming the conflicting unit** — rather than racing for the port and failing unexplainably.
@@ -201,7 +201,7 @@ Each is a thing a reasonable contributor might otherwise assume we want.
 - Authentication mechanism for the admin surface (G-2), its default-on or default-off
   posture, and how it interacts with the nginx front end (research/07 §5).
 - Plugin isolation model — in-process with budgets, or out-of-process. Narrowed 2026-08-12: 1.0 is
-  single-threaded, single event loop (ADR-0012), so this is a post-1.0 question and the message
+  single-threaded, single event loop (ADR-0004), so this is a post-1.0 question and the message
   boundary is what keeps the options open.
 - Whether the post-1.0 surfaces are versioned as 2.x or shipped under a separate API path.
 - Write-arbitration semantics once more than one API process can issue commands (ADR-0001).

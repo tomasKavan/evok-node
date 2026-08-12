@@ -7,7 +7,7 @@ plus the traps found by reading `evok/config.py` and `evok/modbus_slave.py`.
 > longer means all four are read at runtime, and the distinction is load-bearing:
 >
 > - **§1 `config.yaml` and §3 aliases** are inputs to the **one-shot migration tool only**
->   (ADR-0003). The daemon reads its own `/etc/evok-node/config.yaml` and its own store, and has
+>   (ADR-0006). The daemon reads its own `/etc/evok-node/config.yaml` and its own store, and has
 >   no knowledge of these formats. Do not build a runtime fallback to `/etc/evok` into the config
 >   loader — that was an earlier design, and it was rejected.
 > - **§2 `autogen.yaml` and §4 `hw_definitions/*.yaml`** remain **runtime daemon inputs**, read

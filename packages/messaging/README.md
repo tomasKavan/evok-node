@@ -11,4 +11,4 @@ not is not a valid message (ADR-0001). Deadlines live in the envelope so RC-14 c
 **Must not depend on:** anything of ours. It is the root of the DAG.
 
 **Must not contain:** any package's *public* wire schema. One package holding both the internal contract
-and a public surface is how internal metadata reaches a compat shape (ADR-0008, RC-12).
+and a public surface is how internal metadata reaches a compat shape (ADR-0001, RC-12).

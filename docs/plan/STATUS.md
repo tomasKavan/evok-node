@@ -6,9 +6,12 @@
 
 Research is complete and lives in [`docs/research/`](../research/). Goals are settled in
 [`docs/GOALS.md`](../GOALS.md). **The architecture was re-steered on 2026-08-12** — see
-[research/12](../research/12-modularisation.md) and ADRs 0008–0012 — and the workspace skeleton has
+[research/12](../research/12-modularisation.md) and ADRs 0001–0004 — and the workspace skeleton has
 been rebuilt in the new shape: thirteen packages, building, linting and cruising clean. **No
 implementation code exists yet**; every package's entrypoint is a placeholder export.
+
+The ADR set was **consolidated from 23 files to 13 on 2026-08-12** and renumbered. Anything citing an
+old number resolves through the redirect table in [`../adr/README.md`](../adr/README.md).
 
 ## The re-steer, in one paragraph
 
@@ -27,35 +30,36 @@ from being shaped by EVOK is architectural (G-3, RC-24); the ordering is the sec
   budget, test-kit design, register-map corpus imported and indexed.
 - **Goals consolidated (2026-08-10).** [`GOALS.md`](../GOALS.md) is authoritative: the goal, the
   measurable form of it, what 1.0 is, post-1.0 direction, seven invariants, the drop-in guarantee,
-  non-goals. ADRs 0001–0006 record the decisions behind it.
+  non-goals. The decisions behind it are now ADRs 0005, 0006 and 0009.
 - **T0.1–T0.5 (2026-08-10).** npm workspaces, a shared strict TS base with the six T0.2 flags,
   vitest in workspace mode with coverage floors wired and switched off, `pr` and `main` CI workflows
   with actions pinned by SHA, eslint with the type-checked config, and `dependency-cruiser` carrying
   the layering DAG.
-- **Re-steer landed (2026-08-12).** ADRs [0008](../adr/0008-drivers-apis-and-main.md),
-  [0009](../adr/0009-driver-qualified-addressing.md),
-  [0010](../adr/0010-introspection-is-the-source-of-truth.md),
-  [0011](../adr/0011-main-is-never-in-the-data-path.md) and
-  [0012](../adr/0012-single-threaded.md) written; ADR-0001 amended (generalised, not superseded) and
-  ADR-0006 annotated. `roadmap.md` restructured to N0–N10, `bug-dispositions.md` milestones remapped,
-  six rules rewritten and seven appended (RC-26…RC-32), `CLAUDE.md` §Layout replaced.
+- **Re-steer landed (2026-08-12).** [ADR-0001](../adr/0001-drivers-apis-and-main.md),
+  [0002](../adr/0002-driver-qualified-addressing.md),
+  [0003](../adr/0003-introspection-is-the-source-of-truth.md) and
+  [0004](../adr/0004-single-threaded.md) carry it. `roadmap.md` restructured to N0–N10,
+  `bug-dispositions.md` milestones remapped, six rules rewritten and seven appended (RC-26…RC-32),
+  `CLAUDE.md` §Layout replaced.
 - **Skeleton reworked (2026-08-12).** Thirteen packages: `core`, `server`, `protocol` and
   `inspector` removed; `messaging`, `main`, `driver-kit`, `driver-onboard`, `driver-extension`,
   `api-nextgen`, `api-compat` and `ui` added. Root `tsconfig.json` references, the
   `dependency-cruiser` DAG, vitest projects and coverage floors all follow. `npm run build`, `test`,
   `lint` and `layering` each exit 0; 27 modules and 13 edges cruised with no violations.
-- **T0.7 ADRs written (2026-08-12).** [0013](../adr/0013-evok-3x-sole-compatibility-target.md)–[0023](../adr/0023-generated-address-tables-primary-safeguard.md):
-  the eleven settled-but-undocumented decisions from the ADR README's "Awaiting write-up" table.
-  Two were reread against ADR-0008 rather than transcribed — 0014 (library first, restated without
-  `core`) and 0017 (nginx narrowed to the compat surface, since `api-nextgen` serves the SPA at its
-  own `/`). None of the eleven had to be left unwritten. Only the licence row remains, and it belongs
-  to T0.6.
+- **T0.7 ADRs written, then the set consolidated (2026-08-12).** The eleven settled-but-undocumented
+  decisions from the ADR README's "Awaiting write-up" table were written up, taking the set to 23.
+  It was then **consolidated to 13** and renumbered: seven files described one architecture and four
+  described one surface, several still named the dissolved `core` and `protocol` packages, and the old
+  ADR-0006's deferred mechanism had already been replaced by ADR-0003's projection table. Every
+  rejected alternative survives as one line. Only the licence row remains unwritten, and it belongs to
+  T0.6. Redirect table: [`../adr/README.md`](../adr/README.md), deleted at the `0.x-alpha` smoothing
+  pass (RD-5).
 
 ## In progress
 
 - **N0 — re-steer & scaffolding.** Remaining: **T0.6** repo hygiene and the licence choice, and
-  **T0.8** `npm run verify`. T0.7 is done — ADRs 0013–0023, above. The licence ADR is T0.6's, because
-  the choice between MIT and Apache-2.0 has not been made.
+  **T0.8** `npm run verify`. T0.7 is done — see above. The licence ADR is T0.6's, because the choice
+  between MIT and Apache-2.0 has not been made.
 - **Four of the `pr` workflow's eight checks are still placeholders** — `format` and `changeset`
   until T0.6, `fixture-drift` until N1, and `coverage` runs but enforces nothing until there is
   something to cover. Each prints a warning annotation saying so.
@@ -80,8 +84,8 @@ unrecoverable once EVOK leaves those Patrons; they are simply consumed later. Ru
 | Golden transcript capture | **Human task, time-sensitive.** Must be recorded from stock EVOK 3.0.6 on L527/M527/S167 — **and the Gate, if it still runs stock EVOK**, since research/09 §2 makes the zero-local-I/O payload a named requirement — *before* anything replaces EVOK on those units. Unrecoverable afterwards. Runbook phases 1, 3, 4. |
 | **Gate behaviour with no onboard driver** | Same trip, and newly load-bearing: `api-compat` requires **at most one** onboard driver, and zero is the Gate, which must serve an empty API rather than erroring. research/09 records that EVOK's own `readboards()` and `/rest/all` "degrade oddly" here, so the compat shape must be captured rather than inferred. |
 | Stock `hw_definitions` + `autogen.yaml` + firmware versions | Same trip as the transcript capture. Runbook phase 1. |
-| Stock `config.yaml` + `/var/lib/evok/alias.yaml` | Same trip. These are the migration tool's golden fixtures (ADR-0003). Runbook phase 1. |
-| evok packaging metadata — `apt-cache show evok`, `dpkg -L evok`, systemd unit names, its nginx site file | Same trip. Decides the `Conflicts:`/`Depends:` list in ADR-0002 and how the `:80` site conflict is handled. **Do not `apt purge evok` before migrating** — purge destroys the fixtures above. Runbook phase 1. |
+| Stock `config.yaml` + `/var/lib/evok/alias.yaml` | Same trip. These are the migration tool's golden fixtures (ADR-0006). Runbook phase 1. |
+| evok packaging metadata — `apt-cache show evok`, `dpkg -L evok`, systemd unit names, its nginx site file | Same trip. Decides the `Conflicts:`/`Depends:` list in ADR-0006 and how the `:80` site conflict is handled. **Do not `apt purge evok` before migrating** — purge destroys the fixtures above. Runbook phase 1. |
 | `start_index` old-behaviour baseline | **Same trip, and easy to forget.** Finding 1.1's `test` disposition needs a transcript of stock EVOK mis-registering a deliberately split RO definition (two blocks of 7 with `start_index`) on the L527's section 3. Runbook phase 5. |
 | Second Patron M527 as rig test host | **Purchase approved 2026-08-10, not yet ordered.** Blocks all tier-1 hardware tests. **Image it with Debian 12** — see open question 3. |
 | xS51 extension | **Purchase approved 2026-08-10, not yet ordered.** AI/AO over RTU (float32 AI, raw-count AO, 6-mode enum on an extension) is otherwise only reachable via the local TCP path. |
@@ -132,8 +136,8 @@ unrecoverable once EVOK leaves those Patrons; they are simply consumed later. Ru
    allow 6.1 and break lint. Revisit when `typescript-eslint` supports the native compiler.
 7. **`data_point` is overloaded, and must not be allowed to converge.** It is a specific EVOK type
    (id 24, `<device_name>_<register_address>`, `datatype: null|float32`); our generic term for anything
-   addressable is **endpoint** (ADR-0010).
+   addressable is **endpoint** (ADR-0003).
 8. Deferred by design, listed so they are not mistaken for oversights: trigger-engine fail-safe
    semantics, the admin-surface authentication mechanism, and the plugin isolation model — the last now
-   narrowed by ADR-0012, which makes 1.0 single-threaded and leaves the boundary as the thing that
+   narrowed by ADR-0004, which makes 1.0 single-threaded and leaves the boundary as the thing that
    keeps the options open. See [`GOALS.md`](../GOALS.md) §Open.

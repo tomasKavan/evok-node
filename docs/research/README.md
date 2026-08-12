@@ -43,7 +43,7 @@ at commit `47c95c8` (branch `main`, latest tag **3.0.6**, 2025-09-02).
 | [`09-test-hardware-coverage.md`](09-test-hardware-coverage.md) | What the available Patron/Gate units exercise, the coverage gap on the highest-severity bug, and purchasing priorities. |
 | [`10-test-kit.md`](10-test-kit.md) | The three-tier test kit: generated simulator, hardware-in-the-loop rig with software-controlled fault injection, soak and client acceptance. Designed to be driven by agents, not humans. |
 | [`11-roadmap.md`](11-roadmap.md) | Sequencing **rationale** — why the phases are ordered as they are, and what agent-driven development demands. **Superseded as a working document by [`docs/plan/`](../plan/README.md)**, which is authoritative for what to do next. Its M-numbered phases predate the N0–N10 restructure. |
-| [`12-modularisation.md`](12-modularisation.md) | **The 2026-08-12 re-steer**, in full: drivers / APIs / main, the addressing scheme, introspection as the source of compat's table, the config and message sketches, and every alternative rejected along the way. Accepted, and recorded as ADRs 0008–0012 — this file carries the reasoning the ADRs compress. |
+| [`12-modularisation.md`](12-modularisation.md) | **The 2026-08-12 re-steer**, in full: drivers / APIs / main, the addressing scheme, introspection as the source of compat's table, the config and message sketches, and every alternative rejected along the way. Accepted, and recorded as ADRs 0001–0004 — this file carries the reasoning the ADRs compress. |
 
 ## Related, outside this directory
 

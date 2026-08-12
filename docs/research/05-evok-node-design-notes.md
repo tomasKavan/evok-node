@@ -280,7 +280,7 @@ Implications:
 
 > **Resolved 2026-08-10.** The deferred packaging questions are settled: `Conflicts: evok`, with
 > the shared OS dependencies declared by us so removing evok cannot autoremove them, and a one-shot
-> migration rather than reading EVOK's config at runtime. See ADR-0002 and ADR-0003. Config loading
+> migration rather than reading EVOK's config at runtime. See ADR-0006 and ADR-0006. Config loading
 > still accepts an object rather than a path, per the bullet above.
 
 ### 7.3 Latency: **defer the low-level transport**

@@ -7,9 +7,9 @@
  * always does after any earlier build — verified empirically, see the PR that added
  * this file. So nothing but this file stops a driver importing an api, or `main`
  * importing either — which is the edge that would quietly put it back in the data
- * path (ADR-0011).
+ * path (ADR-0001).
  *
- * Rewritten 2026-08-12 for ADR-0008: `core` and `server` no longer exist, and RC-10
+ * Rewritten 2026-08-12 for ADR-0001: `core` and `server` no longer exist, and RC-10
  * is now a partition rather than a one-directional rule.
  */
 
@@ -25,7 +25,7 @@
  *   which is what makes it a partition and fully checkable.
  * - `main` gets `messaging` and `hw-definitions` and **no concrete driver or api** —
  *   they are manifest-loaded from config. Without this edge missing, "main is never a
- *   conduit" is unenforceable (ADR-0011).
+ *   conduit" is unenforceable (ADR-0001).
  * - drivers get `driver-kit`, `modbus` and `hw-definitions`; they need the address
  *   tables, since that is where the one audited address function lives (RC-17).
  * - `driver-kit` gets `messaging` only: transport and hardware knowledge belong to
@@ -34,7 +34,7 @@
  *   `api-compat` importing nothing that carries our groups, labels or ordering is
  *   what makes G-3 a missing edge instead of a review rule.
  * - `simulator` deliberately excludes `modbus`: the instrument must not share a
- *   framer with the code it stands in for. See ADR-0007, which states the cost.
+ *   framer with the code it stands in for. See ADR-0011, which states the cost.
  * - `rig` imports nothing of ours at all (RC-11).
  * - `ui` is over the public API only, and nothing imports *it* — `api-nextgen` serves
  *   built assets from a packaging path, not a bundled import.
@@ -130,7 +130,7 @@ const layeringRules = PACKAGES.map((pkg) => {
 
   return {
     name: `layer-${pkg}`,
-    comment: `${pkg} may import ${permitted}. Fix the design, not this rule: the layering DAG lives in CLAUDE.md §Layout and in .dependency-cruiser.cjs, and a new edge needs an ADR. RC-10, ADR-0008.`,
+    comment: `${pkg} may import ${permitted}. Fix the design, not this rule: the layering DAG lives in CLAUDE.md §Layout and in .dependency-cruiser.cjs, and a new edge needs an ADR. RC-10, ADR-0001.`,
     severity: 'error',
     from: { path: `^packages/${pkg}/` },
     to: { path: workspacePath(forbidden) },

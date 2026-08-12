@@ -11,7 +11,7 @@ must serve an empty API, not an erroring one — and that payload is as unrecove
 All confirmed stock and on Debian 13 as of 2026-08-10. Extensions on hand: **xS11** and **xG18**;
 the xS51 and the second M527 are approved but not yet ordered.
 
-Blocks: N1 golden tests, all of N9, the migration tool's golden fixtures, and ADR-0002's
+Blocks: N1 golden tests, all of N9, the migration tool's golden fixtures, and ADR-0006's
 dependency list. **The compat surface moving to N9 does not make this less urgent** — it only moves
 when the transcripts are consumed, and they cease to exist the moment EVOK leaves these units.
 
@@ -22,7 +22,7 @@ when the transcripts are consumed, and they cease to exist the moment EVOK leave
 2. **Never `apt purge evok`.** `apt remove` keeps `/etc/evok/*` (conffiles) and
    `/var/lib/evok/alias.yaml`; purge destroys both, and those are the migration tool's only real
    inputs. Migrate before purging, on every unit, forever.
-3. **The `start_index` baseline needs EVOK installed** (phase 5, L527 only). Once ADR-0002's
+3. **The `start_index` baseline needs EVOK installed** (phase 5, L527 only). Once ADR-0006's
    `Conflicts: evok` lands, getting it back means reinstalling EVOK. Do it while it is already
    there.
 4. **An empty transcript is not a fixture.** WS and webhook captures with no events in them
@@ -63,8 +63,8 @@ Runtime is dominated by the 60 s idle-CPU sample and 400 latency curls. It colle
 | Group | What | Why it matters |
 |---|---|---|
 | identity | `/etc/os-release`, `unipiid`, `/run/unipi-plc/unipi-id/*`, sysfs `/run/unipi-plc/by-sys/iogroup[1-3]/{sys_board_name,sys_board_serial,firmware_version,ow_power_off,master_watchdog_*}` | The identity provider chain forks on Debian generation. Capture **both** paths on every unit even though all four have `unipiid`, so the Debian 12 branch has real data to test against. The *absence* of `ow_power_off` on 13 is itself the fact |
-| packaging | `apt-cache show evok`, `dpkg -L evok`, `dpkg -s evok`, conffiles, `systemctl cat evok unipitcp`, `apt-mark showmanual`, `nginx -T`, `/etc/nginx/sites-available/evok` | ADR-0002's `Conflicts:`/`Depends:`/`Replaces:` set cannot be written without it. Two nginx sites claiming `default_server` means nginx will not reload |
-| config | `/etc/evok/{config.yaml,autogen.yaml,hw_definitions/}`, `/var/lib/evok/alias.yaml`, `/etc/default/unipitcp`, `/etc/unipi-one-modbus.d/` | Migration golden fixtures (ADR-0003). Shipped `hw_definitions` are more trustworthy than the published doc examples — the DI example's `direct_reg: 1016` contradicts the real xS51 map's 1014 |
+| packaging | `apt-cache show evok`, `dpkg -L evok`, `dpkg -s evok`, conffiles, `systemctl cat evok unipitcp`, `apt-mark showmanual`, `nginx -T`, `/etc/nginx/sites-available/evok` | ADR-0006's `Conflicts:`/`Depends:`/`Replaces:` set cannot be written without it. Two nginx sites claiming `default_server` means nginx will not reload |
+| config | `/etc/evok/{config.yaml,autogen.yaml,hw_definitions/}`, `/var/lib/evok/alias.yaml`, `/etc/default/unipitcp`, `/etc/unipi-one-modbus.d/` | Migration golden fixtures (ADR-0006). Shipped `hw_definitions` are more trustworthy than the published doc examples — the DI example's `direct_reg: 1016` contradicts the real xS51 map's 1014 |
 | firmware | `fwspi -u 1..3`, plus registers 1000 (firmware version), 1003 (firmware id), 1004 (hardware id), 1001/1002 (I/O census), 1005/1006 (serial) per unit id | FW 5.x boards may not match the register maps at all. And if any unit predates **6.28**, the MWD behaviour fork is observable — in which case **do not upgrade that unit's firmware** |
 | api | `/version`, `/rest/all`, `/json/all`, `/rest/<type>/all` and `/json/<type>/all` for all 14 enumerated types *and* the 6 excluded ones, all 8 alt-names, single-circuit GETs, `/rest/…/value` and `/json/…/value`, error shapes, `OPTIONS`, CORS headers, read-only `/bulk` and `/rpc` calls, and `/version` + `/rest/all` + `/json/all` again through nginx on `:80` | The compatibility contract. Response *headers* are part of it, so they are saved alongside every body |
 | baseline | idle CPU over 60 s, p50/p95/p99 of `/rest/all` and of a single-circuit GET, `journalctl -u evok`, `/run/unipi_stats/*` | Finding 4.5's comparison target **is this capture** — the ~16.6 % idle-CPU figure in the bug archaeology was measured on an RPi 3B+ Neuron with one board, not on an i.MX 8M Mini Patron, so it is not this unit's baseline |

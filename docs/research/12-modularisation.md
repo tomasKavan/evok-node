@@ -4,8 +4,8 @@
 `bug-dispositions.md`, `rules/code.md`, `CLAUDE.md`, `STATUS.md` and the package skeleton — together,
 because these documents cross-reference heavily and a half-migrated state is worse than either end.
 
-Recorded as [ADR-0008](../adr/0008-drivers-apis-and-main.md) …
-[ADR-0012](../adr/0012-single-threaded.md). **Read the ADRs to know what was decided; read this to
+Recorded as [ADR-0001](../adr/0001-drivers-apis-and-main.md) through
+[ADR-0004](../adr/0004-single-threaded.md). **Read the ADRs to know what was decided; read this to
 know why, and why not the alternatives** — it keeps the arguments that did not survive scrutiny,
 which the ADRs only name.
 
@@ -97,7 +97,7 @@ dissolve, `protocol/` splits, `inspector` is renamed.
 | `driver-extension` | **new** | Unipi RTU extensions on one RS-485 line; one instance per line |
 | `api-nextgen` | **new** | WS then HTTP; owns its own public schema |
 | `api-compat` | **new** | EVOK 3.x REST, JSON, bulk, WS, webhook, JSON-RPC; owns the projection table |
-| `simulator` | unchanged | ADR-0007 stands |
+| `simulator` | unchanged | ADR-0011 stands |
 | `client` | unchanged role | retargets `api-nextgen`'s schema |
 | `ui` | renamed from `inspector` | the SPA; served by `api-nextgen` at `/`. Open question 5 unaffected |
 | `rig` | unchanged | RC-11 stands |
@@ -398,11 +398,11 @@ wrong one.
 Smaller than expected, because the goal is unchanged.
 
 - **G-1** — amend from core↔API to N drivers ↔ M APIs. The substance holds.
-- **G-2 / ADR-0006** — no change in substance; add a note that it is now structural for a better
+- **G-2 / ADR-0009** — no change in substance; add a note that it is now structural for a better
   reason than configuration. `api-compat` can only emit what its projection table describes, and the
   table has no entry for a `system` driver — so admin cannot reach the compat surface even if an
   administrator lists it.
-- **G-5 / ADR-0004** — **no change.** Read-only device config is a structured reading. The gap
+- **G-5 / ADR-0005** — **no change.** Read-only device config is a structured reading. The gap
   reopens only if writing device config arrives, which is deliberately later.
 - **G-7** — no change; decision 1 above is how it is enforced.
 - **ADR-0001** — amend, do not supersede. Add driver identification, visibility scoping, and
