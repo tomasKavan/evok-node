@@ -2,7 +2,7 @@
 
 - **Status:** Accepted — `node:sqlite` stability to confirm against the pinned Node 24 minor
 - **Date:** 2026-08-10
-- **Refs:** docs/GOALS.md invariant 5 · ADR-0004 · docs/research/04-known-bugs-and-lessons.md finding 3.9, rule 25 · docs/research/05-evok-node-design-notes.md §8.6 (Node.js 24) · docs/research/10-test-kit.md (test-host hardware)
+- **Refs:** G-5 · ADR-0004 · R04-25, finding 3.9 · docs/research/05-evok-node-design-notes.md §8.6 (Node.js 24) · docs/research/10-test-kit.md (test-host hardware)
 
 ## Context
 
@@ -23,7 +23,7 @@ commands producing human-readable YAML.
 
 Rationale, in order of weight:
 
-1. **Atomicity is structural**, not something we implement. Rule 25's temp-file/fsync/rename dance
+1. **Atomicity is structural**, not something we implement. R04-25's temp-file/fsync/rename dance
    becomes the database's problem, and it already solves it correctly.
 2. **It fits the shape of the data.** Groups, ordering and layouts are relational; a single YAML
    document models them badly and rewrites everything on every change.

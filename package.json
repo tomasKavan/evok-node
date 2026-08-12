@@ -10,14 +10,21 @@
   "scripts": {
     "build": "tsc -b",
     "clean": "tsc -b --clean",
+    "lint": "eslint .",
+    "lint:fix": "eslint . --fix",
+    "layering": "depcruise packages --config .dependency-cruiser.cjs --output-type err-long",
     "test": "vitest run",
     "test:watch": "vitest",
     "coverage": "vitest run --coverage"
   },
   "devDependencies": {
+    "@eslint/js": "~10.0.1",
     "@types/node": "~24.13.3",
     "@vitest/coverage-v8": "~4.1.10",
+    "dependency-cruiser": "~18.1.1",
+    "eslint": "~10.8.1",
     "typescript": "~6.0.3",
+    "typescript-eslint": "~8.66.0",
     "vitest": "~4.1.10"
   },
   "engines": {

@@ -5,7 +5,7 @@ rendered on PLC layout drawings. A read-only status view lands after M4; the ful
 `evok-web-jq` is post-1.0.
 
 **Must not depend on:** `core`, `modbus`, `hw-definitions`, `server`, `simulator`, `rig`.
-`CLAUDE.md` rule 1 names this package explicitly: public API only. Depends on `protocol`.
+RC-10 names this package explicitly: public API only. Depends on `protocol`.
 
 The constraint is the point, not an inconvenience — a UI that can reach into core stops being proof
 that the API is sufficient, and the API being sufficient is what lets anyone else build a UI. How

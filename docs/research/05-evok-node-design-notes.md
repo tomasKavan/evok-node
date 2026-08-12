@@ -192,7 +192,7 @@ above are additive later. If the API layer owns state, none of them are.
 
 > **Strengthened 2026-08-10.** "Additive later" was too weak. Because the post-1.0 direction
 > includes several API surfaces over one core ([`GOALS.md`](../GOALS.md)), the core↔API contract is
-> now required to be a **serialisable message boundary from the first commit** — GOALS invariant 1. A
+> now required to be a **serialisable message boundary from the first commit** — G-1. A
 > programmatic interface satisfying the paragraph above still fails if it passes callbacks, class
 > instances or Buffers across the boundary, because then the process split is a rewrite rather than
 > a deployment change. Delivery stays in-process for 1.0. See ADR-0001.
@@ -291,7 +291,7 @@ which dominates any IPC choice by an order of magnitude.
 
 > **Amended 2026-08-10.** The *transport* is still deferred — this decision stands. What is no
 > longer optional is the **shape** of the core↔API contract: it must be serialisable messages from
-> the start (§5 note, invariant 1 in [`GOALS.md`](../GOALS.md)). Deferring the socket is a
+> the start (§5 note, G-1). Deferring the socket is a
 > scheduling choice; deferring the message boundary is not available to us.
 
 Worth an early spike regardless: **`Interrupt Mask` (register 1007)**, named on every PLC map

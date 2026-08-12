@@ -27,12 +27,22 @@ package's entrypoint is a placeholder export.
   ES2023/NodeNext/Node 24, build order carried by project references; vitest in workspace mode, one
   project per package, coverage floors wired and switched off. `fixtures/` created,
   `.prettierignore`d, fixture directories in `CODEOWNERS`.
+- **M0 T0.5, T0.3 (2026-08-10).** `pr` and `main` workflows, with `hardware`, `nightly` and
+  `release` registered as skeletons; actions pinned by SHA; the Node major read from
+  `engines.node` in one composite action. eslint with the type-checked config and every ban T0.3
+  names, and `dependency-cruiser` carrying the layering DAG. **Four of the `pr` workflow's eight
+  checks are placeholders** — `format` and `changeset` until T0.6, `fixture-drift` until M1,
+  and `coverage` runs but enforces nothing until there is something to cover. Each prints a
+  warning annotation saying so.
 
 ## In progress
 
-- **M0 — scaffolding.** Remaining: **T0.3** eslint + dependency-cruiser (the load-bearing layering
-  guard — nothing yet stops `core` importing `server`), **T0.5** CI workflows, **T0.6** repo hygiene
-  and the licence choice, **T0.7** ADRs for the twelve settled decisions, **T0.8** `npm run verify`.
+- **M0 — scaffolding.** Remaining: **T0.6** repo hygiene and the licence choice, **T0.7** ADRs for
+  the twelve settled decisions, **T0.8** `npm run verify`. T0.6 and M1 also fill the four
+  placeholder checks above.
+- **Branch protection is not yet configured** — Tomas's to set. Until it is, T0.5's exit criteria
+  are only half met: the workflows run, but nothing requires them to be green. The required-check
+  names are listed in the T0.5/T0.3 PR body.
 
 ## Next
 
@@ -87,12 +97,13 @@ still stock.** The first five rows below are one session; the runbook is
 4. Deferred by design, listed so they are not mistaken for oversights: trigger-engine fail-safe
    semantics, the admin-surface authentication mechanism, and the plugin isolation model. See
    [`GOALS.md`](../GOALS.md) §Open.
-5. **Two workspace dependency edges are deliberately undeclared** (T0.1), because declaring one
+5. **One workspace dependency edge is still deliberately undeclared** (T0.1), because declaring it
    wrongly is what `dependency-cruiser` then enforces:
-   - `simulator → modbus`. May the simulator reuse our framer, or must it have its own? `CLAUDE.md`
-     rule 2 forbids exactly this sharing for `rig` — "the instrument must not share code with what it
-     measures" — and the simulator is the instrument for every transport test we can run without
-     hardware. Decide before M1.
+   - ~~`simulator → modbus`~~ **Answered 2026-08-10: no, the simulator has its own framer.**
+     [ADR-0007](../adr/0007-simulator-has-its-own-framer.md), encoded as `layer-simulator`. The
+     deciding argument was not DRY but fault injection: research/10's tier 0 requires the simulator
+     to emit wrong CRCs and truncated frames, and a shared framer cannot be asked to do that. The
+     cost — CRC-16 and PDU framing implemented twice — is stated in the ADR, not hidden.
    - `inspector → client`. T0.3 says `client` and `inspector` depend only on `protocol`, but the
      obvious implementation of `inspector` is a consumer of our own client. Either the rule means
      "no `core`, no `server`" and `client` is allowed, or `inspector` re-implements the calls.
@@ -101,10 +112,10 @@ still stock.** The first five rows below are one session; the runbook is
    declares `typescript >=4.8.4 <6.1.0`, so T0.3's type-checked lint config — the load-bearing
    layering and no-`any` guard — cannot run on TS 7. The pin is a `~` range on purpose: `^6.0.3`
    would silently allow 6.1 and break lint. Revisit when `typescript-eslint` supports the native
-   compiler.
-7. **[`rules/code.md`](../rules/code.md) §Types overstates one flag** and should be corrected by one
-   line. It says a `switch` with no `default` plus `noFallthroughCasesInSwitch` makes a missed case a
-   compile error. It does not: `noFallthroughCasesInSwitch` reports fallthrough (TS7029). What
-   catches a *missing* case is a declared return type with no `default` under `noImplicitReturns`
-   (TS2366), or an exhaustiveness assignment to `never`. Both are demonstrated in T0.2's verification
-   and `noImplicitReturns` is in the shared base because of it.
+   compiler. **Still true as installed:** `typescript-eslint@8.66.0` declares
+   `typescript >=4.8.4 <6.1.0`.
+7. ~~**[`rules/code.md`](../rules/code.md) §Types overstates one flag.**~~ **Closed 2026-08-10.**
+   §Types now credits `noImplicitReturns` (with a declared return type and no `default`) for
+   catching a missing case, and says that `noFallthroughCasesInSwitch` catches fallthrough. T0.3
+   additionally enables eslint's `switch-exhaustiveness-check`, which covers the
+   statement-position `switch` that has no return type to be implicit about.

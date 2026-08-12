@@ -88,8 +88,8 @@ list is the "Awaiting write-up" table in [`../../adr/README.md`](../../adr/READM
 authoritative: twelve decisions, from EVOK 3.x-only scope through the licence choice.
 
 **Numbers are allocated on write, not reserved** — each of those takes the next free number as it is
-written, continuing from 0007. ADRs 0001–0006 already exist (goals consolidation, 2026-08-10) and are
-not part of this task.
+written, continuing from 0008. ADRs 0001–0006 already exist (goals consolidation, 2026-08-10), as
+does 0007 (the simulator's framer, written with T0.3); none are part of this task.
 
 **Done when:** `docs/adr/` contains one file per decision, each with Context / Decision /
 Consequences and a link to the research section. These exist so an agent does not re-derive them

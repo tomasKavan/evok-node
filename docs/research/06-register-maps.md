@@ -207,8 +207,8 @@ Two independent defects, both needing fixing:
 2. Within a single block of more than 16 channels, `val_reg` is never advanced by
    `floor(i/16)` even though the mask correctly wraps with `% 16`.
 
-This is exactly why `04-known-bugs-and-lessons.md` rule 1 (one audited address function) and
-rule 2 (assert global uniqueness of circuit ids and of coil mappings at startup) are the top
+This is exactly why R04-1 (one audited address function) and
+R04-2 (assert global uniqueness of circuit ids and of coil mappings at startup) are the top
 two rules. A duplicate-circuit registration must be a **fatal startup error**, not a silent
 overwrite.
 

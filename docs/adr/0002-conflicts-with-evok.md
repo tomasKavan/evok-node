@@ -2,7 +2,7 @@
 
 - **Status:** Accepted — dependency list pending the capture trip
 - **Date:** 2026-08-10
-- **Refs:** docs/GOALS.md §The drop-in guarantee, invariant 7 · docs/research/05-evok-node-design-notes.md §7.2 · docs/research/10-test-kit.md
+- **Refs:** docs/GOALS.md §The drop-in guarantee, G-7 · docs/research/05-evok-node-design-notes.md §7.2 · docs/research/10-test-kit.md
 
 ## Context
 
@@ -41,6 +41,6 @@ of evok's nginx `:80` site file cannot be written until we have `apt-cache show 
 `default_server` means nginx will not reload, so this is a real conflict and not a detail. Recorded
 in `plan/STATUS.md` as a blocked item on the same trip as the golden transcripts.
 
-**Compensating control:** GOALS invariant 7 — startup preflight refuses to run, naming the conflicting
+**Compensating control:** G-7 — startup preflight refuses to run, naming the conflicting
 unit, if evok or `unipitcp` holds the ttys. That covers the case where someone defeats the packaging
 by installing from npm rather than the `.deb`.

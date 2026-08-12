@@ -1,29 +1,26 @@
 # Code rules
 
-Binding. Most are enforced; the enforcement mechanism is named so you can check locally.
+Binding. Cite as **RC-N**. Breaking one is a blocking review comment; the enforcement column says
+what catches it, so you can check before pushing.
 
-## Enforcement first
+**If a rule can be a lint rule, it must be a lint rule.** Prose-only rules get ignored — by agents
+and humans alike. What follows is prose only where a linter cannot express it.
 
-A rule that is only prose gets ignored — by agents and humans alike. **If a rule can be a lint
-rule, it must be a lint rule.** Prose here exists only for rules a linter cannot express.
-
-| Tool | Enforces |
+| Tool | Catches |
 |---|---|
-| `tsc --strict` + `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `noFallthroughCasesInSwitch` | type-level invariants |
-| `eslint` + `@typescript-eslint` (type-checked config) | no `any`/`as`/`!`, no floating promises, exhaustive switches, import restrictions |
-| **`dependency-cruiser`** | package layering, no cycles, no undeclared imports |
-| `commitlint` | Conventional Commits |
+| `tsc --strict` + `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `noFallthroughCasesInSwitch` | type-level rules |
+| `eslint` + `@typescript-eslint`, type-checked | RC-2, RC-14, RC-15, RC-16, RC-23 |
+| `dependency-cruiser` | RC-10, RC-11, import cycles, undeclared imports |
 | `prettier` | formatting — never discussed in review |
 
-**`dependency-cruiser` is load-bearing here.** We chose npm workspaces, whose flat
-`node_modules` lets a package import something it never declared. Without the layering rules
-encoded there, nothing stops `core` from quietly importing `server`.
+`dependency-cruiser` is load-bearing. npm workspaces give every package a flat `node_modules`, so
+without it nothing stops `core` importing `server`.
 
 ## Types
 
-**Brand anything that is a number with a meaning.** Register addresses, coil addresses, unit ids
-and bit offsets are all `number` structurally, and upstream EVOK's worst bug was writing a coil
-address where a register address belonged.
+**RC-1 — Brand every number that means something.** Register addresses, coil addresses, unit ids
+and bit offsets are all plain `number`, and EVOK's worst bug was writing a coil address where a
+register address belonged.
 
 ```ts
 type Brand<T, B> = T & { readonly __brand: B };
@@ -35,95 +32,117 @@ export type Millis          = Brand<number, 'Millis'>;
 export type Circuit         = Brand<string, 'Circuit'>;
 ```
 
-Constructors live with the type and validate range (`unitId` 0–255, `bitOffset` 0–15). There is
-no unchecked path to a branded value.
+The constructor lives with the type and checks range (`unitId` 0–255, `bitOffset` 0–15). There is
+no unchecked way to get a branded value.
 
-**Discriminated unions over booleans and optional fields.** A device is
-`{kind:'di', …} | {kind:'ao', …}`, not one interface with everything optional. Then a `switch`
-with no `default` plus `noFallthroughCasesInSwitch` makes a missed case a compile error — which
-is exactly the class of bug that left EVOK's `ds_mode` permanently stuck.
+**RC-2 — No `any`, no `as`, no `!`** outside generated code. Parse at the boundary (RC-12), and
+after that the type is real.
 
-**Decode is a total function.** `decode(registers) => State`, every branch returning a value.
-Never mutate state in place with implicit fall-through.
+**RC-3 — Discriminated unions, not optional fields.** A device is `{kind:'di', …} | {kind:'ao', …}`,
+never one interface with everything optional. A `switch` with no `default`, in a function with a
+declared return type, then makes a missing case a compile error. That is the bug class that left
+EVOK's `ds_mode` permanently stuck.
 
-**`readonly` by default.** Definitions are `readonly` types *and* frozen at runtime. Upstream
-needed a `copy()`→`deepcopy()` fix because two slaves shared one mutable array; `readonly`
-prevents that at compile time.
+**RC-4 — `readonly` by default, and hardware definitions are also frozen at load.** Upstream needed
+a `copy()`→`deepcopy()` fix because two slaves shared one mutable array. Frozen *per load*, not once
+per process — definitions reload when hardware changes (G-5).
+
+**RC-5 — Decode returns a value on every path.** `decode(registers) => State`. Never mutate state in
+place and fall through.
 
 ## Errors
 
-Two categories, two mechanisms:
+**RC-6 — Expected failure is a value; a bug is a `throw`.** Expected failure returns
+`{ok:true, …} | {ok:false, kind:…}`, and the compiler must make ignoring the failure arm impossible.
+`throw` is for broken invariants only, and is never caught for control flow.
 
-- **Expected failure → a value.** `Result<T, E>` as a discriminated union. The compiler must
-  make ignoring the error arm impossible.
-- **Programmer error → `throw`.** Broken invariant, impossible state. Never caught for control
-  flow.
+**RC-7 — A Modbus exception PDU is a failure.** Never a value a caller can mistake for success.
 
-Error *kinds* are string-literal unions, not classes — they cross the API boundary and must
-serialise. Taxonomy at minimum: `bad_request`, `unknown_circuit`, `unsupported_property`,
-`value_out_of_range`, `device_offline`, `bus_timeout`, `modbus_exception`, `internal`.
+**RC-8 — No empty `catch {}` on an event or delivery path.** Log and count, with dedup.
 
-Never exact-type-check a library's errors (`type(x) in […]` was upstream's bug). Normalise a
-library's error taxonomy into ours at the adapter boundary, once.
+**RC-9 — Error kinds are string-literal unions, not classes.** They cross the API boundary, so they
+must serialise. At minimum: `bad_request`, `unknown_circuit`, `unsupported_property`,
+`value_out_of_range`, `device_offline`, `bus_timeout`, `modbus_exception`, `internal`. Never
+type-check a library's error objects (upstream's bug was `type(x) in […]`) — map the library's
+errors onto ours once, in the adapter.
 
 ## Boundaries
 
-**Parse, don't validate.** Every external input — HTTP body, WS frame, YAML config, register
-buffer — passes through a **zod** schema at ingress and becomes a typed value. Nothing
-downstream re-checks, and nothing downstream sees `unknown`.
+**RC-10 — `core/` never imports `api/`, `server/` or `inspector/`, and everything crossing the
+core↔API boundary is a serialisable message.** No callbacks, class instances or Buffers. Why it has
+to be a message boundary rather than a function call: G-1, ADR-0001.
 
-Wire schemas live in `@evok-node/protocol` and are the single source of truth: zod for internal
-parsing, `z.toJSONSchema()` for fastify's route schemas. One declaration, both uses.
+**RC-11 — `packages/rig` imports no workspace package and no Modbus client.** The instrument must
+not share code with the thing it measures. ADR-0007.
 
-**Normalise identifiers once, at ingress.** EVOK accepts `relay`/`input`/`output` alt-names;
-they become canonical `DeviceKind` union members at the boundary and never travel as raw
-strings. Upstream's WS filter silently matched nothing precisely because it compared
-user strings deep in the stack.
+**RC-12 — Parse, don't validate.** Every external input — HTTP body, WS frame, YAML config,
+register buffer — goes through a **zod** schema at entry and comes out typed. Nothing downstream
+re-checks, and nothing downstream sees `unknown`. Wire schemas live in `@evok-node/protocol` and are
+the one source of truth: zod for internal parsing, `z.toJSONSchema()` for fastify's routes.
+
+**RC-13 — Normalise identifiers at entry, once.** EVOK accepts `relay`/`input`/`output` alt-names;
+they become canonical `DeviceKind` members at the boundary and never travel as raw strings.
+Upstream's WS filter silently matched nothing because it compared user strings deep in the stack.
 
 ## Time and effects
 
-- **Inject the clock.** Durations and staleness use a monotonic source; `Date.now()` is banned
-  outside logging (NTP steps on an embedded box with no RTC would otherwise corrupt staleness).
-- **No `process.env` outside the config module.**
-- **No floating promises**, and every `setTimeout`/`setInterval` has an abort path tied to a
-  lifecycle.
-- **No `sleep()` as a synchronisation primitive.** If you need a delay, it is a protocol
-  requirement with a computed value and a comment naming the spec clause (e.g. t3.5) — never a
-  number that made a flaky test pass.
+**RC-14 — Every wait has a deadline.** No unbounded loop, no promise without a timeout, no
+`setTimeout` or `setInterval` without an abort path tied to a lifecycle. No floating promises.
+
+**RC-15 — Inject the clock.** Durations and staleness come from a monotonic source. `Date.now()` is
+banned outside logging: an NTP step on a box with no battery clock would corrupt staleness.
+
+**RC-16 — No `sleep()` as a synchronisation primitive, and no `process.env` outside the config
+module.** A delay is allowed only as a protocol requirement, with a computed value and a comment
+naming the clause (say t3.5) — never a number that made a flaky test pass.
+
+## Addresses, circuits and readings
+
+These are the rules that stop us driving the wrong relay. Every one of them has a real upstream
+failure behind it in [research/04](../research/04-known-bugs-and-lessons.md).
+
+**RC-17 — Never derive an identity from a loop counter.** Addresses come from the one audited
+address function, which holds the `/16` bank stride and the `%16` mask in exactly one place.
+
+**RC-18 — A duplicate circuit id, or two circuits landing on the same coil or (register, bit), is a
+fatal startup error.** Not a warning.
+
+**RC-19 — A multi-register value lies wholly inside one register block, read at one frequency.**
+Checked when definitions load; a definition that breaks this is rejected, not repaired.
+
+**RC-20 — Every reading carries `value`, `readAt` and `stale`.** No silent zeros, and no value that
+stays frozen without saying so.
+
+**RC-21 — One event envelope from every source, with `changes` always an array** — 1-Wire included.
+Real clients crash on the variant shapes.
+
+## Dependencies
+
+**RC-22 — Prefer a widely used, tested, maintained library** to writing your own — behind an
+interface thin enough to swap it out.
 
 ## Files and naming
 
-- Files `kebab-case.ts`. Types `PascalCase`. Values and functions `camelCase`.
-  `SCREAMING_SNAKE` only for genuine compile-time constants.
-- **One exported concept per file**, named after the file.
-- Tests colocated: `address-map.ts` → `address-map.test.ts`.
-- **No barrel files** except the single package entrypoint. Barrels create import cycles and
-  defeat tree-shaking; in a monorepo they also hide layering violations from review.
-- Directory names are domain terms, not patterns: `devices/`, `buses/`, `definitions/` — not
-  `helpers/`, `utils/`, `managers/`. If something genuinely has no domain home, that is a design
-  smell, not a naming problem.
+**RC-23 — Naming.** Files `kebab-case.ts`, types `PascalCase`, values and functions `camelCase`.
+`SCREAMING_SNAKE` only for real compile-time constants. One exported concept per file, named after
+the file. Tests next to their subject: `address-map.ts` → `address-map.test.ts`. No barrel files
+except the single package entrypoint — they create import cycles, defeat tree-shaking, and hide
+layering violations from review. Directory names are domain terms (`devices/`, `buses/`,
+`definitions/`), never `helpers/`, `utils/` or `managers/`; something with no domain home is a
+design problem, not a naming problem.
 
-## Vocabulary
+**RC-24 — Two vocabularies, mapped in exactly one place.** The API layer speaks EVOK's words
+because clients depend on them. Everything inward speaks ours. The translation lives in
+`@evok-node/protocol` and nowhere else.
 
-Two vocabularies, mapped in exactly one place:
-
-| Boundary (EVOK-compatible, do not rename) | Internal |
+| Boundary — EVOK-compatible, do not rename | Internal |
 |---|---|
 | `dev`, `circuit`, `glob_dev_id`, `pending` | `kind`, `id`, `deviceId` |
 | `ro`, `do`, `di`, `ai`, `ao`, `wd`, `temp` | `DeviceKind` union |
 
-The API layer speaks EVOK's vocabulary because clients depend on it. Everything inward speaks
-ours. The translation lives in `@evok-node/protocol` and nowhere else.
-
-## Comments
-
-Comment the **why**, never the **what**. A comment explaining what a line does is a request to
-rename something. Comments that *are* required:
-
-- any magic number, with its source (a register address gets the model and map reference; a
-  timing constant gets the spec clause);
-- any deliberate deviation from EVOK behaviour, linking the research note;
-- any workaround for a library bug, linking the upstream issue and stating the removal condition.
-
-`TODO` must carry an issue number. `// TODO: THIS IS HOTFIX !!! REMOVE IT !!!` is what upstream
-shipped to production; we do not.
+**RC-25 — Comment the why, never the what.** A comment explaining what a line does is a request to
+rename something. Three comments are required: any magic number with its source (a register address
+cites the model and map; a timing constant cites the spec clause), any deliberate difference from
+EVOK behaviour with a link to the research note, and any workaround for a library bug with the
+upstream issue and the condition for removing it. Every `TODO` carries an issue number.
+`// TODO: THIS IS HOTFIX !!! REMOVE IT !!!` is what upstream shipped; we do not.

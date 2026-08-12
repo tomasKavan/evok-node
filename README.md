@@ -13,11 +13,18 @@ there will not be a usage section here until there is something behind it. See
 
 ```bash
 npm install
-npm run build   # tsc -b across all packages, in reference order
-npm test        # vitest, tier 0 only
+npm run build     # tsc -b across all packages, in reference order
+npm run lint      # eslint, type-checked config
+npm run layering  # dependency-cruiser: the package DAG. Needs a build first
+npm test          # vitest, tier 0 only
 ```
 
-Requires Node 24. `npm run coverage` reports per-package coverage; the per-module floors from the
+These are the same checks the `pr` workflow runs, one job each; M0 T0.8 collapses them into a single
+`npm run verify` so that local green means CI green. `npm run layering` needs `dist/` to exist,
+because workspace imports resolve through `node_modules`.
+
+Requires Node 24 — declared once, in the root `package.json` `engines.node`, which is also where CI
+reads it from. `npm run coverage` reports per-package coverage; the per-module floors from the
 [testing rules](docs/rules/testing.md) are wired in `vitest.config.ts` behind a single switch and are
 off until there is something to cover.
 
@@ -40,11 +47,14 @@ documentation of it.
 
 ## Documentation
 
-- [`CLAUDE.md`](CLAUDE.md) — operating rules and the inviolable rules. Start here.
-- [`docs/GOALS.md`](docs/GOALS.md) — goals, non-goals, invariants, what 1.0 is. Wins over
+- [`CLAUDE.md`](CLAUDE.md) — how to work here: read order, precedence, how rules are cited. Start
+  here. It holds no rules itself.
+- [`docs/GOALS.md`](docs/GOALS.md) — goals, non-goals, invariants (**G-N**), what 1.0 is. Wins over
   everything else.
-- [`docs/plan/`](docs/plan/README.md) — what happens next · [`docs/rules/`](docs/rules/code.md) —
-  how we work · [`docs/adr/`](docs/adr/README.md) — why we decided ·
+- [`docs/rules/`](docs/rules/code.md) — the binding rules: code (**RC**), testing (**RT**), docs
+  (**RD**), git (**RG**).
+- [`docs/plan/`](docs/plan/README.md) — what happens next (**RP**) ·
+  [`docs/adr/`](docs/adr/README.md) — why we decided (**A-NNNN**) ·
   [`docs/research/`](docs/research/) — what is true about EVOK and Unipi hardware.
 
 Licence not yet chosen — M0 task T0.6, with an ADR recording the choice.

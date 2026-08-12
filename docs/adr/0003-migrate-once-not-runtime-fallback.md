@@ -28,8 +28,7 @@ daemon.** It reads `/etc/evok/config.yaml` and `/var/lib/evok/alias.yaml` and wr
 `/etc/evok-node/config.yaml` plus our own store (ADR-0005). After that the two installations share
 no state.
 
-That the migrator, not the daemon, writes the config file is what keeps ADR-0004 and `CLAUDE.md`
-rule 16 absolute. If no config exists, the daemon reports that and exits non-zero naming what to do;
+That the migrator, not the daemon, writes the config file is what keeps ADR-0004 and G-5 absolute. If no config exists, the daemon reports that and exits non-zero naming what to do;
 it does not helpfully generate one.
 
 **Greenfield installs do not depend on the migrator.** A machine that never ran EVOK has nothing to

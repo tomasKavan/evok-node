@@ -1,0 +1,32 @@
+name: Setup Node and install
+description: >
+  Installs the Node major this repository supports and the workspace dependencies.
+  The single place any workflow learns which Node we run.
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve the Node major from engines.node
+      id: engines
+      shell: bash
+      # `engines.node` in the root package.json is the single source of truth, but it
+      # is a floor (">=24.0.0"), so it cannot be handed to setup-node's
+      # `node-version-file: package.json`: a `>=` range resolves to the newest Node
+      # major in existence, which is not what "Node 24" means. We take the floor's
+      # major and let setup-node pick its latest patch. Uses the runner's preinstalled
+      # node purely to read a string out of JSON.
+      run: |
+        major=$(node -p "require('./package.json').engines.node.match(/[0-9]+/)[0]")
+        echo "major=${major}" >> "$GITHUB_OUTPUT"
+        echo "Node major from engines.node: ${major}"
+
+    - uses: actions/setup-node@a0853c24544627f65ddf259abe73b1d18a591444 # v5.0.0
+      with:
+        node-version: ${{ steps.engines.outputs.major }}.x
+        cache: npm
+
+    - name: Install
+      shell: bash
+      # `npm ci`, never `npm install`: CI must fail on a lockfile that does not match
+      # package.json rather than quietly resolving something else.
+      run: npm ci

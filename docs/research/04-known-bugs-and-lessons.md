@@ -1,5 +1,9 @@
 # Known bugs, failure modes, and the design rules they imply
 
+The numbered design rules in this file are cited as **R04-N** and their numbers are stable. They are
+*evidence* — what the corpus demands — not policy. Policy is `docs/rules/`; where a rule here became
+binding, it has an RC/RT number there.
+
 Condensed from [`appendix/raw-bug-archaeology.md`](appendix/raw-bug-archaeology.md), which
 has the full ~90 findings with commit hashes, issue numbers and quotes. Evidence base:
 1045 commits (2016 → 2025-09), all 153 GitHub issues, the open PRs, the pinned pymodbus

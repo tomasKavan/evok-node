@@ -54,6 +54,7 @@ research section instead.
 | [0004](0004-four-kinds-of-data.md) | Four kinds of data; the daemon never writes its config | Accepted |
 | [0005](0005-sqlite-user-data-store.md) | SQLite for user data, with YAML export/import | Accepted — `node:sqlite` stability to confirm |
 | [0006](0006-admin-never-on-compat-surface.md) | Administration never rides on the classic surface | Accepted — mechanism deferred |
+| [0007](0007-simulator-has-its-own-framer.md) | The simulator does not depend on `modbus` | Accepted |
 
 ## Awaiting write-up
 

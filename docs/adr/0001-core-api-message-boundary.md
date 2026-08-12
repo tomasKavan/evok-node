@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-08-10
-- **Refs:** docs/GOALS.md invariant 1 · docs/research/05-evok-node-design-notes.md §1, §5, §7.2, §7.3
+- **Refs:** G-1 · docs/research/05-evok-node-design-notes.md §1, §5, §7.2, §7.3
 
 ## Context
 
