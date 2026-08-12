@@ -5,8 +5,8 @@ breakers, over `modbus-serial` behind an interface thin enough to replace it. A 
 to its own request or it is discarded — a late frame after a timeout is never returned as the new
 answer.
 
-A Modbus exception PDU is a failure, never a value a caller can mistake for success. The library's
-error taxonomy is normalised into ours here, once, at this boundary.
+This is the adapter boundary of RC-7 and RC-9: an exception PDU is a failure, and `modbus-serial`'s
+error taxonomy is normalised into ours here, once.
 
 **Must not depend on:** `core`, `server`, `client`, `inspector`, `simulator`, `hw-definitions`.
 This package moves bytes to a unit id; it knows nothing about models, circuits or channels. Depends

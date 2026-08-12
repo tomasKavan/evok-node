@@ -26,10 +26,11 @@ We inherit the *interface*, not the *design*.
    *compat-flagged* (fixed, with opt-in bug-compatible behaviour) · *won't fix* (with a reason).
    A fix may additionally be marked *unverifiable* where hardware we do not have would be needed to
    prove it, naming the gap.
-2. **The inviolable rules in [`CLAUDE.md`](../CLAUDE.md) hold.** They are binary and mostly
-   CI-enforced. A PR either satisfies them or it does not. (Those are numbered separately from the
-   invariants in this file. Cite them as "`CLAUDE.md` rule N" and "`GOALS.md` invariant N" — never
-   as a bare number.)
+2. **The rules in [`docs/rules/`](rules/code.md) hold.** They are binary and mostly CI-enforced. A
+   PR either satisfies them or it does not.
+
+Cite an invariant in this file as **G-N** — see the citation table in
+[`CLAUDE.md`](../CLAUDE.md).
 
 No uptime figures, latency SLOs or jitter budgets are committed here. Numbers invented before
 measurement get quietly relaxed; the M6 soak measures real behaviour, and targets may be added
@@ -56,7 +57,7 @@ scheduled.
   [`CLAUDE.md`](../CLAUDE.md), promoted from debug tool to product. `evok-web-jq` is a small dependent
   — research/05 §2.1 found it touches very little, and only requirement 22 in
   [research/07](research/07-client-compatibility.md) is exclusive to it — but replacing it retires
-  nothing, because invariant 3 keeps the compat surface regardless of who uses it.
+  nothing, because G-3 keeps the compat surface regardless of who uses it.
 - **Edge support.** A fast follow-up to 1.0, decided in research/05 §8.3. It is listed here as
   direction, but with one obligation that lands **now**: the overlay hardware-definition format must
   already accommodate per-channel mode sets, per-model mode enums and unit-0 devices, or the first
@@ -76,21 +77,25 @@ These follow from the goals above. They are here because each one is expensive o
 retrofit, so they bind from the first commit even where the feature that motivates them is
 post-1.0.
 
-1. **Core↔API is a serialisable message boundary.** Not a function-call interface that happens to
+1. **G-1 — Core↔API is a serialisable message boundary.** Not a function-call interface that happens to
    be crossable. One process for now; splitting core and API into separate processes later must be
    additive. A function-call boundary leaks callbacks, class instances and Buffers and makes the
    split a rewrite. Supersedes the "purely additive later" framing in
    [research/05](research/05-evok-node-design-notes.md) §5 and §7.3.
-2. **Administration and introspection never ride on the classic surface.** Compat mode and
+2. **G-2 — Administration and introspection never ride on the classic surface.** Compat mode and
    new-API-with-admin are a configuration choice. The compat surface is unauthenticated by
    inheritance; a privileged config-and-control surface cannot share that trust level. Mechanism —
    ports, paths, authentication — is deferred to its own ADR.
-3. **The compat surface is permanent, first-class, and never deprecated.** It is the reason the
-   project exists. No feature may break it, and **richer internal metadata must never leak into
-   its shapes** — compat sees the flat projection of our model, nothing more.
-4. **One instance, one PLC.** As EVOK. Circuit ids stay flat. A SPA may point at several
+3. **G-3 — The compat surface is permanent, first-class, and never deprecated.** It is the reason the
+   project exists. No feature may break it, and **no internal metadata leaks into its shapes** —
+   compat sees the flat projection of our model, never our groups, ordering, labels or any other
+   field EVOK 3.0.6 did not emit. Payload *fixes* are the exception: each is listed in
+   `COMPATIBILITY.md` (RD-3) and carries a flag from the closed set settled in
+   [research/07 §7](research/07-client-compatibility.md). A new payload fix does not mint a new flag
+   without an ADR.
+4. **G-4 — One instance, one PLC.** As EVOK. Circuit ids stay flat. A SPA may point at several
    instances and aggregate client-side.
-5. **Four kinds of data, four lifecycles.** Conflating the first two is where EVOK's alias handling
+5. **G-5 — Four kinds of data, four lifecycles.** Conflating the first two is where EVOK's alias handling
    failed (finding 3.9).
 
    | | Contents | Written by | Where |
@@ -104,15 +109,16 @@ post-1.0.
    place, unaffected by ADR-0003's migration. We also **generate our own** — research/05 §2.5 requires
    an autogen equivalent so we do not hard-depend on `unipi-os-configurator`, and §2.6 requires
    extending the definition format by overlay (research/05 §8.5). **Frozen per load, not once per process**:
-   immutable and `readonly` while loaded (`CLAUDE.md` rule 10), and reloaded when hardware change is
-   detected, because continuous discovery is the fix for finding 2.1.
+   immutable and `readonly` while loaded (RC-4), and reloaded when hardware change is detected,
+   because continuous discovery is the fix for finding 2.1.
 
-6. **A plugin cannot compromise the core.** It may not starve the scan loop, hold a bus past its
+6. **G-6 — A plugin cannot compromise the core.** It may not starve the scan loop, hold a bus past its
    lease, or take core down with it. A plugin needing bus access gets a leased, time-budgeted
    transaction through core — never a client of its own on a port the scan loop owns.
-7. **evok and evok-node never run at the same time.** Not a policy: two processes cannot both own
-   `/dev/ttyNS0`. Startup preflight refuses loudly if evok or `unipitcp` is active or the ttys are
-   held, rather than racing for the port and failing unexplainably.
+7. **G-7 — evok and evok-node never run at the same time.** Not a policy: two processes cannot both own
+   `/dev/ttyNS0`. Startup preflight refuses to start if evok or `unipitcp` is active or the ttys are
+   held — loudly, and **naming the conflicting unit** — rather than racing for the port and failing
+   unexplainably.
 
 ## The drop-in guarantee
 
@@ -147,15 +153,15 @@ Each is a thing a reasonable contributor might otherwise assume we want.
   in this document means *the user cares*, never *safety-rated*.
 - **A visual flow editor.** The rule engine is configuration, not a canvas.
 - **Replacing Mervis, or being a general-purpose PLC runtime.**
-- **Cloud, multi-site or fleet orchestration.** Follows from invariant 4.
+- **Cloud, multi-site or fleet orchestration.** Follows from G-4.
 - **Timeseries storage of readings.** A different product. Readings live in memory
-  (invariant 5).
+  (G-5).
 - **Numeric performance targets before M6.** See above.
 
 ## Open
 
 - Fail-safe semantics for the trigger engine.
-- Authentication mechanism for the admin surface (invariant 2), its default-on or default-off
+- Authentication mechanism for the admin surface (G-2), its default-on or default-off
   posture, and how it interacts with the nginx front end (research/07 §5).
 - Plugin isolation model — in-process with budgets, or out-of-process.
 - Whether the post-1.0 surfaces are versioned as 2.x or shipped under a separate API path.

@@ -51,15 +51,15 @@ useful to anyone integrating with Unipi hardware and costs us nothing extra.
 ## Post-1.0 direction
 
 Committed direction, stated in [`../GOALS.md`](../GOALS.md). **Deliberately not milestoned and not
-task-listed** — per rule 4 in [`README.md`](README.md), an agent does not turn these into work.
+task-listed** — per rule 4 in [`plan/README.md`](README.md), an agent does not turn these into work.
 They are here so the sequencing above can be read against where the project is going.
 
 | | Area | What it constrains *now* |
 |---|---|---|
-| Web SPA | full replacement for `evok-web-jq`: compact status, filter/sort/search, control, configuration, status on PLC layout drawings | the `inspector` package boundary; the shape of user data (groups, ordering, labels, layouts) in GOALS invariant 5 |
+| Web SPA | full replacement for `evok-web-jq`: compact status, filter/sort/search, control, configuration, status on PLC layout drawings | the `inspector` package boundary; the shape of user data (groups, ordering, labels, layouts) in G-5 |
 | Logs & debug | log access over the API, debug tooling in the SPA | structured logging in M5 must be queryable, not just writable |
-| Introspection | processes, resource consumption, network status and configuration | GOALS invariant 2 — a privileged surface cannot share the compat surface's trust level |
-| Plugins | non-Unipi devices reachable from the PLC: DALI, M-Bus | GOALS invariant 6 — core needs a leased, time-budgeted bus transaction API, not a second Modbus client |
+| Introspection | processes, resource consumption, network status and configuration | G-2 — a privileged surface cannot share the compat surface's trust level |
+| Plugins | non-Unipi devices reachable from the PLC: DALI, M-Bus | G-6 — core needs a leased, time-budgeted bus transaction API, not a second Modbus client |
 | Trigger engine | lightweight rule machine, no visual editor, for pump control and lighting timers | declarative interlocks (research/05 §6.4) are its foundation and land in the device layer |
 | Edge support | fast follow-up to 1.0, per research/05 §8.3 | the overlay definition format must accommodate per-channel mode sets, per-model mode enums and unit-0 devices **in M3**, or the first minor release breaks it |
 

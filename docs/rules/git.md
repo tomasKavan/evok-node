@@ -1,19 +1,18 @@
 # Git, issues and CI rules
 
-Trunk-based. One protected branch, short-lived work branches, squash merge. No `develop`, no
-long-lived feature branches — with several agents working in parallel, branches that live for
-days rot and conflict resolution is expensive and error-prone.
+Binding. Cite as **RG-N**.
 
-## Branches
+Trunk-based: one protected branch, short-lived work branches, squash merge. No `develop`, no
+long-lived feature branches — with several agents working in parallel, a branch that lives for days
+rots, and resolving the conflicts is expensive and error-prone.
 
-`main` is the only protected branch:
+## Branches and commits
 
-- pull request required, **1 approval (Tomas)**, no direct pushes, no force-push
-- all required checks green
-- linear history, **squash merge only**
-- branches deleted on merge
+**RG-1 — `main` is the only protected branch.** Pull request required, **one approval (Tomas)**, no
+direct pushes, no force-push, all required checks green, linear history, **squash merge only**,
+branches deleted on merge.
 
-Work branches: **`<type>/<issue>-<slug>`**
+**RG-2 — Work branches are `<type>/<issue>-<slug>`.**
 
 ```
 feat/42-modbus-rtu-framer
@@ -23,14 +22,10 @@ docs/33-compatibility-page
 test/51-generated-address-tables
 ```
 
-Update a branch by **rebasing** on `main`, never by merging `main` into it — merge commits defeat
-the linear history requirement and make the squash diff unreadable.
+**RG-3 — Update a branch by rebasing on `main`, never by merging `main` into it.** Merge commits
+defeat the linear history requirement and make the squash diff unreadable.
 
-Release branches only if we ever maintain a 1.x while building 2.x. Not now.
-
-## Commits
-
-**Conventional Commits**, enforced by `commitlint`. Scope is the package name:
+**RG-4 — Conventional Commits,** enforced by `commitlint`, scoped to the package:
 
 ```
 feat(modbus): add t3.5 inter-frame pacing to the RTU port
@@ -40,91 +35,78 @@ chore(fixtures): re-record captured transcripts from L527
 ```
 
 `feat!:` or a `BREAKING CHANGE:` footer for breaking changes. **The wire API is the public
-contract** — a change to a JSON field name is breaking even if no TypeScript type changed.
+contract** — renaming a JSON field is breaking even if no TypeScript type changed.
 
 ## Pull requests
 
-**One issue, one PR, one concern.** If a PR needs the word "also" in its description, split it.
+**RG-5 — One issue, one PR, one concern.** If the description needs the word "also", split it. Keep
+PRs small: a 2000-line PR from an agent cannot be meaningfully reviewed, which means the review gate
+has silently stopped working.
 
-Tomas reviews every PR and does not write code, so the PR body is the primary artifact.
-Required:
+**RG-6 — The PR body is the primary artifact,** because Tomas reviews every PR and does not write
+code. Required:
 
 ```markdown
 ## What
 One paragraph. What changed and why.
 
 ## How verified
-Which tests, which tier. If hardware was involved, say which rig elements.
+Which tests, which tier. If hardware was involved, which rig elements.
 
 ## Checklist
-- [ ] Tests added or updated (see docs/rules/testing.md)
-- [ ] `docs/plan/STATUS.md` updated
-- [ ] Docs updated in this PR, or a `docs-debt` issue opened
+- [ ] Tests added or updated (docs/rules/testing.md)
+- [ ] docs/plan/STATUS.md updated
+- [ ] Docs updated here, or a `docs-debt` issue opened
 - [ ] ADR added if a decision was made
-- [ ] No changes to `fixtures/generated/` or `fixtures/captured/` (or explained above)
+- [ ] No changes to fixtures/generated/ or fixtures/captured/ (or explained above)
 ```
-
-Keep PRs small. A 2000-line PR from an agent cannot be meaningfully reviewed, which means the
-review gate silently stops working.
 
 ## Issues
 
-Every unit of agent work is an issue with **explicit acceptance criteria**. Labels:
+Every unit of agent work is an issue with explicit acceptance criteria. Labels:
 
 | Group | Values |
 |---|---|
 | `area/` | `transport`, `definitions`, `core`, `api`, `client`, `inspector`, `simulator`, `rig`, `ci` |
 | `type/` | `feat`, `bug`, `chore`, `docs`, `test`, `spike` |
-| `risk/` | `high` (actuates hardware, or touches addressing/transport), `normal` |
+| `risk/` | `high` (actuates hardware, or touches addressing or transport), `normal` |
 | `state` | **`agent-ready`**, `needs-spec`, `blocked` |
 | other | `hardware-required`, `docs-debt`, `upstream-regression` |
 
-### The `agent-ready` gate
+**RG-7 — An issue is `agent-ready` only if it states** the acceptance criteria testably; which
+packages and roughly which files; the test strategy and tier; and links to the relevant research
+section. Otherwise it is `needs-spec`.
 
-An issue is `agent-ready` **only** if it states:
+This gate matters more than any other process rule here. An underspecified issue handed to an agent
+does not produce a question — it produces confident, plausible, wrong code, and reviewing that costs
+more than specifying the issue would have.
 
-1. the acceptance criteria, testably;
-2. which package(s) and roughly which files;
-3. the test strategy and tier;
-4. links to the relevant research section.
+**RG-8 — A `risk/high` issue must name a hardware or generated-table verification** in its
+acceptance criteria, not just unit tests.
 
-Otherwise it is `needs-spec`. This gate matters more than any other process rule here: an
-underspecified issue handed to an agent does not produce a question, it produces confident,
-plausible, wrong code — and reviewing that costs more than specifying the issue would have.
-
-`risk/high` issues additionally require the acceptance criteria to name a hardware or
-generated-table verification, not just unit tests.
-
-## CI workflows and triggers
+## CI
 
 | Workflow | Trigger | Contents |
 |---|---|---|
-| `pr` | PR opened/updated | prettier, eslint, `tsc`, dependency-cruiser, tier-0 unit + generated + simulator + golden, fixture-drift check, coverage floors, changeset present |
-| `main` | push to `main` | everything in `pr`, plus `hardware` tier on the self-hosted runner, plus a build of all packages |
-| `hardware` | PR labelled `hardware-required`, or manual | tier 1 on the rig. Preceded by `rig loopback verify` — if the rig is miswired, fail loudly |
-| `nightly` | schedule | soak tests, mutation testing on codecs and addressing, dependency audit |
+| `pr` | PR opened/updated | prettier, eslint, `tsc`, dependency-cruiser, tier 0, fixture-drift, coverage floors, changeset present |
+| `main` | push to `main` | everything in `pr`, plus the hardware tier on the self-hosted runner, plus a build of all packages |
+| `hardware` | PR labelled `hardware-required`, or manual | tier 1 on the rig, preceded by `rig loopback verify` |
+| `nightly` | schedule | soak, mutation testing on codecs and addressing, dependency audit |
 | `release` | tag `v*` | build, publish to npm, GitHub release from changesets |
 | `prerelease` | manual | publish under the `next` dist-tag |
 
-**Fixture-drift check** is a required check: regenerate `fixtures/generated/` and fail on diff.
+`rig loopback verify` runs before the hardware tier so that a hardware failure tells you immediately
+whether the rig or the code is wrong.
 
-`rig loopback verify` running before the hardware tier is deliberate — a hardware failure should
-tell you whether the rig or the code is wrong, immediately.
+**RG-9 — If CI fails, fix the cause.** Disabling a check, loosening a threshold or editing an
+expected value to go green is a blocking review comment. The fixture-drift check is required (RT-1).
 
-## Releases
+**RG-10 — Every PR that changes behaviour includes a changeset;** CI fails without one, except for
+`chore` and `docs`. Versions and the changelog are generated, never hand-edited. Pre-1.0 versioning
+is `0.x`, where `x` bumps for breaking changes, since the wire contract is still being established.
+Alpha and beta go out under the `next` dist-tag, after the smoothing pass (RD-5).
 
-**changesets.** Every PR that changes behaviour includes a changeset; CI fails without one
-(except for `chore`/`docs`). Version bumps and the changelog are generated — never hand-edited.
-
-Pre-1.0 versioning: `0.x` where `x` bumps for breaking changes, since the wire contract is being
-established. Alpha and beta go out under the `next` dist-tag with a scheduled docs smoothing pass
-first (see [docs rules](docs.md)).
-
-## Commit hygiene for agents
-
-- Never commit generated output without the generator change that produced it.
-- Never commit a `.only` in a test, or a skipped test without an issue link.
-- Never commit secrets, rig IP addresses, or SSH keys. `rig.yaml` in the repo uses placeholder
-  addresses; the real one lives on the test host.
-- If CI fails, fix the cause. Disabling a check, loosening a threshold or editing an expected
-  value to go green is a blocking review comment.
+**RG-11 — Commit hygiene.** Never commit generated output without the generator change that produced
+it. Never commit a `.only`, or a skipped test without an issue link. Never commit secrets, rig IP
+addresses or SSH keys — `rig.yaml` in the repo uses placeholders, and the real one lives on the test
+host.

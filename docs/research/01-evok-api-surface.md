@@ -277,7 +277,7 @@ There is also a `simple()` projection (`{dev, circuit, value}`) used internally;
 `None` and only populate them on the first successful scan. So between startup and the first
 read, `full()` legitimately emits `"value": null` — and after a device goes offline it keeps
 emitting the last-read value with no staleness marker. Both are why
-`04-known-bugs-and-lessons.md` rule 23 (staleness in the data model) matters. `[V-src]`
+R04-23 (staleness in the data model) matters. `[V-src]`
 
 ---
 

@@ -3,3 +3,7 @@ node_modules/
 dist/
 coverage/
 *.tsbuildinfo
+
+# Orphaned inodes left by FUSE mounts when a file is replaced while still open.
+# Stale copies of the file beside them; never ours to commit.
+.fuse_hidden*

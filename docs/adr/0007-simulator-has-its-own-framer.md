@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-08-10
-- **Refs:** docs/research/10-test-kit.md §Tier 0 · CLAUDE.md rule 2 · docs/plan/STATUS.md open
+- **Refs:** docs/research/10-test-kit.md §Tier 0 · RC-11 · docs/plan/STATUS.md open
   question 5a
 
 ## Context
@@ -14,7 +14,7 @@ The simulator is a Modbus **slave**; our `modbus` package is the **master** side
 `modbus-serial` rather than framing frames itself (research/05 §8.4). So the shared surface is not
 "a transport" — it is CRC-16 and PDU encode/decode, which both sides need in mirror image.
 
-Two things decide it. `CLAUDE.md` rule 2 already forbids exactly this sharing for `rig`: the
+Two things decide it. RC-11 already forbids exactly this sharing for `rig`: the
 instrument must not share code with what it measures, and for every test we can run without
 hardware the simulator *is* the instrument. And research/10's tier-0 requirements are explicit that
 the simulator must inject CRC errors, truncated frames, garbage bytes, late responses and t3.5
@@ -60,7 +60,7 @@ with reality rather than with each other.
 **Rejected:** sharing the framer and injecting faults by wrapping or monkey-patching it. This is the
 cheaper option in lines of code and it is what most projects do. Rejected because it puts a
 fault-injection seam in production transport code, and because the symmetric-bug failure above is
-silent — the same reason `rig` is forbidden from sharing code under rule 2.
+silent — the same reason `rig` is forbidden from sharing code under RC-11.
 
 **Rejected:** a third package holding a shared CRC and framing primitive, depended on by both. It
 looks like the DRY answer, but it reintroduces exactly the symmetric-bug cancellation the decision

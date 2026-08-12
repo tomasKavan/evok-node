@@ -20,6 +20,14 @@ and they need the project's rules written down rather than implied.
 Do this first, because everything an agent does depends on it.
 
 1. **`CLAUDE.md` at the repo root** — the operating rules, not a README. Should encode:
+
+   > **Correction, 2026-08-12.** Implemented differently, and better. `CLAUDE.md` holds no rules of
+   > its own: it carries the read order, the precedence chain and the citation scheme, and every rule
+   > below lives in exactly one numbered home in `docs/rules/` — the non-negotiables as RC-8, RC-14,
+   > RC-6, RC-4, RC-17, RC-18; the library rule as RC-22; the layering constraint as RC-10; test-first
+   > as RT-3 and RT-8. The list that follows is the round-1 requirement, kept as evidence of what had
+   > to be covered.
+
    - the non-negotiables from `04-known-bugs-and-lessons.md` (no bare catch; every wait has a
      deadline; transport results are discriminated unions; definitions are frozen; identity is
      never derived from a loop counter; duplicate circuit/coil registration is fatal);

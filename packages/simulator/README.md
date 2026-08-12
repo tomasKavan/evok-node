@@ -9,6 +9,6 @@ what we believe: integration tests use it instead of mocking our own code.
 
 Ships publicly from M1 — it is useful to anyone integrating with Unipi hardware.
 
-**Must not depend on:** `core`, `server`, `client`, `inspector`, `rig`. Depends on `protocol` and
-`hw-definitions`. Whether it may share `modbus`'s framer with the code it stands in for is an open
-question — see the note in [docs/plan/STATUS.md](../../docs/plan/STATUS.md).
+**Must not depend on:** `core`, `server`, `client`, `inspector`, `rig`, **`modbus`**. Depends on
+`protocol` and `hw-definitions`. It has its own CRC-16 and PDU codec rather than sharing `modbus`'s,
+for the same reason as RC-11: the instrument must not share code with what it measures (ADR-0007).

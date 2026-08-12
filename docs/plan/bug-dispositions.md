@@ -109,7 +109,7 @@ Notes on the ones that are not straightforward:
   unknown filter values must be rejected loudly. Rejecting the alt names would break EVOK's own
   default config.
 - **3.9** is `test`, not `construction`. ADR-0005's ACID store removes the *truncation* half for
-  free, but the flush policy is ours — research/04 rule 25 requires synchronous-on-change or a bounded
+  free, but the flush policy is ours — R04-25 requires synchronous-on-change or a bounded
   documented window **plus flush-on-shutdown**, and only a test shows we did that.
 - **3.8** is `test` because `rules/testing.md` already mandates golden tables per register type
   including negatives, boundaries and NaN→`null`. The type system stops `NaN` reaching the wire; the

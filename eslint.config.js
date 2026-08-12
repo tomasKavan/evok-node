@@ -20,12 +20,12 @@ const BAN_WALL_CLOCK = [
   {
     selector: "CallExpression > MemberExpression[object.name='Date'][property.name='now']",
     message:
-      'Date.now() is banned outside logging: inject the clock. An NTP step on a box with no RTC would otherwise corrupt staleness. docs/rules/code.md §Time and effects.',
+      'Date.now() is banned outside logging: inject the clock. An NTP step on a box with no RTC would otherwise corrupt staleness. RC-15.',
   },
   {
     selector: 'NewExpression[callee.name=Date][arguments.length=0]',
     message:
-      'new Date() reads the same wall clock as Date.now(). Inject the clock. docs/rules/code.md §Time and effects.',
+      'new Date() reads the same wall clock as Date.now(). Inject the clock. RC-15.',
   },
 ];
 
@@ -34,16 +34,16 @@ const BAN_PROCESS_ENV = [
   {
     selector: "MemberExpression[object.name='process'][property.name='env']",
     message:
-      'process.env is banned outside the config module. Configuration is parsed once, at one boundary. docs/rules/code.md §Time and effects.',
+      'process.env is banned outside the config module. Configuration is parsed once, at one boundary. RC-16.',
   },
   {
     selector: "VariableDeclarator[init.name='process'] > ObjectPattern > Property[key.name='env']",
-    message: 'Destructuring `env` off `process` is still process.env. docs/rules/code.md.',
+    message: 'Destructuring `env` off `process` is still process.env. RC-16.',
   },
   {
     selector:
       "ImportDeclaration[source.value=/^(node:)?process$/] > ImportSpecifier[imported.name='env']",
-    message: 'Importing `env` from node:process is still process.env. docs/rules/code.md.',
+    message: 'Importing `env` from node:process is still process.env. RC-16.',
   },
 ];
 
@@ -51,18 +51,18 @@ const BAN_PROCESS_ENV = [
  * Barrels. Read strictly: any re-export is a barrel construct, and the only file
  * allowed to have one is a package entrypoint. Stock eslint cannot express "a file
  * whose every statement is a re-export", and the stricter reading costs nothing —
- * docs/rules/code.md already asks for one exported concept per file, named after it.
+ * RC-23 already asks for one exported concept per file, named after it.
  */
 const BAN_REEXPORT = [
   {
     selector: 'ExportAllDeclaration',
     message:
-      '`export *` is a barrel: it creates import cycles and hides layering violations from review. Only a package entrypoint (packages/*/src/index.ts) may re-export. docs/rules/code.md §Files and naming.',
+      '`export *` is a barrel: it creates import cycles and hides layering violations from review. Only a package entrypoint (packages/*/src/index.ts) may re-export. RC-23.',
   },
   {
     selector: 'ExportNamedDeclaration[source]',
     message:
-      'Re-exporting from another module is a barrel construct. Import from the defining file, or export it from the package entrypoint. docs/rules/code.md §Files and naming.',
+      'Re-exporting from another module is a barrel construct. Import from the defining file, or export it from the package entrypoint. RC-23.',
   },
 ];
 
@@ -72,7 +72,7 @@ export default tseslint.config(
       '**/dist/**',
       '**/coverage/**',
       // Fixtures and the official register maps are measurements and ground truth,
-      // not code. CLAUDE.md rule 14.
+      // not code. RT-1.
       'fixtures/generated/**',
       'fixtures/captured/**',
       'docs/modbus-reg-map/**',

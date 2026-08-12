@@ -20,11 +20,11 @@
  *
  * - `protocol` is the root: schemas only, so it depends on nothing of ours.
  * - `core` gets protocol, modbus and hw-definitions, and never api/server/inspector
- *   (CLAUDE.md rule 1). The core↔API contract is serialisable messages, so `server`
+ *   (RC-10). The core↔API contract is serialisable messages, so `server`
  *   depends on `core` and never the reverse.
  * - `simulator` deliberately excludes `modbus`: the instrument must not share a
  *   framer with the code it stands in for. See ADR-0007, which states the cost.
- * - `rig` imports nothing of ours at all (CLAUDE.md rule 2).
+ * - `rig` imports nothing of ours at all (RC-11).
  * - `inspector` is over the public API only: no core, no server, no transport.
  */
 const WORKSPACE_DEPS = {
@@ -132,7 +132,7 @@ module.exports = {
     {
       name: 'rig-no-modbus-client',
       comment:
-        'CLAUDE.md rule 2: rig is sysfs only and never speaks Modbus. The instrument must not share code with what it measures — if the rig used our transport, a transport bug would corrupt the measurement that was meant to catch it.',
+        'RC-11: rig is sysfs only and never speaks Modbus. The instrument must not share code with what it measures — if the rig used our transport, a transport bug would corrupt the measurement that was meant to catch it.',
       severity: 'error',
       from: { path: '^packages/rig/' },
       to: { path: '[Mm]odbus' },

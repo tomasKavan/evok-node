@@ -1,6 +1,6 @@
 # Fixtures are measurements. A change to one means either reality changed or the
 # evidence is being edited to make a build green — both need a human decision.
-# CLAUDE.md rule 14, docs/rules/testing.md.
+# RT-1, docs/rules/testing.md.
 #
 # Captured fixtures are irreplaceable: once stock EVOK is off the Patrons they
 # cannot be re-recorded.

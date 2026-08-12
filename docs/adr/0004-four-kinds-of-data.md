@@ -2,7 +2,7 @@
 
 - **Status:** Accepted
 - **Date:** 2026-08-10
-- **Refs:** docs/GOALS.md invariant 5 · docs/research/04-known-bugs-and-lessons.md finding 3.9, rules 23 and 25 · docs/research/03-config-and-hw-definitions.md §2, §3, §4
+- **Refs:** G-5 · docs/research/04-known-bugs-and-lessons.md finding 3.9, rules 23 and 25 · docs/research/03-config-and-hw-definitions.md §2, §3, §4
 
 ## Context
 
@@ -38,17 +38,16 @@ definition format by overlay rather than reuse it verbatim (research/05 §8.5, a
 base→overlay→site merge in M3). So we both consume and produce this category — what makes it a category is that it describes
 hardware rather than intent, and that a human never hand-authors it.
 
-**Frozen per load, not once per process.** Immutable and `readonly` while loaded (`CLAUDE.md`
-rule 10, which exists because of the `deepcopy` aliasing bug, finding 1.3) — but reloadable when
+**Frozen per load, not once per process.** Immutable and `readonly` while loaded (RC-4, which exists because of the `deepcopy` aliasing bug, finding 1.3) — but reloadable when
 hardware change is detected. Load-once-at-startup *is* finding 2.1, the highest-leverage item in the
 corpus.
 
 ## Consequences
 
 Makes easy: config stays hand-editable and git-trackable with no write-back race, and a reviewer can
-diff a site's intent. Durability requirements land only on the store, where research/04 rule 25
+diff a site's intent. Durability requirements land only on the store, where R04-25
 (atomic write, flush on shutdown) applies to one component instead of being a scattered concern.
-Config validation can report every error at once and exit non-zero (research/04 rule 13) because it
+Config validation can report every error at once and exit non-zero (R04-13) because it
 has no mutable half-state.
 
 Makes hard: anything the API might want to change that looks like configuration — a scan rate, an
@@ -58,7 +57,7 @@ deciding per field. Deciding it per field is the point; the alternative is a dae
 own config and a user whose hand edits vanish.
 
 **Consequent invariant:** because user data is richer than EVOK's flat alias map, the compat surface
-must emit only the flat projection of it — GOALS.md invariant 3, `CLAUDE.md` rule 17.
+must emit only the flat projection of it — G-3.
 
 **Rejected:** one settings store covering both, as EVOK effectively has. It is what produced finding
 3.9 and makes hand-editing unsafe.

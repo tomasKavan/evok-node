@@ -2,14 +2,14 @@
 
 - **Status:** Accepted — mechanism deliberately deferred
 - **Date:** 2026-08-10
-- **Refs:** docs/GOALS.md invariant 2, invariant 3 · docs/research/04-known-bugs-and-lessons.md rule 29, finding 4.6 · docs/research/07-client-compatibility.md §5 (nginx front end)
+- **Refs:** G-2, G-3 · docs/research/04-known-bugs-and-lessons.md R04-29, finding 4.6 · docs/research/07-client-compatibility.md §5 (nginx front end)
 
 ## Context
 
 EVOK's API is unauthenticated. `check_origin` returns `true` unconditionally and issue #149 on
-authentication is still open (research/04 rule 29). Deployments rely on the network being trusted —
+authentication is still open (R04-29). Deployments rely on the network being trusted —
 nginx on `:80`, LAN only. We inherit that surface unchanged, because changing it would break every
-existing client, and the compat surface is permanent and first-class (invariant 3).
+existing client, and the compat surface is permanent and first-class (G-3).
 
 The post-1.0 direction adds administration and introspection: PLC configuration, network
 configuration, processes and resource consumption, log access, and a rule engine that drives
@@ -36,7 +36,7 @@ Makes easy: keeping the compat promise absolutely — no client sees any change.
 radius, because the privileged surface is a separate thing that can be disabled entirely.
 
 Makes hard: any feature wanting to serve both audiences must be implemented against both surfaces, or
-be admin-only. Some diagnostics are genuinely useful to plain clients; research/04 rule 35's
+be admin-only. Some diagnostics are genuinely useful to plain clients; R04-35's
 `/diagnostics` is in 1.0 and must therefore be scoped to non-sensitive, read-only content, with
 anything touching processes or network configuration held back for the admin surface.
 

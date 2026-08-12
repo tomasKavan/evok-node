@@ -1,81 +1,66 @@
-# evok-node — agent operating rules
+# evok-node — how to work here
 
 A Node.js/TypeScript drop-in replacement for Unipi Technology's **EVOK 3.x** API. EVOK is a
 load-bearing part of Unipi's FOSS stack with a long tail of open, known defects; we exist to fix
 them. The interface is inherited; the design is not.
 
 Success is defined, not asserted: every finding in `docs/plan/bug-dispositions.md` has a
-disposition, and the invariants below hold. See [`docs/GOALS.md`](docs/GOALS.md).
+disposition, and every rule below holds. See [`docs/GOALS.md`](docs/GOALS.md).
+
+This file says how to work here. It holds no rules of its own — every rule lives in exactly one
+place, listed below, and is cited by number.
 
 ## Before you write code
 
-1. **`docs/plan/STATUS.md`** — what is done, what is in progress, what is next. Always read first.
-2. **`docs/GOALS.md`** — goals, non-goals, invariants, what 1.0 is. Read before arguing that
-   anything is in or out of scope. Wins over every other document.
-3. **`docs/rules/`** — [code](docs/rules/code.md) · [testing](docs/rules/testing.md) ·
-   [docs](docs/rules/docs.md) · [git](docs/rules/git.md). Binding.
-4. **`docs/adr/`** — settled decisions. Do not relitigate; propose a superseding ADR instead.
-5. **`docs/research/`** — the knowledge base: how EVOK and Unipi hardware actually behave.
-   Authoritative for hardware facts. Read the relevant file before touching that area.
+1. **[`docs/plan/STATUS.md`](docs/plan/STATUS.md)** — done, in progress, next. Always read first.
+2. **[`docs/GOALS.md`](docs/GOALS.md)** — goals, non-goals, invariants, what 1.0 is. Read before
+   arguing that anything is in or out of scope.
+3. **`docs/rules/`** — binding, and the blocking set in review:
+   [code](docs/rules/code.md) · [testing](docs/rules/testing.md) · [docs](docs/rules/docs.md) ·
+   [git](docs/rules/git.md).
+4. **[`docs/adr/`](docs/adr/README.md)** — settled decisions. Do not relitigate; propose a
+   superseding ADR.
+5. **[`docs/research/`](docs/research/README.md)** — how EVOK and the hardware actually behave.
+   Read the relevant file before touching that area.
 
-If a rule and this file disagree, the rule file wins. If research and reality disagree, reality
-wins — and you update the research file in the same PR, with a dated correction note.
+## Citing a rule
 
-## Inviolable rules
+Always with its prefix, never as a bare number. Grep the prefix to find the rule — it is written at
+the rule itself, not only in this table.
 
-Violating any of these is a blocking review comment, and most are enforced in CI.
+| Prefix | Source | Example |
+|---|---|---|
+| **G-N** | `docs/GOALS.md` invariants — scope and architecture | G-5 |
+| **ADR-NNNN** | `docs/adr/` — a settled decision | ADR-0004 |
+| **RC-N** | [code rules](docs/rules/code.md) | RC-17 |
+| **RT-N** | [testing rules](docs/rules/testing.md) | RT-1 |
+| **RD-N** | [docs rules](docs/rules/docs.md) | RD-2 |
+| **RG-N** | [git rules](docs/rules/git.md) | RG-7 |
+| **RP-N** | [plan rules](docs/plan/README.md) — how the plan is maintained | RP-1 |
+| **R04-N** | `docs/research/04` design rules — evidence, not policy | R04-23 |
 
-1. **`core/` never imports from `api/`, `server/` or `inspector/`.** Checked by
-   `dependency-cruiser`. Further, **the core↔API contract is serialisable messages** — no
-   callbacks, class instances or Buffers cross it. One process today; the process split must stay a
-   deployment change, not a rewrite. See ADR-0001.
-2. **`packages/rig` never imports any other workspace package** and never uses a Modbus client.
-   The instrument must not share code with what it measures.
-3. **No `any`, no `as` casts, no non-null `!`** outside generated code. Parse at the boundary,
-   then the type is real.
-4. **Expected failures are values, not exceptions.** Return a discriminated union
-   (`{ok:true,…} | {ok:false, kind:…}`). `throw` is for programmer error only.
-5. **A Modbus exception PDU is a failure.** Never a value a caller can mistake for success.
-6. **Every wait has a deadline.** No unbounded loops, no promise without a timeout, no
-   `setTimeout` without a paired abort path.
-7. **No bare `catch {}` on any event or delivery path.** Log-and-count with dedup.
-8. **Never derive an identity from a loop counter.** Addresses come from the single audited
-   address function, which has the `/16` bank stride and `%16` mask in exactly one place.
-9. **Duplicate circuit ids, or two circuits resolving to the same coil or (register, bit), is a
-   fatal startup error.** This is what stops us silently driving the wrong relay.
-10. **Hardware definitions are frozen and `readonly`** once loaded.
-11. **Multi-register values must lie wholly inside one register block with one frequency.**
-    Validated at definition load; violating definitions are rejected.
-12. **Every reading carries `value`, `readAt`, `stale`.** No silent zeros, no frozen values
-    without a staleness marker.
-13. **One event envelope from every source**, `changes` always an array — including 1-Wire.
-    Real clients crash otherwise.
-14. **Never edit `fixtures/generated/` or `fixtures/captured/`.** If a test fails against them,
-    the code is wrong. See [testing rules](docs/rules/testing.md).
-15. **Prefer a widely used, tested, actively maintained library** over writing your own — behind
-    an interface thin enough to replace it.
-16. **The daemon never writes config, and never edits EVOK's files in place.** Config is operator
-    intent, written by a human or by the migration tool. Platform facts (`autogen.yaml`,
-    `hw_definitions/*.yaml`, our overlays) are read in place and may be regenerated by us, never
-    hand-authored. User data goes to the store in `/var/lib/evok-node/`; readings are never
-    persisted. Four kinds of data, four lifecycles — see [`docs/GOALS.md`](docs/GOALS.md)
-    invariant 5.
-17. **No internal metadata leaks into a compat payload.** The classic surface emits the flat
-    projection of our model — never our groups, ordering, labels or any other field EVOK 3.0.6 did
-    not emit. Payload *fixes* are the exception, they are enumerated in `COMPATIBILITY.md`, and their
-    flags are the closed set settled in `docs/research/07-client-compatibility.md` §7 — a new payload
-    fix does not mint a new flag without an ADR.
-18. **The daemon refuses to start if evok or `unipitcp` holds the buses.** Loudly, with the
-    conflicting unit named. Two processes cannot own `/dev/ttyNS0`; racing for it produces
-    unexplainable failures.
+Numbers are stable: append, never renumber. A rule that becomes wrong is superseded in place, with
+a note saying by what.
+
+## Precedence
+
+**G wins over everything.** Then A, then the rules files, then research. This file loses to all of
+them; it only points.
+
+If research and reality disagree, **reality wins** — and you fix the research file in the same PR,
+with a dated correction note (RD-7).
+
+A rule stated in two places is a bug. If you need a rule where one already exists, extend that rule
+rather than writing a second one, and delete whatever it replaces (RD-6).
 
 ## Workflow
 
-Issue → branch `<type>/<issue>-<slug>` → PR → green CI → Tomas approves → squash merge.
-Conventional Commits. Update `docs/plan/STATUS.md` in the same PR as the work.
+Issue → branch `<type>/<issue>-<slug>` → PR → green CI → Tomas approves → squash merge. Details in
+[git rules](docs/rules/git.md).
 
-Tomas does not write code and reviews every PR. Optimise for **reviewability**: small PRs, one
-concern, and a PR body that says what changed and how it was verified.
+Tomas does not write code and reviews every PR, so optimise for **reviewability**: small PRs, one
+concern, and a body that says what changed and how it was verified (RG-5, RG-6). `STATUS.md` is
+updated in the same PR as the work (RP-1).
 
 ## Layout
 
@@ -84,15 +69,15 @@ packages/
   protocol/     wire schemas (zod) — the single source of truth for the API contract
   modbus/       transport: framing, correlation, timing, circuit breakers
   hw-definitions/  model descriptors, overlay definitions, generated address tables
-  core/         registry, device model, scheduler, aliases. No API dependency.
-  server/       fastify adapters: REST, JSON, bulk, WS, webhook, JSON-RPC. The daemon.
-  client/       first-party TS client. Depends only on protocol.
+  core/         registry, device model, scheduler, aliases. No API dependency (RC-10)
+  server/       fastify adapters: REST, JSON, bulk, WS, webhook, JSON-RPC. The daemon
+  client/       first-party TS client. Depends only on protocol
   simulator/    Modbus slave simulator, generated from the map corpus
-  inspector/    web UI. Public API only — never imports core.
-  rig/          hardware-rig control service. Private, sysfs only, no workspace deps.
+  inspector/    web UI. Public API only — never imports core (RC-10)
+  rig/          hardware-rig control service. Private, sysfs only, no workspace deps (RC-11)
 docs/
   plan/         what we are doing next
-  rules/        how we work
+  rules/        how we work — the binding rules
   adr/          why we decided
   research/     what is true about EVOK and Unipi hardware
   modbus-reg-map/  official Unipi register maps — ground truth, read-only

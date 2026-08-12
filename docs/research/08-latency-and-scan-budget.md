@@ -86,7 +86,7 @@ cycle time ≈ Σ (transaction + t3.5) over all blocks on the bus
 Four xS11s on one RS-485 line at 19200 ≈ **77 ms** round-robin. Eight ≈ 154 ms. This is why:
 
 - **Per-bus scheduling with an explicit time budget** is mandatory, not a nicety
-  (`04-known-bugs-and-lessons.md` rule 32). A quarantined device must not consume a slot.
+  (R04-32). A quarantined device must not consume a slot.
 - The MWD interaction is a hard constraint: default MWD timeout is **2500 ms**, and a dead peer
   that eats the bus can starve a healthy device's watchdog into firing — exactly what issue
   #123 reported. The scheduler must guarantee every enabled MWD is refreshed well inside its
@@ -127,7 +127,7 @@ caveats:
 The resolution: put counters in a medium-frequency block, and expose both the raw counter and a
 server-computed monotonic `bigint` total plus a `pulsesSinceLastRead` delta. Clients that care
 about "did anything happen" use the delta; clients that care about level use the bitmap. This is
-`04-known-bugs-and-lessons.md` rule 24, with a concrete justification.
+R04-24, with a concrete justification.
 
 If genuinely fast edge response is needed, the hardware answers are **DirectSwitch** (firmware
 couples DI→DO with no host involvement) or possibly the undocumented `Interrupt Mask` register —
