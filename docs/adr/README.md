@@ -60,6 +60,17 @@ research section instead.
 | [0010](0010-introspection-is-the-source-of-truth.md) | Drivers self-describe; compat's translate table is derived | Accepted |
 | [0011](0011-main-is-never-in-the-data-path.md) | `main` orchestrates and is never in the data path | Accepted |
 | [0012](0012-single-threaded.md) | Single-threaded, single event loop; not `worker_threads` | Accepted |
+| [0013](0013-evok-3x-sole-compatibility-target.md) | EVOK 3.x is the sole compatibility target | Accepted |
+| [0014](0014-library-first-service-second.md) | Library first, service second; nothing imports `main` | Accepted |
+| [0015](0015-modbus-serial-with-supervising-wrapper.md) | `modbus-serial` behind our own port, with a supervising wrapper | Accepted |
+| [0016](0016-hardware-definitions-extended-by-overlay.md) | Hardware definitions are extended by overlay; the OS image is read-only | Accepted |
+| [0017](0017-nginx-fronts-the-compat-surface.md) | nginx remains the `:80` front end for the compat surface only | Accepted — evok's own nginx site pending the capture trip |
+| [0018](0018-node-24-and-fastify.md) | Node.js 24, and fastify for HTTP | Accepted |
+| [0019](0019-npm-workspaces-scoped-packages.md) | npm workspaces, with scoped `@evok-node/*` package names | Accepted |
+| [0020](0020-hardware-scope.md) | Hardware scope: Patron, Neuron, Unipi 1.1, Extensions, Gate; Edge as a fast follow; Axon dropped | Accepted |
+| [0021](0021-compat-flag-set.md) | The compat flag set is closed at five, and `wsAlwaysArray` defaults on | Accepted |
+| [0022](0022-rig-is-sysfs-only.md) | The rig is sysfs-only and shares no code with what it measures | Accepted |
+| [0023](0023-generated-address-tables-primary-safeguard.md) | Generated address tables are the primary safeguard, not a supplement | Accepted |
 
 ## Awaiting write-up
 
@@ -68,15 +79,9 @@ number when someone writes it. Until then, cite the research section.
 
 | Decision | Source |
 |---|---|
-| EVOK 3.x as the sole compatibility target | research/05 §7 |
-| Library first, service second | research/05 §7.2 — reread against ADR-0008 before writing it up; "library" now means a driver or an API package, not `core` |
-| `modbus-serial` plus a supervising wrapper, not our own framer | research/05 §8.4 |
-| Hardware definitions extended by overlay, never by editing the OS image | research/05 §8.5 |
-| nginx remains the `:80` front end | research/07 §5 |
-| Node.js 24; fastify for HTTP | research/05 §8.6, §8.11 |
-| npm workspaces; scoped `@evok-node/*` package names | 2026-07-29 planning session |
-| Hardware scope: Patron, Neuron, Unipi 1.1, Extensions, Gate; Edge as fast follow; Axon dropped | research/05 §8.3 |
-| Compatibility flag set, and `wsAlwaysArray` defaulting on | research/07 §7 |
-| The rig uses sysfs only and shares no code with the code under test | research/10 |
-| Generated address tables as the primary safeguard, given no purchasable hardware exceeds 16 channels of one type in a single section | research/10 §4 |
-| Licence choice | T0.6 |
+| Licence choice | T0.6 — **not settled yet**: MIT or Apache-2.0 is still open, so there is no decision to record |
+
+The other eleven rows became ADRs 0013–0023 on 2026-08-12. Two were reread against ADR-0008 rather
+than transcribed: "library first, service second" (0014), whose `core`-based mechanism no longer
+exists, and "nginx remains the `:80` front end" (0017), which is now narrowed to the compat surface
+because `api-nextgen` serves the SPA at its own `/`.

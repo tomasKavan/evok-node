@@ -114,7 +114,9 @@ rather than `core`, and "nginx remains the `:80` front end" (research/07 §5) me
 
 **Done when:** `docs/adr/` contains one file per decision, each with Context / Decision /
 Consequences and a link to the research section. These exist so an agent does not re-derive them
-from first principles and quietly choose differently.
+from first principles and quietly choose differently. ✅ *2026-08-12 — ADRs 0013–0023. Eleven of the
+twelve; the licence choice is T0.6's, since MIT vs Apache-2.0 is not decided and an ADR cannot record
+a decision nobody has taken.*
 
 ---
 
