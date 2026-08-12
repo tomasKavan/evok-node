@@ -1,13 +1,10 @@
 # `@evok-node/modbus`
 
-Modbus transport: framing, transaction correlation, inter-frame timing, retries and circuit
-breakers, over `modbus-serial` behind an interface thin enough to replace it. A response is matched
-to its own request or it is discarded — a late frame after a timeout is never returned as the new
-answer.
+Framing, transaction correlation, timing, backoff and per-device quarantine — the supervising wrapper
+around `modbus-serial`, not our own framer.
 
-This is the adapter boundary of RC-7 and RC-9: an exception PDU is a failure, and `modbus-serial`'s
-error taxonomy is normalised into ours here, once.
+Every silent-wrong-data failure in the upstream corpus lives here or in addressing, which is why this
+lands before any API and gets verified hardest. A Modbus exception PDU is a failure, never a value a
+caller can mistake for success (RC-7).
 
-**Must not depend on:** `core`, `server`, `client`, `inspector`, `simulator`, `hw-definitions`.
-This package moves bytes to a unit id; it knows nothing about models, circuits or channels. Depends
-on `protocol` only, for the branded address types and the error kinds.
+**Must not depend on:** any driver, any api, `main`, `hw-definitions`.

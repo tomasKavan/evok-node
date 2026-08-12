@@ -1,6 +1,12 @@
 # Bug dispositions
 
-**Updated:** 2026-08-10 · **Closed:** 0 of 29
+**Updated:** 2026-08-12 · **Closed:** 0 of 29
+
+> **Milestones remapped 2026-08-12** for the N0–N10 restructure in
+> [`roadmap.md`](roadmap.md) (ADR-0008). Mechanical for 26 rows — `M2`→`N3`, `M3`→`N4`, `M4`→`N9`,
+> `M5`/`M6`→`N10`. Three rows moved on their merits: **2.1** to N5, **2.7** to N2, and three
+> WebSocket/write-path rows (2.3, 3.2, 3.7) now read `N6, N9` because the mechanism is built in the
+> nextgen surface and the compat projection inherits it. No finding's content changed.
 
 Every known EVOK finding and what we did about it. Closing this file is half the definition of 1.0
 ([`../GOALS.md`](../GOALS.md)); the other half is compatibility.
@@ -30,6 +36,16 @@ would avoid the bug. Normalising a library's error taxonomy (3.1), a codec (3.8)
 2026-08-10 after an initial pass marked nine rows `construction`; the drafting error was treating
 "the design prevents it" as equivalent to "the design intends to prevent it".
 
+**2.1 is a fourth candidate, added 2026-08-12, and deliberately not yet counted above.** The finding
+was misnamed: #192 says *"If a device is defined in the configuration, a communication test is
+performed at startup. If this test fails, the device is not registered"*, and
+`ModbusSlave.readboards()` catches `ConnectionException`, logs "No board detected" and returns with no
+retry. Registration was always declarative from config — the bug is that it was *gated on a one-shot
+reachability probe*. Under ADR-0008 the endpoint list is a `readonly` structure derived from frozen
+config (RC-4) and reachability is a separate field, so "unreachable ⇒ unregistered" has no code path
+to occur in. Whether that clears the bar is rule 2's call, made by the reviewer at N5, not asserted
+here. Genuine discovery survives only on buses that have it, as a declared driver capability.
+
 ## Rules
 
 1. **A PR that closes a finding fills in its `Closed by` cell in the same PR.** Same rule as
@@ -49,10 +65,10 @@ would avoid the bug. Normalising a library's error taxonomy (3.1), a codec (3.8)
 
 | # | Finding | Intended | Milestone | Closed by |
 |---|---|---|---|---|
-| 1.1 | >16-channel addressing drives the wrong relay | test + **unverifiable** — no device has >16 channels of one type in a section, so the bank-stride half cannot be reproduced | M1, M6 | |
-| 1.2 | Modbus TID overflow mismatches responses | test | M2 | |
-| 1.3 | Register cache shared between slaves | construction | M3 | |
-| 1.4 | Torn 32-bit counters across register blocks | test | M3 | |
+| 1.1 | >16-channel addressing drives the wrong relay | test + **unverifiable** — no device has >16 channels of one type in a section, so the bank-stride half cannot be reproduced | N1, N10 | |
+| 1.2 | Modbus TID overflow mismatches responses | test | N3 | |
+| 1.3 | Register cache shared between slaves | construction | N4 | |
+| 1.4 | Torn 32-bit counters across register blocks | test | N4 | |
 
 **1.1 is the project's defining gap**, and the gap is narrower than it is usually stated. No
 purchasable Unipi device has more than 16 channels of one type **in a single section**
@@ -67,13 +83,13 @@ and the fatal-on-duplicate-registration assertion.
 
 | # | Finding | Intended | Milestone | Closed by |
 |---|---|---|---|---|
-| 2.1 | Discovery is a one-shot startup step | test | M5 | |
-| 2.2 | One unreachable slave blocks every bus and client; backlog replays stale commands | test | M2, M3 | |
-| 2.3 | Unbounded WebSocket send buffering | test | M4 | |
-| 2.4 | Closing the last WebSocket can stop polling | construction | M3 | |
-| 2.5 | One missing 1-Wire sensor froze all sensors | test | M3 | |
-| 2.6 | A failing register block discards the whole scan pass | test | M3 | |
-| 2.7 | Crash-loop on config errors | test | M5 | |
+| 2.1 | **Registration is gated on a one-shot reachability probe** | construction *(candidate — see below)* | N5 | |
+| 2.2 | One unreachable slave blocks every bus and client; backlog replays stale commands | test | N3, N4 | |
+| 2.3 | Unbounded WebSocket send buffering | test | N6, N9 | |
+| 2.4 | Closing the last WebSocket can stop polling | construction | N4 | |
+| 2.5 | One missing 1-Wire sensor froze all sensors | test | N4 | |
+| 2.6 | A failing register block discards the whole scan pass | test | N4 | |
+| 2.7 | Crash-loop on config errors | test | N2 | |
 
 2.2 has two halves and both must close: bus isolation, and command expiry so a recovered bus cannot
 replay a 40-second-old "close relay". 2.4 is `construction` because polling becomes a property of the
@@ -83,16 +99,16 @@ device, never of who is listening — there is no code path from a socket closin
 
 | # | Finding | Intended | Milestone | Closed by |
 |---|---|---|---|---|
-| 3.1 | Failed writes returned `success: true` | test | M2 | |
-| 3.2 | Write responses return the pre-write value | test | M4 | |
-| 3.3 | `ds_mode` never returns to `Simple` | construction | M3 | |
-| 3.4 | Payload shape has never been invariant | compat-flagged | M4 | |
-| 3.5 | Alt-name filters silently match nothing | test | M4 | |
-| 3.6 | Webhooks never fire for 1-Wire | test | M4 | |
-| 3.7 | No keepalive, close reasons or subscription echo | test | M4 | |
-| 3.8 | Value-conversion bug tail, incl. NaN as invalid JSON | test | M1 | |
-| 3.9 | Aliases are not durably written | test | M3 | |
-| 3.10 | Bulk `group_queries` / `group_assignments` broken | test | M4 | |
+| 3.1 | Failed writes returned `success: true` | test | N3 | |
+| 3.2 | Write responses return the pre-write value | test | N6, N9 | |
+| 3.3 | `ds_mode` never returns to `Simple` | construction | N4 | |
+| 3.4 | Payload shape has never been invariant | compat-flagged | N9 | |
+| 3.5 | Alt-name filters silently match nothing | test | N9 | |
+| 3.6 | Webhooks never fire for 1-Wire | test | N9 | |
+| 3.7 | No keepalive, close reasons or subscription echo | test | N6, N9 | |
+| 3.8 | Value-conversion bug tail, incl. NaN as invalid JSON | test | N1 | |
+| 3.9 | Aliases are not durably written | test | N4 | |
+| 3.10 | Bulk `group_queries` / `group_assignments` broken | test | N9 | |
 
 Notes on the ones that are not straightforward:
 
@@ -119,23 +135,23 @@ Notes on the ones that are not straightforward:
 
 | # | Finding | Intended | Milestone | Closed by |
 |---|---|---|---|---|
-| 4.1 | RS-485 timing was never modelled | test | M2 | |
-| 4.2 | Backoff defeated by partial recovery | test | M2 | |
-| 4.3 | A dead peer starved a healthy device's watchdog | test + **unverifiable** — the FW 6.26-vs-6.28 MWD behaviour fork needs two firmware versions on one section | M3 | |
-| 4.4 | Timeouts and reconnect tuned by trial and error; unbounded busy-wait | test | M2 | |
-| 4.5 | Idle CPU ~16.6 %; `scan_frequency: 0` yields a 10 kHz loop | test | M3, M6 | |
-| 4.6 | Diagnosability was an afterthought | test | M5 | |
-| 4.7 | Install-time nginx detection by trial and error | test | M6 | |
-| 4.8 | Interlocks were left to clients | test | M3 | |
+| 4.1 | RS-485 timing was never modelled | test | N3 | |
+| 4.2 | Backoff defeated by partial recovery | test | N3 | |
+| 4.3 | A dead peer starved a healthy device's watchdog | test + **unverifiable** — the FW 6.26-vs-6.28 MWD behaviour fork needs two firmware versions on one section | N4 | |
+| 4.4 | Timeouts and reconnect tuned by trial and error; unbounded busy-wait | test | N3 | |
+| 4.5 | Idle CPU ~16.6 %; `scan_frequency: 0` yields a 10 kHz loop | test | N4, N10 | |
+| 4.6 | Diagnosability was an afterthought | test | N10 | |
+| 4.7 | Install-time nginx detection by trial and error | test | N10 | |
+| 4.8 | Interlocks were left to clients | test | N4 | |
 
-- **4.1** and **4.3** both need the rig, which is scheduled during M0–M2 — a schedule dependency, not
+- **4.1** and **4.3** both need the rig, which is scheduled during N0–N3 — a schedule dependency, not
   an unverifiable gap, hence 4.1 is plain `test`. 4.1 additionally needs the RS-485 baud-encoding
   question in [research/05 §7.4](../research/05-evok-node-design-notes.md) answered on hardware, which
   the rig can answer. **4.3** keeps the qualifier for a different reason: the master-watchdog
   behaviour fork between firmware 6.26 and 6.28 ([research/09](../research/09-test-hardware-coverage.md))
   needs two firmware versions present at once, which our units cannot provide.
-- **4.5** splits: rejecting `scan_frequency: 0` is a load-time validation closeable at M3; the idle
-  CPU comparison against stock EVOK needs the M6 soak and the baseline measurements from the capture
+- **4.5** splits: rejecting `scan_frequency: 0` is a load-time validation closeable at N4; the idle
+  CPU comparison against stock EVOK needs the N10 soak and the baseline measurements from the capture
   trip.
 - **4.7** closes via ADR-0002's packaging decision and the Debian 12 + 13 install tests, not by
   fixing detection logic.

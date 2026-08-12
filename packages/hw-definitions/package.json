@@ -1,7 +1,7 @@
 {
   "name": "@evok-node/hw-definitions",
   "version": "0.0.0",
-  "description": "Unipi model descriptors, definition overlays and generated address tables.",
+  "description": "Platform facts: model descriptors, overlay definitions and generated address tables.",
   "type": "module",
   "exports": {
     ".": {
@@ -20,7 +20,7 @@
     "clean": "tsc -b --clean"
   },
   "dependencies": {
-    "@evok-node/protocol": "0.0.0"
+    "@evok-node/messaging": "0.0.0"
   },
   "publishConfig": {
     "access": "public"

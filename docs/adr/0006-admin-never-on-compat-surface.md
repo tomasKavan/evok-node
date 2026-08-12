@@ -2,7 +2,18 @@
 
 - **Status:** Accepted — mechanism deliberately deferred
 - **Date:** 2026-08-10
-- **Refs:** G-2, G-3 · docs/research/04-known-bugs-and-lessons.md R04-29, finding 4.6 · docs/research/07-client-compatibility.md §5 (nginx front end)
+- **Refs:** G-2, G-3 · docs/research/04-known-bugs-and-lessons.md R04-29, finding 4.6 · docs/research/07-client-compatibility.md §5 (nginx front end) · ADR-0008, ADR-0010
+
+> **Note, 2026-08-12.** This decision is unchanged, and ADR-0008 gave it a better mechanism than
+> configuration. System introspection arrives as `driver-system`, an ordinary driver whose transport is
+> the filesystem and process-exec. `api-compat` can only emit what its projection table describes
+> (ADR-0010), and that table has no entry for a `system` driver — so admin cannot reach the compat
+> surface **even if an administrator lists it** in compat's `drivers:`.
+>
+> A driver-declared trust class was considered for this and rejected: it duplicates what the projection
+> table already says (RD-6) and puts exposure policy on the driver author rather than on the surface
+> doing the exposing. The mechanism for the *privileged surface's own* authentication remains deferred,
+> as below.
 
 ## Context
 

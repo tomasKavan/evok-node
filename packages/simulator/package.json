@@ -1,7 +1,7 @@
 {
   "name": "@evok-node/simulator",
   "version": "0.0.0",
-  "description": "Modbus slave simulator generated from the register-map corpus.",
+  "description": "Modbus slave simulator, generated from the register-map corpus.",
   "type": "module",
   "exports": {
     ".": {
@@ -20,7 +20,7 @@
     "clean": "tsc -b --clean"
   },
   "dependencies": {
-    "@evok-node/protocol": "0.0.0",
+    "@evok-node/messaging": "0.0.0",
     "@evok-node/hw-definitions": "0.0.0"
   },
   "publishConfig": {

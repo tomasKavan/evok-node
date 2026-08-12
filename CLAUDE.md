@@ -64,16 +64,26 @@ updated in the same PR as the work (RP-1).
 
 ## Layout
 
+Two layers — **drivers act, APIs query** — with `main` orchestrating and on no request path
+(ADR-0008, ADR-0011). There is no third component kind: anything that would have been one is a
+driver whose transport is not Modbus.
+
 ```
 packages/
-  protocol/     wire schemas (zod) — the single source of truth for the API contract
+  messaging/    the internal contract: envelopes, introspection schemas, codecs, deadlines,
+                fan-in. Root of the DAG. Holds no package's *public* wire schema (RC-12)
+  hw-definitions/  platform facts: model descriptors, overlays, generated address tables
   modbus/       transport: framing, correlation, timing, circuit breakers
-  hw-definitions/  model descriptors, overlay definitions, generated address tables
-  core/         registry, device model, scheduler, aliases. No API dependency (RC-10)
-  server/       fastify adapters: REST, JSON, bulk, WS, webhook, JSON-RPC. The daemon
-  client/       first-party TS client. Depends only on protocol
-  simulator/    Modbus slave simulator, generated from the map corpus
-  inspector/    web UI. Public API only — never imports core (RC-10)
+  main/         the daemon: config, validation, spawn, supervise, reload. Statically imports
+                no concrete driver or api — they are manifest-loaded (RC-10)
+  driver-kit/   shared driver runtime: scan loop, reading state, handshake, introspection
+  driver-onboard/    the controller's own I/O sections, Modbus TCP to unipitcp
+  driver-extension/  Unipi RTU extensions, one instance per RS-485 line
+  api-nextgen/  our WS + HTTP surface. Owns its public schema. Serves ui/ at `/`
+  api-compat/   the EVOK 3.x surface. Owns the projection table, derived from introspection
+  simulator/    Modbus slave simulator, generated from the map corpus. Own framer (ADR-0007)
+  client/       first-party TS client for the nextgen API
+  ui/           the web SPA. Public API only; nothing imports it
   rig/          hardware-rig control service. Private, sysfs only, no workspace deps (RC-11)
 docs/
   plan/         what we are doing next
@@ -82,3 +92,9 @@ docs/
   research/     what is true about EVOK and Unipi hardware
   modbus-reg-map/  official Unipi register maps — ground truth, read-only
 ```
+
+Later, one per milestone: `driver-onewire`, `driver-system` (filesystem and process-exec) and
+`driver-store` (SQLite). All drivers.
+
+The layering DAG is stated once, as a table in `.dependency-cruiser.cjs`, and every rule is
+generated from it. A new edge needs an ADR.

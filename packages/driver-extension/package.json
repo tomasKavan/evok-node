@@ -1,0 +1,34 @@
+{
+  "name": "@evok-node/driver-extension",
+  "version": "0.0.0",
+  "description": "Driver for Unipi RTU extensions on one RS-485 line; one instance per line.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "!dist/**/*.test.*"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "tsc -b --clean"
+  },
+  "dependencies": {
+    "@evok-node/messaging": "0.0.0",
+    "@evok-node/driver-kit": "0.0.0",
+    "@evok-node/modbus": "0.0.0",
+    "@evok-node/hw-definitions": "0.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}

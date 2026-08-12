@@ -2,28 +2,40 @@
   "files": [],
   "references": [
     {
-      "path": "packages/protocol"
-    },
-    {
-      "path": "packages/modbus"
+      "path": "packages/messaging"
     },
     {
       "path": "packages/hw-definitions"
     },
     {
-      "path": "packages/core"
+      "path": "packages/modbus"
     },
     {
-      "path": "packages/server"
+      "path": "packages/main"
     },
     {
-      "path": "packages/client"
+      "path": "packages/driver-kit"
+    },
+    {
+      "path": "packages/driver-onboard"
+    },
+    {
+      "path": "packages/driver-extension"
+    },
+    {
+      "path": "packages/api-nextgen"
+    },
+    {
+      "path": "packages/api-compat"
     },
     {
       "path": "packages/simulator"
     },
     {
-      "path": "packages/inspector"
+      "path": "packages/client"
+    },
+    {
+      "path": "packages/ui"
     },
     {
       "path": "packages/rig"

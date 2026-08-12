@@ -1,14 +1,10 @@
 # `@evok-node/simulator`
 
-In-process Modbus slave simulator, generated from the register-map corpus, serving any supported
-model × section — plus the fault injection tier-0 integration tests need: timeouts, late frames,
-exception PDUs, disappearing units.
+Serves any model in the map corpus, and injects the faults hardware cannot be asked for: wrong CRCs,
+truncated frames, stale responses, silent slaves.
 
-It is the permanent substitute for hardware we cannot buy, so it must assert what the maps say, not
-what we believe: integration tests use it instead of mocking our own code.
+The permanent substitute for hardware we can no longer buy, and the only substrate the drivers are tested
+against. Ships publicly from N1.
 
-Ships publicly from M1 — it is useful to anyone integrating with Unipi hardware.
-
-**Must not depend on:** `core`, `server`, `client`, `inspector`, `rig`, **`modbus`**. Depends on
-`protocol` and `hw-definitions`. It has its own CRC-16 and PDU codec rather than sharing `modbus`'s,
-for the same reason as RC-11: the instrument must not share code with what it measures (ADR-0007).
+**Must not depend on:** `modbus`. It has its own framer, deliberately — a shared framer cannot be asked to
+emit a wrong CRC (ADR-0007). Also: no driver, no api, no `main`.

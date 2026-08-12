@@ -32,18 +32,27 @@ off until there is something to cover.
 
 | Package | Purpose |
 |---|---|
-| [`protocol`](packages/protocol) | wire schemas and the core↔API message contract |
-| [`modbus`](packages/modbus) | transport: framing, correlation, timing, circuit breakers |
+Two layers — **drivers act, APIs query** — with `main` orchestrating and sitting on no request path.
+Anything that looks like a third kind of component is a driver whose transport is not Modbus.
+
+| Package | Purpose |
+|---|---|
+| [`messaging`](packages/messaging) | the internal driver↔API contract: envelopes, introspection schemas, codecs, deadlines |
 | [`hw-definitions`](packages/hw-definitions) | model descriptors, overlays, generated address tables |
-| [`core`](packages/core) | registry, device model, scheduler, aliases. No API dependency |
-| [`server`](packages/server) | fastify adapters for every EVOK surface. The daemon |
-| [`client`](packages/client) | first-party TypeScript client |
+| [`modbus`](packages/modbus) | transport: framing, correlation, timing, circuit breakers |
+| [`main`](packages/main) | the daemon: config, validation, spawn, supervise, reload |
+| [`driver-kit`](packages/driver-kit) | shared driver runtime: scan loop, reading state, handshake, introspection |
+| [`driver-onboard`](packages/driver-onboard) | the controller's own I/O sections, over Modbus TCP |
+| [`driver-extension`](packages/driver-extension) | Unipi RTU extensions, one instance per RS-485 line |
+| [`api-nextgen`](packages/api-nextgen) | our WebSocket + HTTP surface. Owns its public schema |
+| [`api-compat`](packages/api-compat) | the EVOK 3.x surface. Owns the projection table |
 | [`simulator`](packages/simulator) | Modbus slave simulator generated from the register-map corpus |
-| [`inspector`](packages/inspector) | web UI, over the public API only |
+| [`client`](packages/client) | first-party TypeScript client |
+| [`ui`](packages/ui) | the web SPA, over the public API only |
 | [`rig`](packages/rig) | hardware-rig control service. Private, sysfs only |
 
 Each package's README states what it **must not** depend on. Those constraints are the design, not
-documentation of it.
+documentation of it — and they are enforced from a single table in `.dependency-cruiser.cjs`.
 
 ## Documentation
 

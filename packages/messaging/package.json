@@ -1,0 +1,28 @@
+{
+  "name": "@evok-node/messaging",
+  "version": "0.0.0",
+  "description": "The internal contract: message envelopes, introspection schemas, codecs, correlation, deadlines and cross-driver fan-in.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "!dist/**/*.test.*"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "tsc -b --clean"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}

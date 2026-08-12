@@ -1,0 +1,31 @@
+{
+  "name": "@evok-node/api-compat",
+  "version": "0.0.0",
+  "description": "The EVOK 3.x surface: REST, JSON, bulk, WebSocket, webhook, JSON-RPC. Owns the projection table.",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "main": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "files": [
+    "dist",
+    "!dist/**/*.test.*"
+  ],
+  "scripts": {
+    "build": "tsc -b",
+    "clean": "tsc -b --clean"
+  },
+  "dependencies": {
+    "@evok-node/messaging": "0.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "engines": {
+    "node": ">=24.0.0"
+  }
+}

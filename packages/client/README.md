@@ -1,12 +1,10 @@
 # `@evok-node/client`
 
-First-party TypeScript client for the evok-node API: typed calls, typed events, and the same zod
-schemas the server validates against, so a shape change breaks the client at compile time rather
-than in the field.
+Reconnect, backoff and automatic resubscribe, so integrators stop reinventing it five different ways.
 
-Lands after M4, since it consumes the public API and would otherwise be built against a moving
-target.
+**Depends on nothing of ours yet.** It targets `api-nextgen`'s public schema, which does not exist until
+N6; the edge is listed as undecided in `.dependency-cruiser.cjs` rather than guessed, because the
+alternative — a separate `schema-nextgen` package — is a real option and picking one silently would settle
+it. Decide when the schema lands.
 
-**Must not depend on:** anything but `protocol`. Not `core`, not `server`, not `modbus` — a client
-that reaches into the daemon's internals stops being a test of the public surface, which is most of
-what it is for. It must run in a browser and in Node, so nothing OS-specific either.
+**Must not depend on:** any driver, `main`, `modbus`, `hw-definitions`, `api-compat`.

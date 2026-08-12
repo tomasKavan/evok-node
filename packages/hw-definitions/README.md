@@ -1,11 +1,11 @@
 # `@evok-node/hw-definitions`
 
-Unipi model descriptors, our definition overlays, and the generated address tables. Holds the
-**single audited address function** — the one place the `/16` bank stride and the `%16` bit mask
-exist (RC-17). Never derive an address from a loop counter anywhere else.
+What the hardware *is* — `autogen.yaml`, `hw_definitions/*.yaml`, our overlays, and the generated
+`(model, section, kind, channel) → (register, bitOffset, coil)` tables.
 
-Definitions are validated at load and then frozen (RC-4, G-5). Load-time validation is where RC-19
-is checked.
+The one audited address function lives here, with the `/16` bank stride and `%16` mask in exactly one
+place (RC-17). Frozen per load, not once per process (RC-4). A multi-register value must lie wholly
+inside one block at one frequency, checked at load (RC-19).
 
-**Must not depend on:** `core`, `server`, `client`, `inspector`, `simulator`, `modbus`. It describes
-where a value lives, and never reads one. Depends on `protocol` only.
+**Must not depend on:** any driver, any api, `modbus`, `main`. Loaded and validated by `main`; the types
+and tables are consumed by drivers.

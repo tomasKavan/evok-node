@@ -1,8 +1,23 @@
 # ADR-0001 — The core↔API contract is a serialisable message boundary
 
-- **Status:** Accepted
+- **Status:** Accepted — generalised, not superseded, by ADR-0008 (2026-08-12)
 - **Date:** 2026-08-10
-- **Refs:** G-1 · docs/research/05-evok-node-design-notes.md §1, §5, §7.2, §7.3
+- **Refs:** G-1 · docs/research/05-evok-node-design-notes.md §1, §5, §7.2, §7.3 · ADR-0008, ADR-0011, ADR-0012
+
+> **Amendment, 2026-08-12.** Everything below stands. What changed is arithmetic: the boundary is
+> *N drivers ↔ M APIs*, not one core ↔ one API layer, because ADR-0008 dissolved `core` and `server`.
+> Three additions, none contradicting the decision:
+>
+> - **Provenance is satisfied by an explicit `Origin`** on every request envelope (`{ api, client? }`) —
+>   the thing this ADR left owed for future write arbitration.
+> - **Deadlines live in the envelope** (RC-26), making RC-14 structural on the message path rather than
+>   a rule each call site must remember.
+> - **Separate processes are now deliberately deferred**, with the reasoning in ADR-0012 — including why
+>   `worker_threads` is not an intermediate step worth taking for 1.0. The codec keeps that option open
+>   as a side effect, which is not why it exists.
+>
+> Introspection payloads (ADR-0010) are envelopes too, and the round-trip property test below covers
+> them.
 
 ## Context
 

@@ -48,23 +48,28 @@ research section instead.
 
 | # | Decision | Status |
 |---|---|---|
-| [0001](0001-core-api-message-boundary.md) | The core↔API contract is a serialisable message boundary | Accepted |
+| [0001](0001-core-api-message-boundary.md) | The core↔API contract is a serialisable message boundary | Accepted — generalised to N drivers ↔ M APIs by ADR-0008 |
 | [0002](0002-conflicts-with-evok.md) | `Conflicts: evok`, with shared OS dependencies declared by us | Accepted — dependency list pending the capture trip |
 | [0003](0003-migrate-once-not-runtime-fallback.md) | Migrate EVOK's config once; no runtime fallback to `/etc/evok` | Accepted |
 | [0004](0004-four-kinds-of-data.md) | Four kinds of data; the daemon never writes its config | Accepted |
 | [0005](0005-sqlite-user-data-store.md) | SQLite for user data, with YAML export/import | Accepted — `node:sqlite` stability to confirm |
-| [0006](0006-admin-never-on-compat-surface.md) | Administration never rides on the classic surface | Accepted — mechanism deferred |
+| [0006](0006-admin-never-on-compat-surface.md) | Administration never rides on the classic surface | Accepted — mechanism deferred; now structural via ADR-0010's table |
 | [0007](0007-simulator-has-its-own-framer.md) | The simulator does not depend on `modbus` | Accepted |
+| [0008](0008-drivers-apis-and-main.md) | Drivers, APIs and main: two layers, N to M | Accepted |
+| [0009](0009-driver-qualified-addressing.md) | Internal addresses are driver-qualified; the tail belongs to the driver | Accepted |
+| [0010](0010-introspection-is-the-source-of-truth.md) | Drivers self-describe; compat's translate table is derived | Accepted |
+| [0011](0011-main-is-never-in-the-data-path.md) | `main` orchestrates and is never in the data path | Accepted |
+| [0012](0012-single-threaded.md) | Single-threaded, single event loop; not `worker_threads` | Accepted |
 
 ## Awaiting write-up
 
-Settled decisions with no ADR yet — M0 task T0.7. **Unnumbered on purpose**: each takes the next free
+Settled decisions with no ADR yet — N0 task T0.7. **Unnumbered on purpose**: each takes the next free
 number when someone writes it. Until then, cite the research section.
 
 | Decision | Source |
 |---|---|
 | EVOK 3.x as the sole compatibility target | research/05 §7 |
-| Library first, service second | research/05 §7.2 |
+| Library first, service second | research/05 §7.2 — reread against ADR-0008 before writing it up; "library" now means a driver or an API package, not `core` |
 | `modbus-serial` plus a supervising wrapper, not our own framer | research/05 §8.4 |
 | Hardware definitions extended by overlay, never by editing the OS image | research/05 §8.5 |
 | nginx remains the `:80` front end | research/07 §5 |

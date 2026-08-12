@@ -1,15 +1,16 @@
 /**
- * M0/T0.3. The load-bearing guard.
+ * N0/T0.3. The load-bearing guard.
  *
  * We chose npm workspaces, whose flat `node_modules` resolves an import a package
  * never declared. `tsc -b` does not close this: a cross-package import with no
  * project reference builds green as long as the target's `dist/` exists, which it
  * always does after any earlier build — verified empirically, see the PR that added
- * this file. So nothing but this file stops `core` importing `server`.
+ * this file. So nothing but this file stops a driver importing an api, or `main`
+ * importing either — which is the edge that would quietly put it back in the data
+ * path (ADR-0011).
  *
- * Rules that CLAUDE.md states as inviolable are rules 1 (core never imports api,
- * server or inspector) and 2 (rig imports no workspace package and no Modbus
- * client). The rest of the DAG comes from CLAUDE.md §Layout and each package's README.
+ * Rewritten 2026-08-12 for ADR-0008: `core` and `server` no longer exist, and RC-10
+ * is now a partition rather than a one-directional rule.
  */
 
 /**
@@ -18,37 +19,57 @@
  * forbidden, and every rule below is generated from this table, so the DAG is stated
  * once.
  *
- * - `protocol` is the root: schemas only, so it depends on nothing of ours.
- * - `core` gets protocol, modbus and hw-definitions, and never api/server/inspector
- *   (RC-10). The core↔API contract is serialisable messages, so `server`
- *   depends on `core` and never the reverse.
+ * - `messaging` is the root: the internal contract only, so it depends on nothing of
+ *   ours. It holds no package's *public* wire schema (RC-12).
+ * - **No driver imports an api; no api imports a driver** (RC-10). Both directions,
+ *   which is what makes it a partition and fully checkable.
+ * - `main` gets `messaging` and `hw-definitions` and **no concrete driver or api** —
+ *   they are manifest-loaded from config. Without this edge missing, "main is never a
+ *   conduit" is unenforceable (ADR-0011).
+ * - drivers get `driver-kit`, `modbus` and `hw-definitions`; they need the address
+ *   tables, since that is where the one audited address function lives (RC-17).
+ * - `driver-kit` gets `messaging` only: transport and hardware knowledge belong to
+ *   the concrete drivers.
+ * - each api gets `messaging` only, and owns the public schema of its own surface.
+ *   `api-compat` importing nothing that carries our groups, labels or ordering is
+ *   what makes G-3 a missing edge instead of a review rule.
  * - `simulator` deliberately excludes `modbus`: the instrument must not share a
  *   framer with the code it stands in for. See ADR-0007, which states the cost.
  * - `rig` imports nothing of ours at all (RC-11).
- * - `inspector` is over the public API only: no core, no server, no transport.
+ * - `ui` is over the public API only, and nothing imports *it* — `api-nextgen` serves
+ *   built assets from a packaging path, not a bundled import.
  */
 const WORKSPACE_DEPS = {
-  protocol: [],
-  modbus: ['protocol'],
-  'hw-definitions': ['protocol'],
-  core: ['protocol', 'modbus', 'hw-definitions'],
-  server: ['protocol', 'core'],
-  client: ['protocol'],
-  simulator: ['protocol', 'hw-definitions'],
-  inspector: ['protocol'],
+  messaging: [],
+  modbus: ['messaging'],
+  'hw-definitions': ['messaging'],
+  main: ['messaging', 'hw-definitions'],
+  'driver-kit': ['messaging'],
+  'driver-onboard': ['messaging', 'driver-kit', 'modbus', 'hw-definitions'],
+  'driver-extension': ['messaging', 'driver-kit', 'modbus', 'hw-definitions'],
+  'api-nextgen': ['messaging'],
+  'api-compat': ['messaging'],
+  simulator: ['messaging', 'hw-definitions'],
+  client: [],
+  ui: [],
   rig: [],
 };
 
 /**
  * Edges that are neither allowed nor forbidden yet, and are therefore left unruled
- * rather than decided by omission. `inspector → client` is open question 5b in
- * docs/plan/STATUS.md: T0.3 says inspector depends only on protocol, but the obvious
- * implementation of inspector is a consumer of our own client. Encoding it as
- * forbidden would settle that question silently, so this list exempts it — and only
- * it — from the generated rule.
+ * rather than decided by omission.
+ *
+ * - `client → api-nextgen`: the client targets that surface's public schema, which
+ *   does not exist until N6. The alternative is a separate `schema-nextgen` package
+ *   so the client need not depend on a server package at all. Both are real; picking
+ *   one by omission would settle it silently. Decide when the schema lands.
+ * - `ui → client`: open question 5 in docs/plan/STATUS.md. T0.3 said the SPA depends
+ *   only on the public contract, but the obvious implementation consumes our own
+ *   client. Encoding it as forbidden would settle that question silently too.
  */
 const UNDECIDED_DEPS = {
-  inspector: ['client'],
+  client: ['api-nextgen'],
+  ui: ['client', 'api-nextgen'],
 };
 
 const PACKAGES = Object.keys(WORKSPACE_DEPS);
@@ -109,7 +130,7 @@ const layeringRules = PACKAGES.map((pkg) => {
 
   return {
     name: `layer-${pkg}`,
-    comment: `${pkg} may import ${permitted}. Fix the design, not this rule: the layering DAG lives in CLAUDE.md and in .dependency-cruiser.cjs, and a new edge needs an ADR.`,
+    comment: `${pkg} may import ${permitted}. Fix the design, not this rule: the layering DAG lives in CLAUDE.md §Layout and in .dependency-cruiser.cjs, and a new edge needs an ADR. RC-10, ADR-0008.`,
     severity: 'error',
     from: { path: `^packages/${pkg}/` },
     to: { path: workspacePath(forbidden) },

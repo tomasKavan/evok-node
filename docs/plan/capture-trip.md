@@ -11,8 +11,9 @@ must serve an empty API, not an erroring one — and that payload is as unrecove
 All confirmed stock and on Debian 13 as of 2026-08-10. Extensions on hand: **xS11** and **xG18**;
 the xS51 and the second M527 are approved but not yet ordered.
 
-Blocks: M1 golden tests, all of M4, the migration tool's golden fixtures, and ADR-0002's
-dependency list.
+Blocks: N1 golden tests, all of N9, the migration tool's golden fixtures, and ADR-0002's
+dependency list. **The compat surface moving to N9 does not make this less urgent** — it only moves
+when the transcripts are consumed, and they cease to exist the moment EVOK leaves these units.
 
 ## The four rules
 

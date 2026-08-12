@@ -12,8 +12,8 @@ here.
 | File | Purpose |
 |---|---|
 | **`STATUS.md`** | **Read this first.** Current state: done, in progress, next, blocked. |
-| `roadmap.md` | Milestones M0–M6, one paragraph each. The shape of the whole project. |
-| `milestones/M*.md` | Per-milestone task lists with acceptance criteria and exit criteria. |
+| `roadmap.md` | Milestones N0–N10, one paragraph each. The shape of the whole project. |
+| `milestones/N*.md` | Per-milestone task lists with acceptance criteria and exit criteria. |
 | `bug-dispositions.md` | Every known EVOK finding and what we did about it. Closing it is half the definition of 1.0. |
 | `capture-trip.md` | The one-session runbook for capturing stock EVOK 3.0.6 before it is replaced. Time-limited: delete it once the fixtures are in `fixtures/captured/`. |
 

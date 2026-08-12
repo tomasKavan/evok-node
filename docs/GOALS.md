@@ -40,10 +40,17 @@ then as a dated amendment.
 
 **Compatibility complete, and every bug disposition closed.** Nothing else.
 
-That is the scope of M0–M6 in [`plan/roadmap.md`](plan/roadmap.md), which exits at
+That is the scope of N0–N10 in [`plan/roadmap.md`](plan/roadmap.md), which exits at
 `0.1.0-beta` — feature-complete against this definition. 1.0 is that same scope once it has
 survived beta on real hardware; it adds no new capability. Everything in the next section ships
 after it.
+
+**The path changed, the definition did not (2026-08-12).** ADR-0008 re-steered the build order: the
+core is built first and the compat surface arrives as the last consumer rather than the first thing
+implemented. The reason compat cannot set the project's constraints is architectural — it emits a
+derived projection (G-3, RC-24) — and ordering is the secondary safeguard. Only 7 of the 29 findings
+depend on the compat surface, so this costs little against the measurable half of this definition.
+See [research/12](research/12-modularisation.md).
 
 ## Direction after 1.0
 
@@ -77,15 +84,26 @@ These follow from the goals above. They are here because each one is expensive o
 retrofit, so they bind from the first commit even where the feature that motivates them is
 post-1.0.
 
-1. **G-1 — Core↔API is a serialisable message boundary.** Not a function-call interface that happens to
-   be crossable. One process for now; splitting core and API into separate processes later must be
+1. **G-1 — Driver↔API is a serialisable message boundary.** Not a function-call interface that happens to
+   be crossable. One process for now; splitting components into separate processes later must be
    additive. A function-call boundary leaks callbacks, class instances and Buffers and makes the
    split a rewrite. Supersedes the "purely additive later" framing in
    [research/05](research/05-evok-node-design-notes.md) §5 and §7.3.
+
+   **Amended 2026-08-12** (ADR-0008): the boundary is *N drivers ↔ M APIs*, not one core ↔ one API
+   layer. ADR-0001's substance stands; what changed is the number of participants, that drivers hold
+   the only copy of state while APIs are stateless translators, and that `main` sits on no request
+   path at all (ADR-0011). Rationale: [research/12](research/12-modularisation.md).
 2. **G-2 — Administration and introspection never ride on the classic surface.** Compat mode and
    new-API-with-admin are a configuration choice. The compat surface is unauthenticated by
    inheritance; a privileged config-and-control surface cannot share that trust level. Mechanism —
    ports, paths, authentication — is deferred to its own ADR.
+
+   **Note, 2026-08-12.** Under ADR-0008 this became structural rather than a policy: `api-compat` can
+   only emit what its projection table describes, and that table has no entry for a `system` driver.
+   Admin cannot reach the compat surface even if an administrator lists it in `drivers:`. Explicitly
+   *not* implemented as a trust label on the driver — what a surface exposes is the surface's own
+   business (RC-24, ADR-0008).
 3. **G-3 — The compat surface is permanent, first-class, and never deprecated.** It is the reason the
    project exists. No feature may break it, and **no internal metadata leaks into its shapes** —
    compat sees the flat projection of our model, never our groups, ordering, labels or any other
@@ -109,16 +127,33 @@ post-1.0.
    place, unaffected by ADR-0003's migration. We also **generate our own** — research/05 §2.5 requires
    an autogen equivalent so we do not hard-depend on `unipi-os-configurator`, and §2.6 requires
    extending the definition format by overlay (research/05 §8.5). **Frozen per load, not once per process**:
-   immutable and `readonly` while loaded (RC-4), and reloaded when hardware change is detected,
-   because continuous discovery is the fix for finding 2.1.
+   immutable and `readonly` while loaded (RC-4), and reloaded when hardware change is detected.
 
-6. **G-6 — A plugin cannot compromise the core.** It may not starve the scan loop, hold a bus past its
-   lease, or take core down with it. A plugin needing bus access gets a leased, time-budgeted
-   transaction through core — never a client of its own on a port the scan loop owns.
+   **Correction, 2026-08-12.** This previously said "continuous discovery is the fix for finding
+   2.1". Finding 2.1 is not about discovery: registration was always declarative from config, and the
+   bug is that registration was *gated on a one-shot reachability probe*. Reachability is a state of a
+   registered endpoint, retried forever. Genuine discovery exists only on buses that have it, and is a
+   declared driver capability. A **readings** value may also be a structure, not only a scalar
+   (RC-20) — read-only device configuration is a structured reading, so it needs no fifth category
+   here.
+
+6. **G-6 — A plugin cannot compromise the daemon.** It may not starve a scan loop, hold a bus past its
+   lease, or take the process down with it. A plugin needing bus access gets a leased, time-budgeted
+   transaction through the driver that owns that bus — never a client of its own on a port a scan loop
+   owns. (Reworded 2026-08-12: "the core" was a package that ADR-0008 dissolved. Unchanged in
+   substance, and ADR-0008's manifest loading is the mechanism this will use.)
 7. **G-7 — evok and evok-node never run at the same time.** Not a policy: two processes cannot both own
-   `/dev/ttyNS0`. Startup preflight refuses to start if evok or `unipitcp` is active or the ttys are
-   held — loudly, and **naming the conflicting unit** — rather than racing for the port and failing
-   unexplainably.
+   `/dev/ttyNS0`. Startup preflight refuses to start if evok is active or the ttys are held — loudly,
+   and **naming the conflicting unit** — rather than racing for the port and failing unexplainably.
+
+   **Correction, 2026-08-12 — needs Tomas's confirmation.** This previously also refused to start when
+   `unipitcp` was active. That cannot be right: EVOK never speaks SPI, and local I/O *is* Modbus TCP
+   to `unipitcp` on `127.0.0.1:502` ([raw-hardware-research
+   §166](research/appendix/raw-hardware-research.md), Unipi KB `en:sw:02-apis:02-modbus-tcp`). So
+   `driver-onboard` **requires** `unipitcp` running; refusing on it would leave onboard I/O with no
+   transport at all. Read as scoped to `evok` itself and to the RS-485 ttys, which is what the stated
+   reason — two processes cannot both own `/dev/ttyNS0` — actually supports. Reverse this note if the
+   original intent was different.
 
 ## The drop-in guarantee
 
@@ -160,10 +195,14 @@ Each is a thing a reasonable contributor might otherwise assume we want.
 
 ## Open
 
+- **Whether G-7's `unipitcp` clause was intended** — see the correction on G-7. Blocks nothing until
+  N5, and decides whether `driver-onboard` has a transport.
 - Fail-safe semantics for the trigger engine.
 - Authentication mechanism for the admin surface (G-2), its default-on or default-off
   posture, and how it interacts with the nginx front end (research/07 §5).
-- Plugin isolation model — in-process with budgets, or out-of-process.
+- Plugin isolation model — in-process with budgets, or out-of-process. Narrowed 2026-08-12: 1.0 is
+  single-threaded, single event loop (ADR-0012), so this is a post-1.0 question and the message
+  boundary is what keeps the options open.
 - Whether the post-1.0 surfaces are versioned as 2.x or shipped under a separate API path.
 - Write-arbitration semantics once more than one API process can issue commands (ADR-0001).
 - How much of `inspector` ships inside 1.0. The roadmap lands it after M4 as a consumer of the

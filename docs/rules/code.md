@@ -10,11 +10,12 @@ and humans alike. What follows is prose only where a linter cannot express it.
 |---|---|
 | `tsc --strict` + `noUncheckedIndexedAccess`, `exactOptionalPropertyTypes`, `noImplicitOverride`, `noFallthroughCasesInSwitch` | type-level rules |
 | `eslint` + `@typescript-eslint`, type-checked | RC-2, RC-14, RC-15, RC-16, RC-23 |
-| `dependency-cruiser` | RC-10, RC-11, import cycles, undeclared imports |
+| `dependency-cruiser` | RC-10, RC-11, RC-30 (partly), import cycles, undeclared imports |
 | `prettier` | formatting — never discussed in review |
 
 `dependency-cruiser` is load-bearing. npm workspaces give every package a flat `node_modules`, so
-without it nothing stops `core` importing `server`.
+without it nothing stops a driver importing an API — or `main` importing either, which is the edge
+that would quietly put it back in the data path.
 
 ## Types
 
@@ -29,7 +30,11 @@ export type CoilAddress     = Brand<number, 'CoilAddress'>;
 export type UnitId          = Brand<number, 'UnitId'>;
 export type BitOffset       = Brand<number, 'BitOffset'>;
 export type Millis          = Brand<number, 'Millis'>;
-export type Circuit         = Brand<string, 'Circuit'>;
+export type DriverId        = Brand<string, 'DriverId'>;
+export type Address         = Brand<string, 'Address'>;   // "PLC:DI.2.01" — ADR-0009
+export type MessageId       = Brand<string, 'MessageId'>;
+export type Seq             = Brand<number, 'Seq'>;
+export type Circuit         = Brand<string, 'Circuit'>;   // EVOK's `2_01`. api-compat only
 ```
 
 The constructor lives with the type and checks range (`unitId` 0–255, `bitOffset` 0–15). There is
@@ -68,21 +73,63 @@ errors onto ours once, in the adapter.
 
 ## Boundaries
 
-**RC-10 — `core/` never imports `api/`, `server/` or `inspector/`, and everything crossing the
-core↔API boundary is a serialisable message.** No callbacks, class instances or Buffers. Why it has
-to be a message boundary rather than a function call: G-1, ADR-0001.
+**RC-10 — Drivers and APIs are disjoint, and `main` statically imports neither.** No driver imports
+an API; no API imports a driver. `main` has no static import of any concrete driver or API — both are
+resolved from config through a manifest, so `main` cannot become a conduit between them (ADR-0011).
+Everything crossing the boundary is a serialisable message: no callbacks, class instances or
+Buffers. Why it has to be a message boundary rather than a function call: G-1, ADR-0001, ADR-0008.
+
+*Superseded in place, 2026-08-12.* The previous form named `core/` and `server/`, which ADR-0008
+dissolved. It was one-directional; this is a partition, and `dependency-cruiser` checks it whole.
 
 **RC-11 — `packages/rig` imports no workspace package and no Modbus client.** The instrument must
 not share code with the thing it measures. ADR-0007.
 
 **RC-12 — Parse, don't validate.** Every external input — HTTP body, WS frame, YAML config,
 register buffer — goes through a **zod** schema at entry and comes out typed. Nothing downstream
-re-checks, and nothing downstream sees `unknown`. Wire schemas live in `@evok-node/protocol` and are
-the one source of truth: zod for internal parsing, `z.toJSONSchema()` for fastify's routes.
+re-checks, and nothing downstream sees `unknown`. Internal message and introspection schemas live in
+`@evok-node/messaging`; each API package owns the public wire schema of **its own surface** and no
+other. zod for parsing, `z.toJSONSchema()` for fastify's routes. One package holding both the
+internal contract and a public surface is the channel through which internal metadata reaches a
+compat shape (ADR-0008).
 
 **RC-13 — Normalise identifiers at entry, once.** EVOK accepts `relay`/`input`/`output` alt-names;
 they become canonical `DeviceKind` members at the boundary and never travel as raw strings.
 Upstream's WS filter silently matched nothing because it compared user strings deep in the stack.
+
+## Drivers, APIs and messages
+
+Added 2026-08-12 with ADR-0008. Numbers appended, nothing renumbered.
+
+**RC-26 — A request envelope carries its own deadline.** There is no way to send one without. This
+makes RC-14 structural for the whole message path rather than a rule each call site must remember.
+
+**RC-27 — A driver's query path never blocks on I/O.** A query is a read of state the scan loop
+already collected; it never reaches the bus. This is what makes a query timeout meaningful — it can
+only mean the driver is wedged, so returning an error is honest rather than a guess.
+
+**RC-28 — Fan-in across drivers uses a per-driver deadline and returns partial results.** A slow or
+absent driver marks its own endpoints stale; it never empties the response. All-or-nothing
+aggregation is how upstream froze every 1-Wire sensor when one went missing (finding 2.5) and
+discarded a whole scan pass on one failing register block (finding 2.6).
+
+**RC-29 — An introspection descriptor's `effect` is mandatory, with no default.** A driver author can
+misdeclare it but cannot omit it, and what an API does with it is the API's decision. `run` and
+`nv_save` existing as EVOK device types is what leaving this to author discipline produced upstream.
+
+**RC-30 — An API's public schema names no driver type.** Adding a driver must never require an API
+release: a new driver contributes data, never schema (ADR-0008). Largely greppable, and a blocking
+review comment where it is not.
+
+**RC-31 — An API skips a driver it does not understand, and says so once at startup**, naming the
+driver and its type. Skipping is correct — `drivers:` in config is an administrator restriction, not
+a capability negotiation. Silent skipping is finding 3.5's shape: a surface that matches nothing and
+explains nothing.
+
+**RC-32 — Config validation is fatal at boot and non-fatal on reload.** At boot, exit non-zero with
+the reason. On reload, keep running the current configuration and report the rejected one. Same
+validation, opposite failure behaviour — and the natural implementation shares one code path and
+silently inherits the wrong one.
 
 ## Time and effects
 
@@ -105,13 +152,22 @@ failure behind it in [research/04](../research/04-known-bugs-and-lessons.md).
 address function, which holds the `/16` bank stride and the `%16` mask in exactly one place.
 
 **RC-18 — A duplicate circuit id, or two circuits landing on the same coil or (register, bit), is a
-fatal startup error.** Not a warning.
+fatal startup error.** Not a warning. Under ADR-0008 this holds in two places, with different
+failure behaviour:
+
+- **inside a driver**, checked against its own address tables at init — fatal, always. Internal
+  addresses are driver-qualified (ADR-0009), so uniqueness is local and needs no global view.
+- **in a projecting API**, checked as injectivity of its projection table — fatal at API start, but
+  **not** fatal when a hot-plugged device causes it later. Keep the previous table, serve on, and
+  report loudly; a colliding extension must not take down a running API.
 
 **RC-19 — A multi-register value lies wholly inside one register block, read at one frequency.**
 Checked when definitions load; a definition that breaks this is rejected, not repaired.
 
 **RC-20 — Every reading carries `value`, `readAt` and `stale`.** No silent zeros, and no value that
-stays frozen without saying so.
+stays frozen without saying so. `value` may be a **structure**, not only a scalar — read-only device
+configuration is a reading whose value happens to be structured, which is why it needs no fifth data
+category beyond G-5's four.
 
 **RC-21 — One event envelope from every source, with `changes` always an array** — 1-Wire included.
 Real clients crash on the variant shapes.
@@ -133,7 +189,15 @@ design problem, not a naming problem.
 
 **RC-24 — Two vocabularies, mapped in exactly one place.** The API layer speaks EVOK's words
 because clients depend on them. Everything inward speaks ours. The translation lives in
-`@evok-node/protocol` and nowhere else.
+`api-compat` alone, derived from driver introspection rather than hand-maintained (ADR-0010).
+
+Two corollaries, both of which were got wrong once during design and are cheap to get wrong again:
+**no driver declares EVOK vocabulary**, and **no driver declares whether an endpoint is
+projectable**. A driver publishes its endpoints neutrally; what reaches a public surface is decided
+by the API doing the projecting, and by nothing else (ADR-0008).
+
+*Superseded in place, 2026-08-12* — the translation moved out of `@evok-node/protocol`, which
+ADR-0008 split.
 
 | Boundary — EVOK-compatible, do not rename | Internal |
 |---|---|

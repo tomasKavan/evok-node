@@ -1,8 +1,7 @@
 {
   "name": "@evok-node/rig",
   "version": "0.0.0",
-  "description": "Hardware-rig control service for tier-1 tests. Private, sysfs only.",
-  "private": true,
+  "description": "Hardware-rig control service. Private, sysfs only, no workspace dependencies.",
   "type": "module",
   "exports": {
     ".": {
@@ -19,6 +18,9 @@
   "scripts": {
     "build": "tsc -b",
     "clean": "tsc -b --clean"
+  },
+  "publishConfig": {
+    "access": "public"
   },
   "engines": {
     "node": ">=24.0.0"
