@@ -44,13 +44,18 @@ from being shaped by EVOK is architectural (G-3, RC-24); the ordering is the sec
   `api-nextgen`, `api-compat` and `ui` added. Root `tsconfig.json` references, the
   `dependency-cruiser` DAG, vitest projects and coverage floors all follow. `npm run build`, `test`,
   `lint` and `layering` each exit 0; 27 modules and 13 edges cruised with no violations.
+- **T0.7 ADRs written (2026-08-12).** [0013](../adr/0013-evok-3x-sole-compatibility-target.md)–[0023](../adr/0023-generated-address-tables-primary-safeguard.md):
+  the eleven settled-but-undocumented decisions from the ADR README's "Awaiting write-up" table.
+  Two were reread against ADR-0008 rather than transcribed — 0014 (library first, restated without
+  `core`) and 0017 (nginx narrowed to the compat surface, since `api-nextgen` serves the SPA at its
+  own `/`). None of the eleven had to be left unwritten. Only the licence row remains, and it belongs
+  to T0.6.
 
 ## In progress
 
-- **N0 — re-steer & scaffolding.** Remaining: **T0.6** repo hygiene and the licence choice,
-  **T0.7** ADRs for the twelve previously-settled decisions, **T0.8** `npm run verify`. T0.7 is
-  cheaper than it was: it was never started, so those ADRs get written once against the new design
-  rather than written and rewritten.
+- **N0 — re-steer & scaffolding.** Remaining: **T0.6** repo hygiene and the licence choice, and
+  **T0.8** `npm run verify`. T0.7 is done — ADRs 0013–0023, above. The licence ADR is T0.6's, because
+  the choice between MIT and Apache-2.0 has not been made.
 - **Four of the `pr` workflow's eight checks are still placeholders** — `format` and `changeset`
   until T0.6, `fixture-drift` until N1, and `coverage` runs but enforces nothing until there is
   something to cover. Each prints a warning annotation saying so.
