@@ -19,9 +19,9 @@ const COVERAGE_FLOORS = {
   // modbus framing, correlation, timing.
   '**/packages/modbus/src/**': { branches: 95 },
   // messaging: envelope codecs, introspection schemas. Everything crossing the
-  // driver↔API boundary is parsed here, and nothing downstream re-checks (RC-12).
+  // driver↔API boundary is parsed here, and nothing downstream re-checks (RCD-10).
   '**/packages/messaging/src/**': { branches: 95 },
-  // api-compat's projection table. The one place two vocabularies meet (RC-24), and
+  // api-compat's projection table. The one place EVOK's vocabulary meets ours, and
   // the place a wrong mapping is silent rather than loud.
   '**/packages/api-compat/src/**': { branches: 95 },
   // driver-kit: the scan loop, reading state and staleness, shared by every driver.

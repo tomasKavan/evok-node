@@ -1,7 +1,7 @@
 {
   "name": "@evok-node/hw-definitions",
   "version": "0.0.0",
-  "description": "Platform facts: model descriptors, overlay definitions and generated address tables.",
+  "description": "Platform facts: our hardware definitions, model descriptors and generated address tables.",
   "type": "module",
   "exports": {
     ".": {

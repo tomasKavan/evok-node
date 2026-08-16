@@ -10,7 +10,7 @@
 Two instruments measure our own code. `simulator` is a Modbus **slave** that stands in for hardware we
 do not own; the `rig` is a second Patron M527 whose own I/O *is* the instrumentation — its RO/DO switch
 extension power and cut RS-485 pairs, its DI observe DUT outputs, its AI/AO close analog loops
-([research/10](../research/10-test-kit.md)). In both cases the cheap implementation is to reuse our
+([research/10](../10-test-kit.md)). In both cases the cheap implementation is to reuse our
 `modbus` package, or evok-node itself. Both are wrong for the same reason, and it only ever shows up as
 a **passing** test.
 
@@ -89,7 +89,7 @@ each other.
 - **Running CI on the rig controller.** An M527 is an excellent rig service host and a poor CI runner:
   1 GB RAM, 8 GB eMMC, and CI write churn wears eMMC that is not replaceable. The rig is driven over the
   network from a `hardware`-labelled job elsewhere — the `hardware` workflow in
-  [git rules](../rules/git.md).
+  [git rules](../../rules/git.md).
 
 This settles the `simulator → modbus` half of open question 5. The `ui → client` edge remains open, and
 `.dependency-cruiser.cjs` deliberately does not rule on it.

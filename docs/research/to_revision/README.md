@@ -1,8 +1,12 @@
-# Architecture Decision Records
+# Architecture Decision Records — under revision
 
-One file per decision, one page each. **Immutable from 2026-08-12 onward** — if a decision changes,
-write a new ADR that supersedes it and mark the old one `Superseded by ADR-NNNN`. Never edit history;
-the point of an ADR is that a reader can see what we knew at the time.
+**Suspended 2026-08-16. Nothing binding may cite an ADR until this set is re-locked.** The whole set
+moved here, into `docs/research/`, because it is now input to the development documentation rather
+than settled output. Expect ADRs to be rewritten, merged and dropped during that pass; the
+immutability lock that held from 2026-08-12 is lifted for its duration and goes back on — with a
+dated note here — before development starts.
+
+Read these for the reasoning that produced them. Do not treat any of them as a decision in force.
 
 Naming: `NNNN-kebab-slug.md`, numbered sequentially.
 
@@ -53,15 +57,16 @@ research section instead.
 | [0002](0002-driver-qualified-addressing.md) | Internal addresses are driver-qualified; the tail belongs to the driver | Accepted |
 | [0003](0003-introspection-is-the-source-of-truth.md) | Drivers self-describe; compat's translate table is derived | Accepted |
 | [0004](0004-single-threaded.md) | Single-threaded, single event loop; not `worker_threads` | Accepted |
-| [0005](0005-data-lifecycles-and-the-user-data-store.md) | Four kinds of data, and SQLite for the user-data store | Accepted — `node:sqlite` stability to confirm |
+| [0005](0005-data-lifecycles-and-the-user-data-store.md) | SQLite for the user-data store | Accepted — `node:sqlite` stability to confirm |
 | [0006](0006-conflicts-with-evok-and-migrate-once.md) | `Conflicts: evok`; EVOK's config migrated once by a separate tool | Accepted — dependency list pending the capture trip |
-| [0007](0007-hardware-definitions-by-overlay.md) | Hardware definitions are extended by overlay; the OS image is read-only | Accepted |
+| [0007](0007-hardware-definitions-by-overlay.md) | Hardware definitions are extended by overlay; the OS image is read-only | Superseded by [0014](0014-hardware-definitions-and-inventory-are-ours.md) |
 | [0008](0008-hardware-scope.md) | Hardware scope: Patron, Neuron, Unipi 1.1, Extensions, Gate; Edge a fast follow; Axon dropped | Accepted |
 | [0009](0009-the-compat-surface.md) | The compat surface: stock EVOK 3.0.6, five flags, port 8080, no administration | Accepted — admin authentication deferred |
 | [0010](0010-modbus-serial-behind-our-own-port.md) | `modbus-serial` behind our own port, with a supervising wrapper | Accepted |
 | [0011](0011-instruments-share-no-code-with-the-subject.md) | Test instruments share no code with what they measure | Accepted |
 | [0012](0012-generated-address-tables.md) | Generated address tables are the primary safeguard, not a supplement | Accepted |
 | [0013](0013-workspaces-node-24-and-fastify.md) | npm workspaces, scoped `@evok-node/*` names, Node 24 and fastify | Accepted |
+| [0014](0014-hardware-definitions-and-inventory-are-ours.md) | Hardware definitions and inventory are ours; nothing is read from `/etc/evok` | Accepted |
 
 ## Awaiting write-up
 

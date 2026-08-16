@@ -47,8 +47,8 @@ guessing. Protect the budget.
 **RT-3 — Address computation, table-driven and generated,** for every model and section in the
 corpus *including the discontinued 28-RO and 30-DI Neurons*. Assert
 `(model, section, kind, channel) → (register, bitOffset, coil)`, plus a property test for global
-uniqueness: no two circuits on the same coil or (register, bit). This is the test half of RC-17 and
-RC-18. Branch coverage floor: **100%**.
+uniqueness: no two circuits on the same coil or (register, bit). This is the test half of RPG-DRV-1
+and RPG-DRV-3. Branch coverage floor: **100%**.
 
 **RT-4 — Codecs, golden tables per register type** — `i16`, `u16`, `u32` CDAB word-swapped,
 `float32`, raw 0..4000 AO counts, resistance scaling — including negatives, boundaries, and
@@ -72,7 +72,7 @@ their mechanisms and the 40 design rules they imply — a ready-made regression 
 not written yet, and the highest-value test backlog we have. Tag them `upstream-regression`.
 
 The only exemption is a finding dispositioned `construction` in
-[`../plan/bug-dispositions.md`](../plan/bug-dispositions.md), where the mechanism is a type or an
+[`../research/14-bug-dispositions.md`](../research/14-bug-dispositions.md), where the mechanism is a type or an
 exhaustive switch and the test would be asserting that the compiler works. **That is three findings
 out of 29** — 1.3, 2.4 and 3.3. A claimed fourth is probably code you intend to write correctly,
 which is what a test is for.

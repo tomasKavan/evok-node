@@ -15,6 +15,23 @@ plus the traps found by reading `evok/config.py` and `evok/modbus_slave.py`.
 >
 > Everything below stays authoritative as the parsing spec; only the consumer changed.
 
+> **Correction, 2026-08-13 — ADR-0014 supersedes the second bullet.** `autogen.yaml` and
+> `hw_definitions/*.yaml` are **not** runtime daemon inputs. We generate our own inventory and ship our own
+> definitions; nothing under `/etc/evok` is read at runtime, and no Unipi data package is a dependency. The
+> reason is in ADR-0014: `/etc/evok/hw_definitions/` belongs to `evok-unipi-data`, which is built separately
+> per product, so its content is not identified by its version.
+>
+> All four sections stay authoritative as **parsing specs**, and their consumers are now:
+>
+> - **§1 `config.yaml` and §3 aliases** — the migration tool (unchanged).
+> - **§2 `autogen.yaml`** — the shape our own generator emits an equivalent of, and what the migrator reads
+>   on a machine that has one.
+> - **§4 `hw_definitions`** — read **once, offline**, as one of the two sources for transcribing our own
+>   definitions. It is the only source of the AI/AO **mode enumerations** for CSV-only families, which makes
+>   the capture trip's copy blocking rather than merely useful.
+>
+> §4's "Definition-load validation evok-node should add" list is unaffected and still applies, to our format.
+
 ---
 
 ## 1. `/etc/evok/config.yaml`

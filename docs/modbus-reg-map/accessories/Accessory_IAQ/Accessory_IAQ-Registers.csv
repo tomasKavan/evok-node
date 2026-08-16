@@ -1,0 +1,3 @@
+Via Unit 0,Via Unit N,Register Count,R/W,Data Type,Content,Start Bit Nr.,Category
+5000,5000,1,RW,Word,LED intensity (%) - range 1-100,,Basic
+5001,5001,1,RW,Word,Digital output state - 0 = OFF / any other value = ON,,Basic

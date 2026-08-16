@@ -4,7 +4,7 @@ Compact status display with filter, sort and search; control and configuration; 
 layout drawings. A replacement for `evok-web-jq`, not a port of it.
 
 Renamed from `inspector` (2026-08-12) because `inspector` and `introspect` were one letter apart, one a
-package and the other the load-bearing message op in ADR-0003.
+package and the other the load-bearing message op.
 
 Built independently and served from a packaging path, so **nothing imports it** and `api-nextgen` gains no
 edge to a UI package. Single-instance by construction; G-4's aggregation case is client-side user data or

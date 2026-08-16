@@ -18,7 +18,7 @@ them. Rationale: [research/12](../research/12-modularisation.md).
 | **N1** | Fixtures & simulator | M1 | The permanent substitute for unbuyable hardware | address tables generated for all 83 model×sections; simulator serves any model; codec golden tables pass; fixture-drift check enforced in CI |
 | **N2** | Messaging & main | — | A daemon that spawns, supervises and reloads, with nothing to drive yet | envelope schemas round-trip (ADR-0001); config parse with resource-exclusivity validation; boot-fatal / reload-non-fatal asymmetry tested (RC-32); spawn, supervise and reload verified against a **stub driver** |
 | **N3** | Transport | M2 | Modbus that cannot silently return the wrong data | all eight wrapper guarantees implemented and tested; stale-frame-desync and TID-boundary tests pass; fault-injection matrix green |
-| **N4** | Definitions & device model | M3 | The hardware map, correct by construction | base→overlay→site merge; all load-time validations; duplicate coil/circuit is fatal; device lifecycle and staleness; **overlay format accommodates per-channel mode sets, per-model mode enums and unit-0 devices** (Edge's requirements, needed before the format ships) |
+| **N4** | Definitions & device model | M3 | The hardware map, correct by construction | **the definition corpus transcribed** from the register maps plus EVOK's shipped definitions, hand-reviewed (ADR-0014); loader for our format — id resolution, `custom/` root, `minFirmware` variant selection, handshake identity and census checks; all load-time validations; duplicate coil/circuit is fatal; device lifecycle and staleness; **format accommodates per-channel mode sets, per-model mode enums and unit-0 devices** (Edge's requirements, needed before the format ships) |
 | **N5** | First driver | — | One driver, complete and introspectable, with no API above it | `driver-kit` + `driver-onboard` against the simulator; introspection schema settled; RC-27 (query path never blocks) and RC-29 (`effect` mandatory) hold; **nextgen envelope drafted and its expressiveness checked** (T5.x) |
 | **N6** | Nextgen API | — | A public surface that new drivers extend without touching it | WS then HTTP; hardens N5's draft and adds no driver-specific shape (RC-30); reserved route prefixes chosen once, since `ui` is served at `/`; backpressure and keepalive correct here first |
 | **N7** | Extensions driver | — | The second driver, which is what proves the first one's abstraction | `driver-extension` over RTU + nextgen support; **`driver-kit`'s boundary revisited** now a second implementation exists; per-driver quarantine and t3.5 pacing on real wire |
@@ -64,7 +64,7 @@ correctly in N6, leaving the compat versions as projections of already-correct m
 protects the model from being shaped by EVOK is architectural (G-3, RC-24), not the ordering; the
 ordering is the second line. ADR-0001.
 
-**Edge is a fast follow after 1.0**, but the overlay definition format in N4 must already
+**Edge is a fast follow after 1.0**, but the definition format in N4 must already
 accommodate it — per-channel mode sets, **per-model mode enums** and unit-0 devices — or the first
 minor release breaks the format. In N4's exit criteria, and checked again by T5.x against the nextgen
 envelope. See [research/05](../research/05-evok-node-design-notes.md) §8.3.
@@ -89,7 +89,7 @@ They are here so the sequencing above can be read against where the project is g
 | System introspection | processes, resource consumption, network status and configuration | G-2 — a privileged surface cannot share the compat surface's trust level. Arrives as `driver-system`, a driver whose transport is the filesystem and process-exec (ADR-0001) |
 | Plugins | non-Unipi devices reachable from the PLC: DALI, M-Bus | G-6 — a leased, time-budgeted bus transaction through the owning driver, never a second Modbus client. ADR-0001's manifest loading and RC-30 are what make a plugin driver possible without an API release |
 | Trigger engine | lightweight rule machine, no visual editor, for pump control and lighting timers | declarative interlocks (research/05 §6.4) are its foundation and land in the device layer |
-| Edge support | fast follow-up to 1.0, per research/05 §8.3 | the overlay definition format must accommodate per-channel mode sets, per-model mode enums and unit-0 devices **in N4**, or the first minor release breaks it |
+| Edge support | fast follow-up to 1.0, per research/05 §8.3 | the definition format must accommodate per-channel mode sets, per-model mode enums and unit-0 devices **in N4**, or the first minor release breaks it (ADR-0014's format does) |
 
 **`ui` spans the line.** It lands after N6 as a consumer of the public API (see the note above), but
 the full SPA in the table is post-1.0. How much ships inside 1.0 is an open question in

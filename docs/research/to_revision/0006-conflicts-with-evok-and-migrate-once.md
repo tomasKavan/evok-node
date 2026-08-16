@@ -27,9 +27,15 @@ own store and the two sources diverge silently.
 ## Decision
 
 **`Conflicts: evok`.** The two cannot be installed simultaneously. Rollback is `apt install evok`.
-**We declare the shared OS dependencies ourselves** — `unipi-kernel-modules` and whatever else the
-capture trip shows evok pulls in — because otherwise removing evok can autoremove the packages our own
-runtime and migration depend on.
+**We declare the shared OS dependencies ourselves** — because otherwise removing evok can autoremove the
+packages our own runtime and migration depend on.
+
+**Correction, 2026-08-13.** This previously named `unipi-kernel-modules` as the package at risk. Measured
+on a Patron: `evok` declares `Depends: python3` and nothing else, so removing it cannot autoremove the
+kernel modules. The package that **is** taken is `nginx` — `apt-get -s remove --auto-remove evok` removes
+`evok`, `evok-web`, `nginx` and `nginx-common`, and ADR-0009 keeps nginx as the front end. So
+`Depends: nginx`, and the list is that plus whatever the systemd and nginx-site facts add. `evok-unipi-data`
+survives the removal and is **not** a dependency of ours — ADR-0014 removed the reason to want one.
 
 **A one-shot migration tool**, run explicitly by the operator or by packaging, **never by the
 daemon.** It reads `/etc/evok/config.yaml` and `/var/lib/evok/alias.yaml` and writes
@@ -43,9 +49,13 @@ against a backup, and warns — at a moment a human is watching — about anythi
 migration tool.
 
 **Greenfield installs do not depend on the migrator.** A machine that never ran EVOK has nothing to
-migrate, so packaging ships a **default config as a conffile**. `/etc/evok` is never written;
-`autogen.yaml` and `hw_definitions/*.yaml` remain runtime daemon inputs read from the OS image
-(ADR-0007).
+migrate, so packaging ships a **default config as a conffile**. `/etc/evok` is never read and never
+written: the hardware definitions and the inventory are ours (ADR-0014).
+
+**Correction, 2026-08-13.** This previously ended "`autogen.yaml` and `hw_definitions/*.yaml` remain
+runtime daemon inputs read from the OS image (ADR-0007)". They do not. Both are ours, which is also what
+makes the greenfield case work at all — `evok-unipi-data` is built per product, and `apt purge evok` was
+never the only way to end up without those files.
 
 ## Consequences
 

@@ -22,15 +22,19 @@ Do write:
 |---|---|---|
 | `CLAUDE.md` | 1 page | how to work here: read order, precedence, citations |
 | `docs/GOALS.md` | 1 page | goals, non-goals, invariants, what 1.0 is. Authoritative on scope |
-| `docs/rules/` | 1–2 pages each | code (RC), testing (RT), docs (RD), git (RG) |
-| `docs/adr/` | 1 page each | decisions, dated, immutable once accepted |
-| `docs/plan/` | brief, task-shaped | what we do next; its own rules are RP |
+| `docs/rules/` | 1–2 pages each | code (RCD), testing (RT), docs (RD), git (RG) |
+| `docs/rules/packages/` | ~½ page each | rules binding inside named packages only (RPG-\*) |
+| `docs/plan/` | brief, task-shaped | what we do next; its own rules are RPL |
 | `docs/research/` | as long as needed | what is true about EVOK and the hardware |
 | `docs/COMPATIBILITY.md` | as long as needed | **first-class deliverable** — see RD-3 |
 | Root `README.md` | 1 page | what it is, install, minimal example, links |
 | Per-package `README.md` | ~10 lines | purpose, and **what it must not depend on** |
 | API reference | generated | typedoc from types + JSDoc. Never hand-written |
 | `CHANGELOG.md` | generated | changesets. Never hand-written |
+
+`docs/adr/` is **absent on purpose from 2026-08-16 to the re-lock.** The set lives in
+`docs/research/to_revision/` while it is under revision, and comes back as its own directory — 1 page
+each, dated, immutable once accepted — when it is settled again.
 
 **RD-3 — `COMPATIBILITY.md` is a product feature.** It states **exactly where we behave differently
 from EVOK 3.x**, including where we deliberately fix its bugs. Derived from
@@ -44,7 +48,7 @@ name isn't self-explanatory. Enforced — typedoc runs with `--validation.notDoc
 on undocumented exports. Not required on internal functions; an internal function that needs prose
 to be understood should be renamed or split. Required regardless of visibility: any invariant a
 reader could plausibly violate — "callers must hold the port mutex". Comments inside a function are
-RC-25's job, not this rule's.
+RCD-16's job, not this rule's.
 
 **RD-5 — Docs ship in the same PR as the code.** Two explicit exceptions. Alpha/beta **smoothing
 passes**: documentation written incrementally reads like sediment, so before `0.x-alpha` and

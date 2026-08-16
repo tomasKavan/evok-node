@@ -7,38 +7,51 @@ referencing research rather than repeating it. Read order and precedence:
 Research is not a plan. To know how a register behaves, read research; to know what to build, read
 here.
 
+## Being rebuilt (2026-08-16)
+
+**There is no current plan.** Everything the plan used to hold was reclassified as research: the
+roadmap, the bug dispositions and the hardware-definition format are now
+[`research/13`](../research/13-config-and-hw-definition-format.md),
+[`research/14`](../research/14-bug-dispositions.md) and
+[`research/15`](../research/15-roadmap-to-rework.md), the milestone files and the capture-trip runbook
+were discarded outright, and the ADRs moved to
+[`research/to_revision/`](../research/to_revision/README.md) pending revision.
+
+The order from here is: development documentation first, derived from that research; then a new plan
+derived from the documentation; then code. A new roadmap and new milestone files appear at that second
+step. Until they do, `STATUS.md` is the only thing in this directory that describes present state.
+
+The rules below still hold — they are about how a plan is maintained, not about the plan that was
+deleted.
+
 ## Files
 
 | File | Purpose |
 |---|---|
 | **`STATUS.md`** | **Read this first.** Current state: done, in progress, next, blocked. |
-| `roadmap.md` | Milestones N0–N10, one paragraph each. The shape of the whole project. |
-| `milestones/N*.md` | Per-milestone task lists with acceptance criteria and exit criteria. |
-| `bug-dispositions.md` | Every known EVOK finding and what we did about it. Closing it is half the definition of 1.0. |
-| `capture-trip.md` | The one-session runbook for capturing stock EVOK 3.0.6 before it is replaced. Time-limited: delete it once the fixtures are in `fixtures/captured/`. |
 
 ## Rules
 
-Binding. Cite as **RP-N**.
+Binding. Cite as **RPL-N**. *Renamed from `RP-N` on 2026-08-16 — numbers unchanged.*
 
-**RP-1 — `STATUS.md` is updated in the same PR as the work.** Not afterwards, not in a batch. A PR
+**RPL-1 — `STATUS.md` is updated in the same PR as the work.** Not afterwards, not in a batch. A PR
 that completes a task and leaves `STATUS.md` stale is incomplete; the checklist item exists for this.
 
-**RP-2 — A task is done when its acceptance criteria are demonstrable**, not when the code exists.
+**RPL-2 — A task is done when its acceptance criteria are demonstrable**, not when the code exists.
 Demonstrable means a test, a command someone can run, or a captured artefact.
 
-**RP-3 — When reality diverges from the plan, change the plan in the PR that diverges.** Silent
+**RPL-3 — When reality diverges from the plan, change the plan in the PR that diverges.** Silent
 drift is what makes a plan worthless. A one-line note saying why is enough.
 
-**RP-4 — Agents do not invent milestones.** If work doesn't fit the current milestone, open an issue
+**RPL-4 — Agents do not invent milestones.** If work doesn't fit the current milestone, open an issue
 proposing it and continue with what does fit. Mid-task scope creep is expensive to unwind.
 
-**RP-5 — Milestone files stay under one page.** If a milestone needs more, it is two milestones.
+**RPL-5 — Milestone files stay under one page.** If a milestone needs more, it is two milestones.
 
-**RP-6 — Every task links to its issue,** and any task with a hardware or research dependency says
+**RPL-6 — Every task links to its issue,** and any task with a hardware or research dependency says
 so.
 
-**RP-7 — No task depends on hardware that does not exist yet.** Hardware-dependent work is isolated
+**RPL-7 — No task depends on hardware that does not exist yet.** Hardware-dependent work is isolated
 in its own tasks so the rest can proceed. See
 [research/09](../research/09-test-hardware-coverage.md) for what we can and cannot verify.
 

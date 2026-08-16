@@ -57,7 +57,8 @@ Which tests, which tier. If hardware was involved, which rig elements.
 - [ ] Tests added or updated (docs/rules/testing.md)
 - [ ] docs/plan/STATUS.md updated
 - [ ] Docs updated here, or a `docs-debt` issue opened
-- [ ] ADR added if a decision was made
+- [ ] A decision was made → recorded in the development documentation (ADRs are suspended until
+      the set is re-locked; see CLAUDE.md)
 - [ ] No changes to fixtures/generated/ or fixtures/captured/ (or explained above)
 ```
 

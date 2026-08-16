@@ -7,4 +7,4 @@ The permanent substitute for hardware we can no longer buy, and the only substra
 against. Ships publicly from N1.
 
 **Must not depend on:** `modbus`. It has its own framer, deliberately — a shared framer cannot be asked to
-emit a wrong CRC (ADR-0011). Also: no driver, no api, no `main`.
+emit a wrong CRC. Also: no driver, no api, no `main`.

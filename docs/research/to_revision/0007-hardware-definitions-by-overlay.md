@@ -1,6 +1,6 @@
 # ADR-0007 — Hardware definitions are extended by overlay; the OS image is read-only
 
-- **Status:** Accepted
+- **Status:** Superseded by ADR-0014
 - **Date:** 2026-08-12
 - **Refs:** docs/research/05-evok-node-design-notes.md §8.5, §2.6, §7.1 ·
   docs/research/06-register-maps.md §2.7 · docs/GOALS.md G-5 · ADR-0006, ADR-0008

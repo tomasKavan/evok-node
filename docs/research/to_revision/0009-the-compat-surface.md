@@ -14,7 +14,7 @@
 are still being written into new clients — `unipi-mqtt-ng` was published in **February 2026** against
 v2 names and is therefore completely broken on EVOK 3 — while upstream declares v2→v3 migration
 unsupported. Even within v3, EVOK's documentation and code disagree in twelve places
-([research/01 §9](../research/01-evok-api-surface.md)), so there are two candidate contracts.
+([research/01 §9](../01-evok-api-surface.md)), so there are two candidate contracts.
 
 Two further facts shape the surface rather than the contract. EVOK's API is **unauthenticated** —
 `check_origin` returns `true` unconditionally and issue #149 is still open (R04-29). And four clients

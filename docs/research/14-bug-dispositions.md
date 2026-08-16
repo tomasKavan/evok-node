@@ -3,7 +3,7 @@
 **Updated:** 2026-08-12 · **Closed:** 0 of 29
 
 > **Milestones remapped 2026-08-12** for the N0–N10 restructure in
-> [`roadmap.md`](roadmap.md) (ADR-0001). Mechanical for 26 rows — `M2`→`N3`, `M3`→`N4`, `M4`→`N9`,
+> [`roadmap.md`](15-roadmap-to-rework.md) (ADR-0001). Mechanical for 26 rows — `M2`→`N3`, `M3`→`N4`, `M4`→`N9`,
 > `M5`/`M6`→`N10`. Three rows moved on their merits: **2.1** to N5, **2.7** to N2, and three
 > WebSocket/write-path rows (2.3, 3.2, 3.7) now read `N6, N9` because the mechanism is built in the
 > nextgen surface and the compat projection inherits it. No finding's content changed.

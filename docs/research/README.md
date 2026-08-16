@@ -42,21 +42,34 @@ at commit `47c95c8` (branch `main`, latest tag **3.0.6**, 2025-09-02).
 | [`08-latency-and-scan-budget.md`](08-latency-and-scan-budget.md) | Why a full xS11 read takes 16 ms, what the levers are, and the scan-scheduling constraints that follow. |
 | [`09-test-hardware-coverage.md`](09-test-hardware-coverage.md) | What the available Patron/Gate units exercise, the coverage gap on the highest-severity bug, and purchasing priorities. |
 | [`10-test-kit.md`](10-test-kit.md) | The three-tier test kit: generated simulator, hardware-in-the-loop rig with software-controlled fault injection, soak and client acceptance. Designed to be driven by agents, not humans. |
-| [`11-roadmap.md`](11-roadmap.md) | Sequencing **rationale** — why the phases are ordered as they are, and what agent-driven development demands. **Superseded as a working document by [`docs/plan/`](../plan/README.md)**, which is authoritative for what to do next. Its M-numbered phases predate the N0–N10 restructure. |
-| [`12-modularisation.md`](12-modularisation.md) | **The 2026-08-12 re-steer**, in full: drivers / APIs / main, the addressing scheme, introspection as the source of compat's table, the config and message sketches, and every alternative rejected along the way. Accepted, and recorded as ADRs 0001–0004 — this file carries the reasoning the ADRs compress. |
+| [`11-roadmap.md`](11-roadmap.md) | Sequencing **rationale** — why the phases are ordered as they are, and what agent-driven development demands. Its M-numbered phases predate the N0–N10 restructure in `15`, which is itself now superseded. Read for the arguments, not the order. |
+| [`12-modularisation.md`](12-modularisation.md) | **The 2026-08-12 re-steer**, in full: drivers / APIs / main, the addressing scheme, introspection as the source of compat's table, the config and message sketches, and every alternative rejected along the way. Recorded at the time as ADRs 0001–0004; this file carries the reasoning those compress, and outlives them. |
+| [`13-config-and-hw-definition-format.md`](13-config-and-hw-definition-format.md) | The proposed config and hardware-definition format, in detail. Was `plan/hw-definition-format.md`. |
+| [`14-bug-dispositions.md`](14-bug-dispositions.md) | Every known EVOK finding and the disposition proposed for it. Was `plan/bug-dispositions.md`. |
+| [`15-roadmap-to-rework.md`](15-roadmap-to-rework.md) | The N0–N10 roadmap as it stood on 2026-08-16. **Superseded, kept for its sequencing arguments** — the plan is being rebuilt from the development documentation, not from this. Was `plan/roadmap.md`. |
+
+## Subdirectories
+
+| Path | Contents |
+|---|---|
+| [`to_revision/`](to_revision/README.md) | **All 14 ADRs, as of 2026-08-16.** Reclassified as research pending revision; the immutability lock is lifted and nothing binding may cite them until they are re-locked. |
+| [`modbus-reg-map-notes/`](modbus-reg-map-notes/README.md) | What is *ours* about a Unipi register map: how a source was read, what a transcription inferred, what to verify first. |
+| [`derived/`](derived/) | Generated data: `model-io-census.csv`, DI/DO/RO/AI/AO/LED counts per model and section (83 rows). Use to validate hardware definitions at load time. |
+| [`appendix/`](appendix/) | The two full unedited reports the condensed notes were written from. |
 
 ## Related, outside this directory
 
 | Path | Purpose |
 |---|---|
-| [`../GOALS.md`](../GOALS.md) | Goals, non-goals, invariants, definition of 1.0. Authoritative. |
-| [`../plan/`](../plan/README.md) | The executable plan. `STATUS.md` first. |
-| [`../rules/`](../rules/code.md) | How we work: code, testing, docs, git. |
-| [`../adr/`](../adr/README.md) | Settled decisions, immutable once accepted. |
-| `../modbus-reg-map/` | Official Unipi register maps. Ground truth, read-only. |
-| `derived/model-io-census.csv` | Generated: DI/DO/RO/AI/AO/LED counts per model and section (83 rows). Use to validate hardware definitions at load time. |
-| [`appendix/raw-hardware-research.md`](appendix/raw-hardware-research.md) | Full unedited hardware research report (register tables, model lists, KB citations). |
-| [`appendix/raw-bug-archaeology.md`](appendix/raw-bug-archaeology.md) | Full unedited bug report (~90 findings with commit hashes and issue numbers). |
+| [`../GOALS.md`](../GOALS.md) | Goals, non-goals, invariants. Authoritative — but the definition of 1.0 currently reads TBD. |
+| [`../plan/`](../plan/README.md) | The plan. Being rebuilt as of 2026-08-16; `STATUS.md` is the only current thing in it. |
+| [`../rules/`](../rules/code.md) | How we work: code, packages, testing, docs, git. |
+| [`../modbus-reg-map/`](../modbus-reg-map/README.md) | Official Unipi register maps. Ground truth, read-only, and no prose. |
+
+The two appendix reports, cited throughout: full unedited
+[hardware research](appendix/raw-hardware-research.md) (register tables, model lists, KB citations)
+and [bug archaeology](appendix/raw-bug-archaeology.md) (~90 findings with commit hashes and issue
+numbers).
 
 ## Evidence conventions
 

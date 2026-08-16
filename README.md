@@ -38,7 +38,7 @@ Anything that looks like a third kind of component is a driver whose transport i
 | Package | Purpose |
 |---|---|
 | [`messaging`](packages/messaging) | the internal driver↔API contract: envelopes, introspection schemas, codecs, deadlines |
-| [`hw-definitions`](packages/hw-definitions) | model descriptors, overlays, generated address tables |
+| [`hw-definitions`](packages/hw-definitions) | our hardware definitions, model descriptors, generated address tables |
 | [`modbus`](packages/modbus) | transport: framing, correlation, timing, circuit breakers |
 | [`main`](packages/main) | the daemon: config, validation, spawn, supervise, reload |
 | [`driver-kit`](packages/driver-kit) | shared driver runtime: scan loop, reading state, handshake, introspection |
@@ -60,10 +60,10 @@ documentation of it — and they are enforced from a single table in `.dependenc
   here. It holds no rules itself.
 - [`docs/GOALS.md`](docs/GOALS.md) — goals, non-goals, invariants (**G-N**), what 1.0 is. Wins over
   everything else.
-- [`docs/rules/`](docs/rules/code.md) — the binding rules: code (**RC**), testing (**RT**), docs
-  (**RD**), git (**RG**).
-- [`docs/plan/`](docs/plan/README.md) — what happens next (**RP**) ·
-  [`docs/adr/`](docs/adr/README.md) — why we decided (**A-NNNN**) ·
-  [`docs/research/`](docs/research/) — what is true about EVOK and Unipi hardware.
+- [`docs/rules/`](docs/rules/code.md) — the binding rules: code (**RCD**), packages (**RPG-\***),
+  testing (**RT**), docs (**RD**), git (**RG**).
+- [`docs/plan/`](docs/plan/README.md) — what happens next (**RPL**) ·
+  [`docs/research/`](docs/research/README.md) — what is true about EVOK and Unipi hardware, plus the
+  [ADRs under revision](docs/research/to_revision/README.md).
 
-Licence not yet chosen — M0 task T0.6, with an ADR recording the choice.
+Licence not yet chosen.

@@ -1,27 +1,39 @@
 # Status
 
-**Updated:** 2026-08-12 · **Milestone:** N0 — re-steer & scaffolding · **Version:** unreleased
+**Updated:** 2026-08-16 · **Phase:** development documentation · **Version:** unreleased
 
 ## Where we are
 
-Research is complete and lives in [`docs/research/`](../research/). Goals are settled in
-[`docs/GOALS.md`](../GOALS.md). **The architecture was re-steered on 2026-08-12** — see
-[research/12](../research/12-modularisation.md) and ADRs 0001–0004 — and the workspace skeleton has
-been rebuilt in the new shape: thirteen packages, building, linting and cruising clean. **No
-implementation code exists yet**; every package's entrypoint is a placeholder export.
+**Everything done so far except the repo scaffolding is research, and there is no plan right now.**
+Reset on 2026-08-16, deliberately. The research is genuinely useful and none of it was thrown away;
+what was thrown away is its false authority — a roadmap, a milestone breakdown and a set of ADRs that
+read as decided when the design underneath them had not been written down anywhere.
 
-The ADR set was **consolidated from 23 files to 13 on 2026-08-12** and renumbered. Anything citing an
-old number resolves through the redirect table in [`../adr/README.md`](../adr/README.md).
+The order from here: **development documentation → new plan → code.** No implementation work starts
+against the old plan.
 
-## The re-steer, in one paragraph
+What moved, all of it on 2026-08-16:
 
-The goal and the definition of 1.0 are unchanged: compatibility complete, every bug disposition
-closed. What changed is the path. `core` and `server` dissolved into **drivers** — each owning one
-transport endpoint and holding the only copy of its state — and **APIs**, which are stateless
-translators, orchestrated by a `main` that sits on no request path. The compat surface moves from the
-second milestone to the last: only 7 of the 29 findings depend on it, and three of those are
-surface-agnostic mechanisms that get built correctly in the nextgen API first. What protects the model
-from being shaped by EVOK is architectural (G-3, RC-24); the ordering is the second line of defence.
+| Was | Now |
+|---|---|
+| `docs/adr/*` — 14 ADRs | [`research/to_revision/`](../research/to_revision/README.md), **suspended**. Immutability lock lifted; nothing binding may cite one until the set is re-locked |
+| `plan/hw-definition-format.md` | [research/13](../research/13-config-and-hw-definition-format.md) |
+| `plan/bug-dispositions.md` | [research/14](../research/14-bug-dispositions.md) |
+| `plan/roadmap.md` — N0–N10 | [research/15](../research/15-roadmap-to-rework.md), superseded, kept for its sequencing arguments |
+| `plan/milestones/`, `plan/capture-trip.md`, `tools/capture/` | **Deleted.** Clean slate; the capture work is re-planned from scratch later in the process |
+| Derived notes inside `docs/modbus-reg-map/` | [`research/modbus-reg-map-notes/`](../research/modbus-reg-map-notes/README.md). That tree is now Unipi ground truth and mechanical extracts only |
+
+Rules changed shape too: `RC-N` became **`RCD-N`** and was cut back to generic TypeScript rules,
+project-specific rules moved to [`rules/packages/`](../rules/packages/README.md) as **`RPG-*`**, and
+`RP-N` became **`RPL-N`**. `RC` numbers were regenerated, not re-prefixed — see the renames note in
+[`CLAUDE.md`](../../CLAUDE.md).
+
+`GOALS.md` still holds, with two changes: *What 1.0 is* now reads **TBD** until the documentation pass
+settles it, and the Invariants section is marked for review and relocation.
+
+The workspace skeleton is **untouched and still valid**: thirteen packages, building, linting and
+cruising clean. **No implementation code exists yet**; every package's entrypoint is a placeholder
+export.
 
 ## Done
 
@@ -29,90 +41,89 @@ from being shaped by EVOK is architectural (G-3, RC-24); the ordering is the sec
   upstream bug archaeology (29 condensed findings, ~90 raw), client compatibility matrix, latency
   budget, test-kit design, register-map corpus imported and indexed.
 - **Goals consolidated (2026-08-10).** [`GOALS.md`](../GOALS.md) is authoritative: the goal, the
-  measurable form of it, what 1.0 is, post-1.0 direction, seven invariants, the drop-in guarantee,
-  non-goals. The decisions behind it are now ADRs 0005, 0006 and 0009.
+  measurable form of it, the invariants, the drop-in guarantee, non-goals.
 - **T0.1–T0.5 (2026-08-10).** npm workspaces, a shared strict TS base with the six T0.2 flags,
   vitest in workspace mode with coverage floors wired and switched off, `pr` and `main` CI workflows
   with actions pinned by SHA, eslint with the type-checked config, and `dependency-cruiser` carrying
   the layering DAG.
-- **Re-steer landed (2026-08-12).** [ADR-0001](../adr/0001-drivers-apis-and-main.md),
-  [0002](../adr/0002-driver-qualified-addressing.md),
-  [0003](../adr/0003-introspection-is-the-source-of-truth.md) and
-  [0004](../adr/0004-single-threaded.md) carry it. `roadmap.md` restructured to N0–N10,
-  `bug-dispositions.md` milestones remapped, six rules rewritten and seven appended (RC-26…RC-32),
-  `CLAUDE.md` §Layout replaced.
+- **Re-steer worked out (2026-08-12).** Drivers / APIs / `main`, driver-qualified addressing,
+  introspection as the source of compat's table, single-threaded. Reasoning in full in
+  [research/12](../research/12-modularisation.md); the four ADRs that recorded it are now
+  [under revision](../research/to_revision/README.md). The conclusions largely stand — they are just
+  no longer *settled* until the documentation pass says so.
 - **Skeleton reworked (2026-08-12).** Thirteen packages: `core`, `server`, `protocol` and
   `inspector` removed; `messaging`, `main`, `driver-kit`, `driver-onboard`, `driver-extension`,
   `api-nextgen`, `api-compat` and `ui` added. Root `tsconfig.json` references, the
   `dependency-cruiser` DAG, vitest projects and coverage floors all follow. `npm run build`, `test`,
   `lint` and `layering` each exit 0; 27 modules and 13 edges cruised with no violations.
-- **T0.7 ADRs written, then the set consolidated (2026-08-12).** The eleven settled-but-undocumented
-  decisions from the ADR README's "Awaiting write-up" table were written up, taking the set to 23.
-  It was then **consolidated to 13** and renumbered: seven files described one architecture and four
-  described one surface, several still named the dissolved `core` and `protocol` packages, and the old
-  ADR-0006's deferred mechanism had already been replaced by ADR-0003's projection table. Every
-  rejected alternative survives as one line. Only the licence row remains unwritten, and it belongs to
-  T0.6. Redirect table: [`../adr/README.md`](../adr/README.md), deleted at the `0.x-alpha` smoothing
-  pass (RD-5).
+- **ADRs written and consolidated (2026-08-12/13).** Eleven settled-but-undocumented decisions were
+  written up, the set was consolidated from 23 files to 13, and a fourteenth was added on 2026-08-13. All
+  of it is now [under revision](../research/to_revision/README.md) — the writing was not wasted, but
+  it turned out to be reasoning in search of a design document rather than a substitute for one.
+- **Docs reset (2026-08-16).** See *Where we are*.
 
 ## In progress
 
-- **N0 — re-steer & scaffolding.** Remaining: **T0.6** repo hygiene and the licence choice, and
-  **T0.8** `npm run verify`. T0.7 is done — see above. The licence ADR is T0.6's, because the choice
-  between MIT and Apache-2.0 has not been made.
+- **Development documentation.** Written from the research above, with the ADRs and
+  [research/12](../research/12-modularisation.md) as the main inputs, and settled by discussion as it
+  goes. It defines the ADR set that gets re-locked, and *What 1.0 is*.
+- **Left over from scaffolding:** the licence choice (MIT or Apache-2.0 — undecided), repo hygiene,
+  and `npm run verify`. Independent of the documentation pass and can land at any time.
 - **Four of the `pr` workflow's eight checks are still placeholders** — `format` and `changeset`
-  until T0.6, `fixture-drift` until N1, and `coverage` runs but enforces nothing until there is
-  something to cover. Each prints a warning annotation saying so.
-- **Branch protection is not yet configured** — Tomas's to set. Until it is, T0.5's exit criteria
-  are only half met: the workflows run, but nothing requires them to be green.
+  until repo hygiene lands, `fixture-drift` until there are fixtures, and `coverage` runs but enforces
+  nothing until there is something to cover. Each prints a warning annotation saying so.
+- **Branch protection is not yet configured** — Tomas's to set. Until it is, the workflows run but
+  nothing requires them to be green.
 
 ## Next
 
-- **N1 — generated fixtures and simulator.** The map-corpus parser, generated address tables, the
-  Modbus slave simulator, codec golden tables. Still the highest-leverage work in the project, and
-  still ahead of every driver: it is the only substrate a driver can be tested against.
+1. Finish the development documentation.
+2. Re-lock the ADR set against it, and lift *TBD* from *What 1.0 is*.
+3. Derive a new plan and milestones from that.
+4. Adjust the repo scaffolding if the documentation calls for it.
+5. Start building.
+
+Nothing below step 3 is scheduled, and no milestone numbers should be invented before it (RPL-4).
 
 ## Blocked / waiting on hardware
 
-**The capture trip is scheduled for the week of 2026-08-10, and all three Patrons are confirmed
-still stock.** Demoting the compat surface to N9 does **not** defer this — the transcripts are
-unrecoverable once EVOK leaves those Patrons; they are simply consumed later. Runbook:
-[`capture-trip.md`](capture-trip.md).
+Unchanged by the reset, because hardware does not care about our documents. **All three Patrons are
+confirmed still stock**, and the golden transcripts are unrecoverable once EVOK leaves them — the
+capture work is time-sensitive regardless of where it lands in the new plan. The old runbook was
+deleted with the rest of the plan; a new one is written when the plan calls for it, from the list
+below.
 
 | Item | Waiting on |
 |---|---|
-| Golden transcript capture | **Human task, time-sensitive.** Must be recorded from stock EVOK 3.0.6 on L527/M527/S167 — **and the Gate, if it still runs stock EVOK**, since research/09 §2 makes the zero-local-I/O payload a named requirement — *before* anything replaces EVOK on those units. Unrecoverable afterwards. Runbook phases 1, 3, 4. |
+| Golden transcript capture | **Human task, time-sensitive.** Must be recorded from stock EVOK 3.0.6 on L527/M527/S167 — **and the Gate, if it still runs stock EVOK**, since research/09 §2 makes the zero-local-I/O payload a named requirement — *before* anything replaces EVOK on those units. Unrecoverable afterwards. |
 | **Gate behaviour with no onboard driver** | Same trip, and newly load-bearing: `api-compat` requires **at most one** onboard driver, and zero is the Gate, which must serve an empty API rather than erroring. research/09 records that EVOK's own `readboards()` and `/rest/all` "degrade oddly" here, so the compat shape must be captured rather than inferred. |
-| Stock `hw_definitions` + `autogen.yaml` + firmware versions | Same trip as the transcript capture. Runbook phase 1. |
-| Stock `config.yaml` + `/var/lib/evok/alias.yaml` | Same trip. These are the migration tool's golden fixtures (ADR-0006). Runbook phase 1. |
-| evok packaging metadata — `apt-cache show evok`, `dpkg -L evok`, systemd unit names, its nginx site file | Same trip. Decides the `Conflicts:`/`Depends:` list in ADR-0006 and how the `:80` site conflict is handled. **Do not `apt purge evok` before migrating** — purge destroys the fixtures above. Runbook phase 1. |
-| `start_index` old-behaviour baseline | **Same trip, and easy to forget.** Finding 1.1's `test` disposition needs a transcript of stock EVOK mis-registering a deliberately split RO definition (two blocks of 7 with `start_index`) on the L527's section 3. Runbook phase 5. |
+| Stock `hw_definitions` + `autogen.yaml` + firmware versions | Same trip as the transcript capture. **Now blocking, not merely useful:** the shipped `hw_definitions` are the only source of the AI/AO **mode enumerations** for CSV-only families, and G-3 makes those mandatory — so our board `00` definition cannot be written until this is captured. Edge and Unipi 1.1 are unaffected; their XLSX `Description` sheets carry the enums. |
+| Register 1004 (Hardware ID) per unit | Same trip. Seeds `identifies.hardwareId` in our definitions; a model without it falls back to the census check, which is normal rather than incomplete. |
+| Which `run.d` directory exists, and what owns it | Same trip, cheap: `ls -ld /usr/lib/unipi/run.d /opt/unipi/os-configurator/run.d` plus `dpkg -S`. Upstream documents the first, Debian 12 shows the second. Our `postinst` installs into whichever exists. |
+| Stock `config.yaml` + `/var/lib/evok/alias.yaml` | Same trip. These are the migration tool's golden fixtures. |
+| evok packaging metadata — systemd unit names and its nginx site file | Same trip. **Mostly answered 2026-08-13** on a live Patron: `evok` declares `Depends: python3` only, `apt-get -s remove --auto-remove evok` takes `evok`, `evok-web`, `nginx`, `nginx-common`, and `evok-unipi-data` survives. So `Depends:` needs **`nginx`**, not `unipi-kernel-modules`, and no Unipi data package at all — correcting what we had assumed. What remains is the unit names and the `:80` site conflict. **Do not `apt purge evok` before migrating** — purge destroys the fixtures above. |
+| `start_index` old-behaviour baseline | **Same trip, and easy to forget.** Finding 1.1's `test` disposition needs a transcript of stock EVOK mis-registering a deliberately split RO definition (two blocks of 7 with `start_index`) on the L527's section 3. |
 | Second Patron M527 as rig test host | **Purchase approved 2026-08-10, not yet ordered.** Blocks all tier-1 hardware tests. **Image it with Debian 12** — see open question 3. |
 | xS51 extension | **Purchase approved 2026-08-10, not yet ordered.** AI/AO over RTU (float32 AI, raw-count AO, 6-mode enum on an extension) is otherwise only reachable via the local TCP path. |
-| Tier-1 hardware tests | Rig not built. Needs the second Patron M527 as test host, wiring, `rig` service. Runs as a parallel track and gates no milestone (RP-7). |
-| RS485 baud-encoding, DirectSwitch write path, unit-0 aggregate reads, register 1007 semantics | Verification on hardware. See [research/05](../research/05-evok-node-design-notes.md) §7.4. Partly answerable on the capture trip — runbook phase 6. |
+| Tier-1 hardware tests | Rig not built. Needs the second Patron M527 as test host, wiring, `rig` service. Runs as a parallel track and gates nothing (RPL-7). |
+| RS485 baud-encoding, DirectSwitch write path, unit-0 aggregate reads, register 1007 semantics | Verification on hardware. See [research/05](../research/05-evok-node-design-notes.md) §7.4. Partly answerable on the capture trip. |
 | Neuron and Unipi 1.1 support | Hardware not yet purchased. Map-driven and simulator-verified until then. When a Neuron is bought, buy an **L203**. |
 
 ## Known permanent gaps
 
 - **No purchasable Unipi device has >16 channels of one type in a single section**, so the
   *missing-bank-stride* half of the highest-severity bug class (silently driving the wrong relay) can
-  never be verified on hardware. Mitigated by generated address tables plus a
-  fatal-on-duplicate-registration assertion (RC-18). The `start_index` half **is** reproducible on the
+  never be verified on hardware. Mitigated by generated address tables plus the
+  fatal-on-duplicate-registration assertion (RPG-DRV-3). The `start_index` half **is** reproducible on the
   L527's section 3 via a deliberately split definition and the RO→DI loopback. See
   [research/10 §4](../research/10-test-kit.md) and
-  [`bug-dispositions.md`](bug-dispositions.md) finding 1.1.
+  [research/14](../research/14-bug-dispositions.md) finding 1.1.
 
 ## Open questions
 
-1. **G-7's `unipitcp` clause — Tomas's decision, and the one open item with a deadline.** G-7 refused
-   to start when `unipitcp` was active, but local I/O *is* Modbus TCP to `unipitcp` on
-   `127.0.0.1:502` ([raw-hardware-research §166](../research/appendix/raw-hardware-research.md), Unipi
-   KB `en:sw:02-apis:02-modbus-tcp`), so `driver-onboard` requires it running. A dated correction in
-   `GOALS.md` reads the clause as scoped to `evok` itself and the RS-485 ttys, which is what its stated
-   reason — two processes cannot both own `/dev/ttyNS0` — actually supports. **Reverse that note if the
-   original intent was different.** Decides whether `driver-onboard` has a transport at all; settle
-   before N5.
+1. ~~G-7's `unipitcp` clause~~ **Closed 2026-08-16.** G-7 is scoped to `evok` itself and the RS-485
+   ttys; `unipitcp` is not a conflict, because local I/O *is* Modbus TCP to it. Stated plainly in
+   `GOALS.md` now, with the correction note removed.
 2. ~~Which extension models are actually on hand~~ **Answered 2026-08-10: xS11 and xG18.** The xG18 is
    a bonus — 1-Wire over RTU is coverable today. No xS51, so AI/AO over RTU stays unverifiable until
    the approved order arrives.
@@ -121,8 +132,8 @@ unrecoverable once EVOK leaves those Patrons; they are simply consumed later. Ru
    Debian 12** — it arrives blank, so this costs nothing and destroys no fixtures. Reflashing an
    existing Patron would wipe stock EVOK and was rejected for that reason.
 4. `node:sqlite` stability on the Node 24 minor we pin — available without a flag but a release
-   candidate, not fully stable. Fallback is `better-sqlite3`, which needs armhf/arm64 prebuilds. See
-   ADR-0005. Now `driver-store`'s problem rather than the daemon's.
+   candidate, not fully stable. Fallback is `better-sqlite3`, which needs armhf/arm64 prebuilds. Now
+   `driver-store`'s problem rather than the daemon's.
 5. **Two workspace dependency edges are deliberately undeclared**, because declaring one wrongly is
    what `dependency-cruiser` then enforces:
    - `client → api-nextgen`. The client targets that surface's public schema, which does not exist
@@ -136,8 +147,8 @@ unrecoverable once EVOK leaves those Patrons; they are simply consumed later. Ru
    allow 6.1 and break lint. Revisit when `typescript-eslint` supports the native compiler.
 7. **`data_point` is overloaded, and must not be allowed to converge.** It is a specific EVOK type
    (id 24, `<device_name>_<register_address>`, `datatype: null|float32`); our generic term for anything
-   addressable is **endpoint** (ADR-0003).
+   addressable is **endpoint**.
 8. Deferred by design, listed so they are not mistaken for oversights: trigger-engine fail-safe
    semantics, the admin-surface authentication mechanism, and the plugin isolation model — the last now
-   narrowed by ADR-0004, which makes 1.0 single-threaded and leaves the boundary as the thing that
+   narrowed by 1.0 being single-threaded, which leaves the message boundary as the thing that
    keeps the options open. See [`GOALS.md`](../GOALS.md) §Open.

@@ -7,10 +7,14 @@
  * always does after any earlier build — verified empirically, see the PR that added
  * this file. So nothing but this file stops a driver importing an api, or `main`
  * importing either — which is the edge that would quietly put it back in the data
- * path (ADR-0001).
+ * path.
  *
- * Rewritten 2026-08-12 for ADR-0001: `core` and `server` no longer exist, and RC-10
- * is now a partition rather than a one-directional rule.
+ * Rewritten 2026-08-12: `core` and `server` no longer exist, and driver↔api is now a
+ * partition rather than a one-directional rule.
+ *
+ * This file is the *only* statement of the layering. The prose rules that used to
+ * restate it were deleted on 2026-08-16 for exactly that reason — a rule a linter
+ * checks does not also need a paragraph, and two copies drift.
  */
 
 /**
@@ -20,22 +24,24 @@
  * once.
  *
  * - `messaging` is the root: the internal contract only, so it depends on nothing of
- *   ours. It holds no package's *public* wire schema (RC-12).
- * - **No driver imports an api; no api imports a driver** (RC-10). Both directions,
- *   which is what makes it a partition and fully checkable.
+ *   ours. It holds no package's *public* wire schema (RCD-10).
+ * - **No driver imports an api; no api imports a driver.** Both directions, which is
+ *   what makes it a partition and fully checkable.
  * - `main` gets `messaging` and `hw-definitions` and **no concrete driver or api** —
  *   they are manifest-loaded from config. Without this edge missing, "main is never a
- *   conduit" is unenforceable (ADR-0001).
+ *   conduit" is unenforceable.
  * - drivers get `driver-kit`, `modbus` and `hw-definitions`; they need the address
- *   tables, since that is where the one audited address function lives (RC-17).
+ *   tables, since that is where the one audited address function lives (RPG-DRV-1).
  * - `driver-kit` gets `messaging` only: transport and hardware knowledge belong to
  *   the concrete drivers.
  * - each api gets `messaging` only, and owns the public schema of its own surface.
  *   `api-compat` importing nothing that carries our groups, labels or ordering is
  *   what makes G-3 a missing edge instead of a review rule.
  * - `simulator` deliberately excludes `modbus`: the instrument must not share a
- *   framer with the code it stands in for. See ADR-0011, which states the cost.
- * - `rig` imports nothing of ours at all (RC-11).
+ *   framer with the code it stands in for. The cost is a second framer to maintain,
+ *   and it is accepted deliberately: a shared one cannot be asked to emit a wrong CRC.
+ * - `rig` imports nothing of ours at all: the instrument shares no code with the
+ *   subject.
  * - `ui` is over the public API only, and nothing imports *it* — `api-nextgen` serves
  *   built assets from a packaging path, not a bundled import.
  */
@@ -130,7 +136,7 @@ const layeringRules = PACKAGES.map((pkg) => {
 
   return {
     name: `layer-${pkg}`,
-    comment: `${pkg} may import ${permitted}. Fix the design, not this rule: the layering DAG lives in CLAUDE.md §Layout and in .dependency-cruiser.cjs, and a new edge needs an ADR. RC-10, ADR-0001.`,
+    comment: `${pkg} may import ${permitted}. Fix the design, not this rule: the layering DAG is stated once, in the table at the top of .dependency-cruiser.cjs, and adding an edge is a design change — argue it in the PR body.`,
     severity: 'error',
     from: { path: `^packages/${pkg}/` },
     to: { path: workspacePath(forbidden) },
@@ -153,7 +159,7 @@ module.exports = {
     {
       name: 'rig-no-modbus-client',
       comment:
-        'RC-11: rig is sysfs only and never speaks Modbus. The instrument must not share code with what it measures — if the rig used our transport, a transport bug would corrupt the measurement that was meant to catch it.',
+        'rig is sysfs only and never speaks Modbus. The instrument must not share code with what it measures — if the rig used our transport, a transport bug would corrupt the measurement that was meant to catch it.',
       severity: 'error',
       from: { path: '^packages/rig/' },
       to: { path: '[Mm]odbus' },

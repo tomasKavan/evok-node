@@ -4,8 +4,8 @@
 `bug-dispositions.md`, `rules/code.md`, `CLAUDE.md`, `STATUS.md` and the package skeleton — together,
 because these documents cross-reference heavily and a half-migrated state is worse than either end.
 
-Recorded as [ADR-0001](../adr/0001-drivers-apis-and-main.md) through
-[ADR-0004](../adr/0004-single-threaded.md). **Read the ADRs to know what was decided; read this to
+Recorded as [ADR-0001](to_revision/0001-drivers-apis-and-main.md) through
+[ADR-0004](to_revision/0004-single-threaded.md). **Read the ADRs to know what was decided; read this to
 know why, and why not the alternatives** — it keeps the arguments that did not survive scrutiny,
 which the ADRs only name.
 
@@ -154,8 +154,13 @@ sees only its own config:
   host and port. This is how decision 1 and G-7 are actually enforced
 - two APIs configured on the same listen port
 - an API's `drivers:` list naming a driver absent from the `drivers:` map
+- **`autogen: true` together with `devices:` or `transport:` on the same driver** — the generated
+  inventory supplies both, so this is a configuration error, not a precedence rule. "Which one won?" is
+  the question ADR-0006 exists never to ask again (added 2026-08-13, ADR-0014)
+- **`autogen:` on any driver other than `onboard` or `onewire`** — the only two the inventory generator
+  emits sections for. A parse error rather than a silently ignored key (added 2026-08-13, ADR-0014)
 
-All three are **config-parse checks needing no handshake**, which is the point: they fail before
+All of them are **config-parse checks needing no handshake**, which is the point: they fail before
 anything is spawned or any port is bound. That is also finding 2.7's fix — its evidence is port
 conflicts causing systemd restart storms, detected at bind time instead of at parse time. It closes
 at N2 rather than M5.
@@ -176,16 +181,16 @@ unfixable later.
 drivers:
   PLC:
     type: onboard
-    transport: { kind: modbus-tcp, host: 127.0.0.1, port: 502 }
-    scan:  { fast: 50ms, slow: 1s }
+    autogen: true                              # /etc/evok-node/autogen.yaml supplies transport
+    scan:  { fast: 50ms, slow: 1s }             # and devices both — ADR-0014
     retry: { initial: 500ms, max: 30s }        # unreachable-but-configured
 
   EXT:
     type: extension
     transport: { kind: modbus-rtu, port: /dev/ttyNS0, baud: 19200, parity: none }
     units:
-      xS11: { unit: 1, model: xS11 }
-      xG18: { unit: 2, model: xG18 }
+      xS11: { unit: 1, definition: modbus/unipi/xs11 }
+      xG18: { unit: 2, definition: modbus/unipi/xg18 }
 
   OW1:
     type: onewire
@@ -209,6 +214,11 @@ apis:
     drivers: [PLC, EXT, OW1]                   # ADMIN omitted by the administrator; had it been
                                                # listed, compat would skip it — decision 10
 ```
+
+**Changed 2026-08-13 (ADR-0014).** `model: xS11` became `definition: modbus/unipi/xs11`. `model` was
+EVOK's word for a `hw_definitions` filename; ours is an id in a namespace, and the two are not the same
+thing. `PLC` also shows `autogen: true` in place of a hand-written transport, since that is the normal
+case for the controller's own sections.
 
 Visibility scoping ships as the mechanism now — an id list at spawn; per-driver ACLs are deferred.
 It also makes compat's at-most-one-onboard requirement *satisfiable* rather than merely checkable:

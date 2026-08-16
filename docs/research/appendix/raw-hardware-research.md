@@ -218,7 +218,7 @@ The phrase "*Returns error if the board has an **unknown unit ID** and it is not
 |---|---|---|---|
 | **1000 / 0x03E8** | 1 | R | **Firmware Version** (uint16) |
 | **1001 / 0x03E9** | 1 | R | *Number of I/Os*: bits 0–7 = **number of DIs**, bits 8–15 = **number of DOs** |
-| **1002 / 0x03EA** | 1 | R | *Number of peripherals*: bits 0–3 = **number of AOs**, bits 4–7 = **number of AIs**, bits 8–15 = **number of internal RS485 lines** |
+| **1002 / 0x03EA** | 1 | R | *Number of peripherals*: bits 0–3 = **number of internal RS485 lines**, bits 4–7 = **number of AOs**, bits 8–15 = **number of AIs** — **corrected 2026-08-13**, see note below |
 | **1003 / 0x03EB** | 1 | R | **Firmware ID** (uint16) |
 | **1004 / 0x03EC** | 1 | R | **Hardware ID** (uint16) |
 | **1005–1006 / 0x03ED** | 2 | R | **PCB Serial Number** (uint32) |
@@ -227,6 +227,15 @@ The phrase "*Returns error if the board has an **unknown unit ID** and it is not
 | **1009 / 0x03F1** | 1 | R | **VRef of MCU** (uint16) |
 
 This is the register-level self-description you'd use for autodetect: **1004 Hardware ID** is the board-type discriminator, **1003 Firmware ID + 1000 Firmware Version** the firmware identity, **1005/1006** the unit serial, and **1001/1002** give the I/O census (DI, DO, AI, AO, internal RS485 count) so a client can sanity-check a hardware definition against the physical board. **[V]** for extensions; **[I]** — very likely identical on internal PLC boards, since it is one firmware family (`unipi-firmware6`) and the sysfs exposes exactly `sys_board_name` / `sys_board_serial` / `firmware_version` per iogroup. I could not confirm on a PLC map (XLSX) **[GAP]**.
+
+> **Corrected 2026-08-13 (RD-7).** Register **1002**'s bit order above was reversed. The reading came from
+> a text-extracted PDF whose columns were scrambled; the Edge XLSX spells the ranges out explicitly and
+> `06-register-maps.md` §2.3 carries the verified version: **bits 0–3 = RS485 lines, 4–7 = AOs, 8–15 = AIs**.
+> `02-hardware-model.md` §3.3 was fixed on 2026-07-27; this file was missed. It matters because ADR-0014's
+> census check refuses to start on a mismatch, so a reversed reading would refuse on every board with AIs.
+>
+> The **`[GAP]`** above is also closed: the identification block **is** identical on Neuron, Patron, Axon
+> and Edge sections — verified against the maps in `docs/modbus-reg-map/` (§2.2 of `06-register-maps.md`).
 
 ### 3.5 How EVOK maps an ID to a hardware definition file **[V]** (https://evok.readthedocs.io/en/latest/configs/hw_definitions/ , .../evok_configuration/)
 - HW definitions live in **`/etc/evok/hw_definitions/`**, **one YAML file per Modbus device type**, and "**the file name is the device code**".

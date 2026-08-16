@@ -1,0 +1,12 @@
+Via Unit 0,Via Unit N,Register Count,R/W,Data Type,Content,Start Bit Nr.,Category
+0,0,2,R,Real,Temperature (°C),,Basic
+6,6,2,R,Real,Relative air humidity (%),,Basic
+8,8,2,R,Real,Dew point (°C),,Basic
+10,10,2,R,Real,Absolute humidity (g/m3),,Basic
+18,18,2,R,Real,CO2 (ppm),,Basic
+26,26,2,R,Real,VOC index (0-500),,Basic
+28,28,2,R,Real,VOC accuracy (0-3),,Basic
+34,34,2,R,Real,VOC CO2 equivalent (ppm),,Basic
+42,42,2,R,Real,Ambient light (lux),,Basic
+76,76,2,R,Real,Atmospheric pressure (hPa),,Basic
+84,84,2,R,Real,Sensor uptime (s),,Basic

@@ -133,6 +133,12 @@ failures live, so it goes first and gets verified hardest.
     per field, and the load-time validations from `03` (multi-word values within one block;
     computed addresses inside a declared block; global uniqueness fatal; census cross-check
     against registers 1001/1002).
+
+    > **Corrected 2026-08-13 (ADR-0014).** There is **no merge and no per-field provenance**: our
+    > definitions and the operator's `custom/` ones are disjoint namespaces, and an id resolves in exactly
+    > one root. What the loader does instead: resolve an id to a file or to a `minFirmware` variant
+    > directory, and run the handshake identity check (`hardwareId`, holding 1004) alongside the census.
+    > Strict schema, frozen output and every validation listed above stand unchanged.
 22. **Device model and registry** — discriminated unions, total decode functions, lifecycle state
     machine, staleness in the data model, monotonic counter totals.
 23. **Scan scheduler** — per-bus, fixed-rate with drift correction and an explicit overrun policy,

@@ -57,7 +57,7 @@ is a missing edge rather than a claim; the systemd unit runs `main` and adds onl
 is the message boundary, not a synchronous accessor into a driver's state: either host drivers and
 speak envelopes, or run `api-nextgen` and use `client`.
 
-Consequent rules, all in [`rules/code.md`](../rules/code.md): RC-10, RC-26, RC-27, RC-28, RC-29,
+Consequent rules, all in [`rules/code.md`](../../rules/code.md): RC-10, RC-26, RC-27, RC-28, RC-29,
 RC-30, RC-31, RC-32.
 
 **The build order changes; the definition of 1.0 does not.** The compat surface moves from M4 to N9,

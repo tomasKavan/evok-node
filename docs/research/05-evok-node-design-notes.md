@@ -48,7 +48,7 @@ client can depend on a `TypeError`.
 > **Settled 2026-08-10.** Adopted. Bug-for-bug fidelity is now an explicit non-goal, and the
 > compat surface is permanent and first-class rather than a migration bridge — see
 > [`GOALS.md`](../GOALS.md). Per-finding outcomes are tracked in
-> [`plan/bug-dispositions.md`](../plan/bug-dispositions.md); `compat-flagged` there means exactly
+> [`plan/bug-dispositions.md`](14-bug-dispositions.md); `compat-flagged` there means exactly
 > the opt-in mechanism described above.
 
 **Open question:** do we know of specific deployed clients to stay compatible with? Node-RED
@@ -458,6 +458,22 @@ Read `njs-modbus`'s `RtuProtocolLayer` as a design reference for the framing FSM
 it** — it is BUSL-1.1, not open source.
 
 ### 8.5 Hardware-definition extensions live in an overlay — yes, correct approach
+
+> **Superseded 2026-08-13 by ADR-0014.** The three-layer scheme below is gone. `/etc/evok/hw_definitions/`
+> belongs to `evok-unipi-data`, a package built separately per product, so "the base layer alone is always
+> sufficient" is not true: its content is not identified by its name and version, it is mutually exclusive
+> with `evok-unipi-data-full`, and it does not ship every model its own tooling resolves. We ship our own
+> definitions in our own format and read nothing from `/etc/evok` at runtime.
+>
+> What survives is the **list of fields** this section identified as missing from EVOK's format — per-channel
+> mode sets, expected census, bank-stride hints, `eventable`, conversion-time hints. They are all in ours.
+> What goes with the overlay layer: the base/overlay/site merge, `definitionVersion` and `appliesTo`, the
+> per-field provenance, and the unknown-field warn-versus-error asymmetry.
+>
+> §2.5's "generate our own autogen equivalent so we don't hard-depend on `unipi-os-configurator`" is
+> **strengthened** by the same ADR: it is now the whole mechanism rather than a fallback.
+>
+> Kept below as written, because the requirement analysis is still the evidence for the format.
 
 The proposal is right, and it should be a hard rule: **never read anything but stock
 definitions from `/etc/evok/hw_definitions/`, and never write there.**

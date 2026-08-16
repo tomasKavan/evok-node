@@ -1,4 +1,4 @@
-# ADR-0005 — Four kinds of data, and SQLite for the user-data store
+# ADR-0005 — SQLite for the user-data store
 
 - **Status:** Accepted — `node:sqlite` stability to confirm against the pinned Node 24 minor
 - **Date:** 2026-08-10
@@ -17,27 +17,11 @@ through the API at runtime.
 
 ## Decision
 
-Four kinds of data, four lifecycles, four locations:
+**The four kinds of data, their lifecycles and their locations are G-5.** They are stated there and only
+there — this ADR previously carried a second copy of that table, and the two had already drifted in
+wording by the time anyone noticed (RD-6).
 
-| | Contents | Written by | Where |
-|---|---|---|---|
-| **Config** | Operator intent: buses, ports, scan rates, enabled APIs, auth, compat flags | A human by hand, or the migration tool at install (ADR-0006) | `/etc/evok-node/config.yaml` |
-| **User data** | Aliases, groups, ordering, labels, layout drawings, rules, plugin settings | Users at runtime, through an API and then `driver-store` | `/var/lib/evok-node/` |
-| **Platform facts** | What the hardware is: EVOK's `autogen.yaml` and `hw_definitions/*.yaml`, our overlays, our generated autogen equivalent | The OS image, `unipi-os-configurator`, or us — never a human by hand | EVOK's paths in EVOK's format, read in place; ours alongside (ADR-0007) |
-| **Readings** | Current values, health, counters | The scan loop | Memory only |
-
-**The daemon never writes its config file.** Not "avoids writing" — never; that is why migration is a
-separate tool (ADR-0006). Readings are never persisted; a timeseries product is an explicit non-goal.
-
-Platform facts are the row most easily got wrong, because "read EVOK's files" is only half of it. We
-**also generate** an autogen equivalent keyed on a `unipiid` fingerprint, so we do not hard-depend on
-`unipi-os-configurator` (research/05 §2.5), and we **extend** the definition format by overlay rather
-than reusing it verbatim (ADR-0007). What makes it one category is that it describes hardware rather
-than intent, and that a human never hand-authors it.
-
-**Frozen per load, not once per process.** Immutable and `readonly` while loaded (RC-4, which exists
-because of the `deepcopy` aliasing bug, finding 1.3) — but reloadable when hardware change is
-detected. Load-once-at-startup *is* finding 2.1, the highest-leverage item in the corpus.
+What this ADR decides is where the **user-data** row lives and in what.
 
 **The user-data store is SQLite in `/var/lib/evok-node/`, via the built-in `node:sqlite`**, plus
 `export` and `import` commands producing human-readable YAML. It is not `main`'s: it is
@@ -54,6 +38,12 @@ write passes through `main`. Rationale in order of weight:
 
 Export/import are not optional extras: they restore what SQLite costs us — backups a human can read,
 a site configuration that can live in git, and a diffable artefact for support.
+
+**Note, 2026-08-13.** Two statements moved out of this file rather than being edited in place. The
+lifecycle table is G-5's, per the RD-6 note above; and the platform-facts claim that we read EVOK's files
+and extend them by overlay is **superseded by ADR-0014** — the definitions and the inventory are ours, and
+nothing is read from `/etc/evok`. "The daemon never writes its config file" and frozen-per-load (RC-4) are
+unaffected and live in G-5.
 
 ## Consequences
 
