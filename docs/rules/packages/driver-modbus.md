@@ -11,5 +11,3 @@ A 32-bit value split across two blocks, or across two reads at different rates, 
 it is from one bus transaction and half from another. Checked when definitions load; a definition that
 breaks this is **rejected, not repaired** — silently regrouping the blocks would hide a bad definition
 behind a value that is usually right.
-
-*Moved 2026-08-16 from `code.md`, where it was RC-19. Substance unchanged.*

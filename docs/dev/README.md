@@ -55,19 +55,7 @@ Numbered in reading order, not priority. Concepts first, then drivers, then APIs
 | 18 | [API plugins](18-Plugin-API.md) | writing a third-party API |
 | 19 | [Simulator](19-Simulator.md) | simulating each component for tests |
 | 20 | [Test rig](20-Test-rig.md) | the physical rig, its tooling, and CI |
-
-## Known gaps in this set
-
-Things the repo already promises that **no file above owns**. Each needs a home before M3 can be
-called done — either a new numbered file or a named section in an existing one.
-
-- **The one-shot migration tool.** G-1 requires it, and requires that the daemon know nothing of
-  EVOK's config or alias formats — so it cannot be a section of 02. Its golden fixtures are already
-  listed as blocked in [`STATUS.md`](../plan/STATUS.md).
-- **Packaging and installation.** `Conflicts: evok`, `Depends: nginx`, the `:80` site conflict,
-  `postinst`, `run.d`, and rollback. Currently only 08 touches `run.d`, and only in passing.
-- **`COMPATIBILITY.md`** is an RD-2 deliverable and an input to 14, but does not exist yet. 14 has to
-  say who writes it and when, or it never gets written.
+| 21 | [Tooling and Package](21-Tooling-and-package.md) | helpers tooling and application packaging and distribution |
 
 ## Writing these
 

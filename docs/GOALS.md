@@ -30,7 +30,7 @@ We are oferring EVOK *interface* as compat api, but we are not inheriting the EV
    PR either satisfies them or it does not.
 
 Cite an invariant in this file as **G-N** — see the citation table in
-[`CLAUDE.md`](../CLAUDE.md).
+[`docs/README.md`](./README.md).
 
 No uptime figures, latency SLOs or jitter budgets are committed here. Numbers invented before
 measurement get quietly relaxed. A soak on real hardware measures real behaviour, and targets may be
@@ -39,12 +39,6 @@ added afterwards as a dated amendment.
 ## What 1.0 is
 
 **TBD.** Settled during the development-documentation pass, not before it.
-
-What was here — *compatibility complete, and every bug disposition closed*, scoped to milestones
-N0–N10 — rested on a roadmap and a disposition list that are now research
-([research/14](research/14-bug-dispositions.md),
-[research/15](research/15-roadmap-to-rework.md)). Both halves may well survive the rework; neither is
-in force while this says TBD. Do not cite a 1.0 scope until it does.
 
 The measurable-success section above is unaffected: it says *how* we will know, and that does not
 depend on where the line is drawn.
@@ -67,31 +61,18 @@ post-1.0.
    split a rewrite. Supersedes the "purely additive later" framing in
    [research/05](research/05-evok-node-design-notes.md) §5 and §7.3.
 
-   **Amended 2026-08-12:** the boundary is *N drivers ↔ M APIs*, not one core ↔ one API layer. What
-   the invariant asserts is unchanged; what changed is the number of participants, that drivers hold
-   the only copy of state while APIs are stateless translators, and that `main` sits on no request
-   path at all. Rationale: [research/12](research/12-modularisation.md).
-2. **G-2 — Administration and introspection never ride on the classic surface.** Compat mode and
-   new-API-with-admin are a configuration choice. The compat surface is unauthenticated by
-   inheritance; a privileged config-and-control surface cannot share that trust level. Mechanism —
-   ports, paths, authentication — is deferred to its own ADR.
-
-   **Note, 2026-08-12.** Under the driver/API split this became structural rather than a policy: `api-compat` can
-   only emit what its projection table describes, and that table has no entry for a `system` driver.
-   Admin cannot reach the compat surface even if an administrator lists it in `drivers:`. Explicitly
-   *not* implemented as a trust label on the driver — what a surface exposes is the surface's own
-   business, decided by the API doing the projecting and by nothing else.
-3. **G-3 — The compat surface is permanent, first-class, and never deprecated.** It is the reason the
+2. **G-3 — The compat surface is permanent, first-class, and never deprecated.** It is the important reason the
    project exists. No feature may break it, and **no internal metadata leaks into its shapes** —
    compat sees the flat projection of our model, never our groups, ordering, labels or any other
    field EVOK 3.0.6 did not emit. Payload *fixes* are the exception: each is listed in
    `COMPATIBILITY.md` (RD-3) and carries a flag from the closed set settled in
    [research/07 §7](research/07-client-compatibility.md). A new payload fix does not mint a new flag
    without an ADR.
-4. **G-4 — One instance, one PLC.** As EVOK. Circuit ids stay flat. A SPA may point at several
+
+3. **G-4 — One instance, one PLC.** As EVOK. Circuit ids stay flat. A SPA may point at several
    instances and aggregate client-side.
-5. **G-5 — Four kinds of data, four lifecycles.** Conflating the first two is where EVOK's alias handling
-   failed (finding 3.9).
+
+4. **G-5 — Four kinds of data, four lifecycles.** Conflating the first two is where EVOK's alias handling failed (finding 3.9).
 
    | | Contents | Written by | Where |
    |---|---|---|---|
@@ -103,28 +84,12 @@ post-1.0.
    Platform facts are descriptions of hardware, not intent. **Frozen per load, not once per process**:
    immutable and `readonly` while loaded (RCD-4), and reloaded when hardware change is detected.
 
-   **Correction, 2026-08-13.** This row previously said we read EVOK's definitions in EVOK's
-   format and in place, and extended them by overlay. We do not: the definitions and the inventory are
-   ours, nothing is read from `/etc/evok` at runtime, and no Unipi data package is a dependency. The
-   overlay mechanism is gone with it. What survives unchanged is that a human never hand-authors
-   platform facts, that the daemon never writes them, and frozen-per-load.
-
-   **Correction, 2026-08-12.** This previously said "continuous discovery is the fix for finding
-   2.1". Finding 2.1 is not about discovery: registration was always declarative from config, and the
-   bug is that registration was *gated on a one-shot reachability probe*. Reachability is a state of a
-   registered endpoint, retried forever. Genuine discovery exists only on buses that have it, and is a
-   declared driver capability. A **readings** value may also be a structure, not only a scalar
-   (RPG-DRV-2) — read-only device configuration is a structured reading, so it needs no fifth category
-   here.
-
-6. **G-6 — A plugin cannot compromise the daemon.** It may not starve a scan loop, hold a bus past its
+5. **G-6 — A driver or api module (internal or plugin) cannot compromise the daemon.** It may not starve a scan loop, hold a bus past its
    lease, or take the process down with it. A plugin needing bus access gets a leased, time-budgeted
    transaction through the driver that owns that bus — never a client of its own on a port a scan loop
-   owns. (Reworded 2026-08-12: "the core" was a package the driver/API split dissolved. Unchanged in
-   substance; manifest loading is the mechanism this will use.)
-7. **G-7 — evok and evok-node never run at the same time.** Not a policy: two processes cannot both own
-   `/dev/ttyNS0`. Startup preflight refuses to start if evok is active or the ttys are held — loudly,
-   and **naming the conflicting unit** — rather than racing for the port and failing unexplainably.
+   owns. 
+
+6. **G-7 — evok and evok-node never run at the same time.** Not a policy: two processes cannot both own `/dev/ttyNS0` and connect to the smae Modbus TCP server. Startup preflight refuses to start if evok is active or the ttys are held — loudly, and **naming the conflicting unit** — rather than racing for the port and failing unexplainably.
 
    Scoped to `evok` itself and to the RS-485 ttys. `unipitcp` is not a conflict: local I/O *is* Modbus
    TCP to it on `127.0.0.1:502` ([raw-hardware-research
