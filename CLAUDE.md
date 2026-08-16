@@ -4,30 +4,24 @@ A Node.js/TypeScript drop-in replacement for Unipi Technology's **EVOK 3.x** API
 load-bearing part of Unipi's FOSS stack with a long tail of open, known defects; we exist to fix
 them. The interface is inherited; the design is not.
 
-This file says how to work here. It holds no rules of its own — every rule lives in exactly one
-place, listed below, and is cited by number.
-
-## Where we are (2026-08-16)
-
-**Between research and development, and there is no plan right now.** Everything done so far except
-the repo scaffolding is research. The ADRs moved to
-[`docs/research/to_revision/`](docs/research/to_revision/README.md) and are **suspended** — expect
-them to be rewritten, merged and dropped, and do not cite one as binding until the set is re-locked.
-The roadmap, the bug dispositions and the definition of 1.0 went the same way.
-
-The order from here: **development documentation → new plan → code.** Do not start implementation
-work against the old plan; it is gone on purpose.
+This file says how to work here, and **carries no status of its own** — where we are lives in
+[`docs/plan/STATUS.md`](docs/plan/STATUS.md), where we are going in
+[`docs/plan/roadmap.md`](docs/plan/roadmap.md). It holds no rules either: every rule lives in exactly
+one place, listed below, and is cited by number.
 
 ## Before you write code
 
-1. **[`docs/plan/STATUS.md`](docs/plan/STATUS.md)** — done, in progress, next. Always read first.
+1. **[`docs/plan/STATUS.md`](docs/plan/STATUS.md)** — done, in progress, next. Always read first,
+   then [`roadmap.md`](docs/plan/roadmap.md) for which milestone that sits in.
 2. **[`docs/GOALS.md`](docs/GOALS.md)** — goals, non-goals, invariants. Read before arguing that
-   anything is in or out of scope. *What 1.0 is* currently reads TBD.
-3. **`docs/rules/`** — binding, and the blocking set in review:
-   [code](docs/rules/code.md) · [packages](docs/rules/packages/README.md) ·
-   [testing](docs/rules/testing.md) · [docs](docs/rules/docs.md) · [git](docs/rules/git.md).
-4. **[`docs/research/`](docs/research/README.md)** — how EVOK and the hardware actually behave, plus
-   everything reclassified as research. Read the relevant file before touching that area.
+   anything is in or out of scope.
+3. **`docs/rules/`** — binding: [code](docs/rules/code.md) · [packages](docs/rules/packages/README.md)
+   · [testing](docs/rules/testing.md) · [docs](docs/rules/docs.md) · [git](docs/rules/git.md).
+4. **[`docs/dev/`](docs/dev/README.md)** — the design: how the thing is actually built, numbered
+   `00`–`20` in reading order. This is what you implement against. Read the file for the area you are
+   touching, and `00-Intro.md` first if you are new.
+5. **[`docs/research/`](docs/research/README.md)** — how EVOK and the hardware actually behave. The
+   input to `docs/dev/`, not a substitute for it. Read the relevant file before touching that area.
 
 ## Citing a rule
 
@@ -46,17 +40,34 @@ the rule itself, not only in this table.
 | **RPL-N** | [plan rules](docs/plan/README.md) — how the plan is maintained | RPL-1 |
 | **R04-N** | `docs/research/04` design rules — evidence, not policy | R04-23 |
 
+`docs/dev/` has **no prefix and no numbered rules** — it is design, not policy. Cite it by file and
+section: `dev/03 §2`. If something in there deserves to be binding, it becomes a rule in
+`docs/rules/` or an invariant in `GOALS.md`; it does not become a dev-doc rule number.
+
 Numbers are stable: append, never renumber. A rule that becomes wrong is superseded in place, with
 a note saying by what.
 
-**Renamed 2026-08-16:** `RC-N` → `RCD-N`, and `RP-N` → `RPL-N`. `RC` numbers were also
-**regenerated**, not just re-prefixed, so an old `RC-17` is not today's `RCD-17` — it is
-`RPG-DRV-1`. Treat any surviving `RC-N` citation as stale and resolve it by reading the rule.
+**Stale prefixes.** `RC-N` is now `RCD-N` and `RP-N` is now `RPL-N`. `RC` numbers were
+**regenerated**, not just re-prefixed, so an old `RC-17` is not today's `RCD-17` — there is no
+`RCD-17`; that rule is now `RPG-DRV-1`. Treat any surviving `RC-N` citation as stale and resolve it by
+reading the rule.
+
+**Stale milestone tokens.** Milestones are `MN`, defined in [`roadmap.md`](docs/plan/roadmap.md).
+research/11, research/12 and research/15 use `M0`–`M6` and `N0`–`N10` from the superseded roadmap —
+those are **not** today's milestones. Resolve such a token inside the research file that uses it, never
+against `roadmap.md`.
 
 ## Precedence
 
-**G wins over everything.** Then the rules files, then research. This file loses to all of them; it
-only points. ADRs sit outside this order while they are suspended.
+**G wins over everything.** Then the rules files, then **`docs/dev/`**, then research. This file
+loses to all of them; it only points. ADRs sit outside this order while they are suspended.
+
+**`docs/dev/` outranks `docs/research/`.** Research is the source material a dev doc was written
+from, and a dev doc is allowed to overrule it — a design decision may reject, narrow or reinterpret a
+research finding, and that is the decision, not an error. So: where the two disagree about *what we
+build*, `docs/dev/` wins. Where they disagree about *what EVOK or the hardware does*, that is a
+factual claim and research wins — and the dev doc is wrong and gets fixed. If a dev doc departs from
+research on purpose, it says so and links the finding, so nobody later "fixes" it back.
 
 If research and reality disagree, **reality wins** — and you fix the research file in the same PR,
 with a dated correction note (RD-7).
@@ -75,9 +86,8 @@ updated in the same PR as the work (RPL-1).
 
 ## Layout
 
-The scaffolding as it stands. **The shape below is research output pending the development-docu pass**
-— it came from the ADRs now under revision, so treat it as the current directory listing rather than a
-committed architecture.
+The directory listing as it stands. The package shape is **not yet a committed architecture** — it
+came from the suspended ADRs, and `docs/dev/` is what commits it.
 
 Two layers — **drivers act, APIs query** — with `main` orchestrating and on no request path. There is
 no third component kind: anything that would have been one is a driver whose transport is not Modbus.
@@ -101,8 +111,11 @@ packages/
   ui/           the web SPA. Public API only; nothing imports it
   rig/          hardware-rig control service. Private, sysfs only, no workspace deps
 docs/
-  plan/         what we are doing next — being rebuilt
+  GOALS.md      goals, non-goals, invariants (G-N). Authoritative on scope
+  plan/         what we are doing next: STATUS.md, roadmap.md, and the RPL rules
   rules/        how we work — the binding rules, plus per-package rules in rules/packages/
+  dev/          the design: how each part is built and why, 00-20 in reading order.
+                Written from research. What you implement against
   research/     what is true about EVOK and Unipi hardware, and everything not yet decided:
                 to_revision/ holds the suspended ADRs
   modbus-reg-map/  official Unipi register maps — ground truth, read-only, no prose

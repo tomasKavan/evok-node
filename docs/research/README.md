@@ -62,8 +62,9 @@ at commit `47c95c8` (branch `main`, latest tag **3.0.6**, 2025-09-02).
 | Path | Purpose |
 |---|---|
 | [`../GOALS.md`](../GOALS.md) | Goals, non-goals, invariants. Authoritative — but the definition of 1.0 currently reads TBD. |
-| [`../plan/`](../plan/README.md) | The plan. Being rebuilt as of 2026-08-16; `STATUS.md` is the only current thing in it. |
+| [`../plan/`](../plan/README.md) | The plan: `STATUS.md` for current state, `roadmap.md` for the milestone sequence. |
 | [`../rules/`](../rules/code.md) | How we work: code, packages, testing, docs, git. |
+| [`../dev/`](../dev/README.md) | The design these findings feed into. Written from research, and allowed to overrule it about *what we build*. |
 | [`../modbus-reg-map/`](../modbus-reg-map/README.md) | Official Unipi register maps. Ground truth, read-only, and no prose. |
 
 The two appendix reports, cited throughout: full unedited
