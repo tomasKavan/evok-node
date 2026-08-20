@@ -1,17 +1,30 @@
-# evok-node — how to work here
+# evok-node — how to work here as an agent
 
-A Node.js/TypeScript drop-in replacement for Unipi Technology's **EVOK 3.x** API. EVOK is a
-load-bearing part of Unipi's FOSS stack with a long tail of open, known defects; we exist to fix
-them. The interface is inherited; the design is not.
+Start with [`README.md`](./README.md) and get familiar with the structure by following links in there. No need to go deeper yet.
+
+Based of your role follow one of the sections below.
+
+* **managing the project** - STOP and whine - path to be defined
+* **researching** - STOP and whine - path to be defined
+* **designing an architecture** - STOP and whine - path to be defined
+* **coding** - STOP and whine - path to be defined
+* **deploying** - STOP and whine - path to be defined
+* **testing** - STOP and whine - path to be defined
+* **updating documentation** - STOP and whine - path to be defined
 
 This file says how to work here, and **carries no status of its own** — where we are lives in
 [`docs/plan/STATUS.md`](docs/plan/STATUS.md), where we are going in
 [`docs/plan/roadmap.md`](docs/plan/roadmap.md). It holds no rules either: every rule lives in exactly
 one place, listed below, and is cited by number.
 
-## Working with docs, citing, before you write code
+## Layout, citing, precedence
 
-These 3 sections are **crucial before any decision or update is done to code or docu files**. Read them in[`docs/README.md`](docs/README.md).
+These three sections of [`docs/README.md`](docs/README.md) are **crucial before any decision or update
+is made to code or to docs**: what exists and in what order to read it, how to cite a rule, and which
+document wins when two disagree.
+
+The part that changes how you write code: **`docs/dev/` is the design and it outranks the code.** Code
+that contradicts a dev doc is a defect in the code. Changing the design is a human decision — see RD-8.
 
 ## Workflow
 
@@ -23,9 +36,6 @@ concern, and a body that says what changed and how it was verified (RG-5, RG-6).
 updated in the same PR as the work (RPL-1).
 
 ## Layout
-
-The directory listing as it stands. The package shape is **not yet a committed architecture** — it
-came from the suspended ADRs, and `docs/dev/` is what commits it.
 
 Two layers — **drivers act, APIs query** — with `main` orchestrating and on no request path. There is
 no third component kind: anything that would have been one is a driver whose transport is not Modbus.

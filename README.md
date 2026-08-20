@@ -1,13 +1,22 @@
 # evok-node
 
-A Node.js/TypeScript drop-in replacement for Unipi Technology's **EVOK 3.x** API. EVOK is a
-load-bearing part of Unipi's FOSS stack with a long tail of open, known defects; this project exists
-to fix them. The interface is inherited; the design is not.
+A Node.js/TypeScript drop-in replacement for Unipi Technology's **EVOK 3.x** API. EVOK is a load-bearing part of Unipi's FOSS stack with a long tail of open, known defects; this project exists to fix them. The interface is inherited; the design is not.
 
-**Status: pre-implementation.** The workspace builds and the test harness runs, and that is all —
-every package entrypoint is a placeholder. There is nothing to install and no usage example yet, and
-there will not be a usage section here until there is something behind it. See
-[`docs/plan/STATUS.md`](docs/plan/STATUS.md) for where the work actually is.
+Main features:
+* EVOK 3 full compatibility API
+* Flexible and extendible by plugins
+* Strong on driver and API separation
+* Rich web UI with inspector and device status and logs
+
+## Unipi devices user and administrators
+
+TBD - link to user docu
+
+## Developers
+
+TBD - link to dev docu
+
+
 
 ## Working in this repository
 
@@ -19,9 +28,10 @@ npm run layering  # dependency-cruiser: the package DAG. Needs a build first
 npm test          # vitest, tier 0 only
 ```
 
-These are the same checks the `pr` workflow runs, one job each; M0 T0.8 collapses them into a single
-`npm run verify` so that local green means CI green. `npm run layering` needs `dist/` to exist,
-because workspace imports resolve through `node_modules`.
+These are the same checks the `pr` workflow runs, one job each. A single `npm run verify` that collapses
+them, so local green means CI green, is still outstanding — see
+[`STATUS.md`](docs/plan/STATUS.md). `npm run layering` needs `dist/` to exist, because workspace imports
+resolve through `node_modules`.
 
 Requires Node 24 — declared once, in the root `package.json` `engines.node`, which is also where CI
 reads it from. `npm run coverage` reports per-package coverage; the per-module floors from the
@@ -30,8 +40,6 @@ off until there is something to cover.
 
 ## Packages
 
-| Package | Purpose |
-|---|---|
 Two layers — **drivers act, APIs query** — with `main` orchestrating and sitting on no request path.
 Anything that looks like a third kind of component is a driver whose transport is not Modbus.
 
@@ -56,14 +64,19 @@ documentation of it — and they are enforced from a single table in `.dependenc
 
 ## Documentation
 
-- [`CLAUDE.md`](CLAUDE.md) — how to work here: read order, precedence, how rules are cited. Start
-  here. It holds no rules itself.
+- [`CLAUDE.md`](CLAUDE.md) — how to work here: workflow and package layout. Start here. It holds no
+  rules itself.
+- [`docs/README.md`](docs/README.md) — the map: what exists, in what order to read it, how rules are
+  cited, and which document wins.
 - [`docs/GOALS.md`](docs/GOALS.md) — goals, non-goals, invariants (**G-N**), what 1.0 is. Wins over
   everything else.
 - [`docs/rules/`](docs/rules/code.md) — the binding rules: code (**RCD**), packages (**RPG-\***),
   testing (**RT**), docs (**RD**), git (**RG**).
+- [`docs/dev/`](docs/dev/README.md) — **the design, and what implementation is written against.**
+  Start at [`00-Intro.md`](docs/dev/00-Intro.md).
 - [`docs/plan/`](docs/plan/README.md) — what happens next (**RPL**) ·
   [`docs/research/`](docs/research/README.md) — what is true about EVOK and Unipi hardware, plus the
-  [ADRs under revision](docs/research/to_revision/README.md).
+  [dissolved ADR set](docs/research/to_revision/README.md), kept as proposals.
 
 Licence not yet chosen.
+

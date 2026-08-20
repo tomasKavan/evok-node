@@ -37,11 +37,10 @@
  * - each api gets `messaging` only, and owns the public schema of its own surface.
  *   `api-compat` importing nothing that carries our groups, labels or ordering is
  *   what makes G-3 a missing edge instead of a review rule.
- * - `simulator` deliberately excludes `modbus`: the instrument must not share a
- *   framer with the code it stands in for. The cost is a second framer to maintain,
- *   and it is accepted deliberately: a shared one cannot be asked to emit a wrong CRC.
- * - `rig` imports nothing of ours at all: the instrument shares no code with the
- *   subject.
+ * - `simulator` deliberately excludes `modbus`, and gets `messaging` and
+ *   `hw-definitions`. `rig` imports nothing of ours at all. Both edges are RT-15,
+ *   which carries the reasoning and the residual risk in the `hw-definitions` case;
+ *   this file is only its enforceable form.
  * - `ui` is over the public API only, and nothing imports *it* — `api-nextgen` serves
  *   built assets from a packaging path, not a bundled import.
  */

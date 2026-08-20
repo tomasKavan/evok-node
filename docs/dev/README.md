@@ -1,64 +1,115 @@
-# Development documentation
+# evok-node for developers
 
-**How evok-node is built, and why it is built that way.** This is what implementation is written
-against. Read order and precedence: [`CLAUDE.md`](../../CLAUDE.md).
+TODO - high level description of the package (not repeat whats in root README, look from different perspective, technically explain main features). Other important - tech stack, maintainer, agentic work info for humans, 
 
-Every file here is currently a **memo** — a short statement of what belongs in it and what it will be
-written from. No design content yet; that is [M3](../plan/roadmap.md), in progress. A memo is not a
-decision, so do not implement against one.
+TODO - ??How to read docu??
 
-## Relation to the other docs
+## Working with this package and repo/git
 
-| | Answers |
-|---|---|
-| [`GOALS.md`](../GOALS.md) | what we are for, and what is out of scope |
-| [`rules/`](../rules/) | how we work — code, testing, docs, git |
-| **`dev/` (here)** | **how the system is built** |
-| [`research/`](../research/README.md) | what EVOK and the hardware actually do |
-| [`plan/`](../plan/README.md) | what we do next |
+TODO - download, install, build, test, run
 
-Which of them wins is in [`CLAUDE.md`](../../CLAUDE.md). The part that matters while writing here:
-research is the **input**, and a dev doc may **reject, narrow or reinterpret** a finding — that is a
-decision rather than an error, but it says so and links the finding, so nobody later "fixes" it back
-(RD-8).
+## Architecture, coding basics and rules
 
-Dev docs carry **no rule numbers**; how to cite one is in [`CLAUDE.md`](../../CLAUDE.md), and RD-8 is
-the rule for writing them.
+## Documentation 
 
-The [suspended ADRs](../research/to_revision/README.md) are the main other input. They record
-reasoning that mostly still stands but is **not in force**; M3 decides which of them come back.
+### Documentation layout
 
-## Files
+1. **[`plan/`](plan/README.md)** — where the work actually is. [`STATUS.md`](plan/STATUS.md) first, then
+   [`roadmap.md`](plan/roadmap.md) for the milestone it sits in.
+4. **[`design/`](./)** — **the design, and what you implement against.** Start at
+   [`00-Intro.md`](dev/00-Intro.md) if you are new, then the file for the area you are touching.
+5. **[`research/`](research/README.md)** — the input `dev/` was written from, never a substitute for it.
+   [`to_revision/`](research/to_revision/README.md) is the laboratory: the former ADRs, binding on
+   nothing, each worked into `dev/` if accepted.
+6. **[`modbus-reg-map/`](modbus-reg-map/README.md)** — official Unipi register maps. Ground truth,
+   read-only, no prose.
 
-Numbered in reading order, not priority. Concepts first, then drivers, then APIs, then tooling.
+### Citing
 
-| | File | Job |
+
+
+This file is a **map**: where things are, how to cite them, and which one wins. What each document must
+*contain* is RD-2, and how to write one is the rest of [`rules/docs.md`](rules/docs.md) — so the list
+below says where to go and in what order, not what belongs in each file. The precedence chain at the
+bottom is the one normative thing this file owns; everything else here only points.
+
+## Layout, in read order
+
+1. **[`plan/`](plan/README.md)** — where the work actually is. [`STATUS.md`](plan/STATUS.md) first, then
+   [`roadmap.md`](plan/roadmap.md) for the milestone it sits in.
+2. **[`GOALS.md`](GOALS.md)** — read before arguing that anything is in or out of scope.
+3. **[`rules/`](rules/code.md)** — binding, and mostly CI-enforced: [code](rules/code.md) ·
+   [packages](rules/packages/README.md) · [testing](rules/testing.md) · [docs](rules/docs.md) ·
+   [git](rules/git.md).
+4. **[`dev/`](dev/README.md)** — **the design, and what you implement against.** Start at
+   [`00-Intro.md`](dev/00-Intro.md) if you are new, then the file for the area you are touching.
+5. **[`research/`](research/README.md)** — the input `dev/` was written from, never a substitute for it.
+   [`to_revision/`](research/to_revision/README.md) is the laboratory: the former ADRs, binding on
+   nothing, each worked into `dev/` if accepted.
+6. **[`modbus-reg-map/`](modbus-reg-map/README.md)** — official Unipi register maps. Ground truth,
+   read-only, no prose.
+
+## Citing a rule
+
+Always with its prefix, never as a bare number. Grep the prefix to find the rule — it is written at
+the rule itself, not only in this table.
+
+| Prefix | Source | Example |
 |---|---|---|
-| 00 | [Intro](00-Intro.md) | what evok-node is, how it relates to EVOK, how to use these docs |
-| 01 | [System architecture](01-System-architecture.md) | main, drivers, APIs, plugin kinds, spawning, the runner |
-| 02 | [Configuration](02-Configuration.md) | structure, parsing, validation, reload, resource reservation |
-| 03 | [Internal messaging](03-Internal-messaging.md) | the driver↔API contract, introspection, signalling |
-| 04 | [Storage kit](04-Storage-kit.md) | persistence available to modules |
-| 05 | [Common services](05-Common-services.md) | everything else drivers and APIs may use |
-| 06 | [Drivers](06-Drivers.md) | driver concepts common to all of them |
-| 07 | [Modbus driver](07-Modbus-driver.md) | the shared Modbus ancestor and the hw-definition format |
-| 08 | [Onboard driver](08-Onboard-driver.md) | the controller's own I/O, over TCP to `unipitcp` |
-| 09 | [Extension driver](09-Extension-driver.md) | Unipi extensions and accessories over RTU |
-| 10 | [1-Wire driver](10-Onewire-driver.md) | the 1-Wire bus, discovery, chip plugins |
-| 11 | [System driver](11-System-driver.md) | logs and host facts as a driver |
-| 12 | [Driver plugins](12-Plugin-driver.md) | writing a third-party driver |
-| 13 | [APIs](13-APIs.md) | API concepts common to all of them |
-| 14 | [Compat API](14-Compat-API.md) | the EVOK 3.x surface, done right |
-| 15 | [Nextgen API](15-Nextgen-API.md) | our own WS + HTTP surface |
-| 16 | [Inspector UI](16-Inspector-UI.md) | the SPA served by nextgen |
-| 17 | [Driver plugins in the nextgen API and the UI](17-Plugin-driver-to-Nextgen-API-and-UI.md) | making a plugin driver visible end to end |
-| 18 | [API plugins](18-Plugin-API.md) | writing a third-party API |
-| 19 | [Simulator](19-Simulator.md) | simulating each component for tests |
-| 20 | [Test rig](20-Test-rig.md) | the physical rig, its tooling, and CI |
-| 21 | [Tooling and Package](21-Tooling-and-package.md) | helpers tooling and application packaging and distribution |
+| **G-N** | [`GOALS.md`](GOALS.md) invariants — scope and architecture | G-5 |
+| **RCD-N** | [code rules](rules/code.md) — how we write TypeScript, nothing project-specific | RCD-2 |
+| **RPG-\<SCOPE\>-N** | [package rules](rules/packages/README.md) — binding only inside the packages the file names | RPG-DRV-1 |
+| **RT-N** | [testing rules](rules/testing.md) | RT-1 |
+| **RD-N** | [docs rules](rules/docs.md) | RD-2 |
+| **RG-N** | [git rules](rules/git.md) | RG-7 |
+| **RPL-N** | [plan rules](plan/README.md) — how the plan is maintained | RPL-1 |
+| **R04-N** | [`research/04`](research/04-known-bugs-and-lessons.md) design rules — evidence, not policy | R04-23 |
+| **GOALS §Section** | a binding statement in [`GOALS.md`](GOALS.md) that is not a numbered invariant | `GOALS §Hardware scope` |
 
-## Writing these
+`docs/dev/` has **no prefix and no numbered rules** — it is design, not policy. Cite it by file and
+section: `dev/03 §2`. If something in there deserves to be binding, it becomes a rule in
+[`rules/`](rules/code.md) or an invariant in [`GOALS.md`](GOALS.md); it does not become a dev-doc rule
+number.
 
-**RD-8** is the rule; read it before writing a dev doc. Beyond it: RD-1 still applies — the
-non-obvious **why**, not the what — and one concern per file. If two files want the same paragraph,
-one of them is wrong (RD-6).
+Numbers are stable: **append, never renumber.** A rule that becomes wrong is superseded in place, with
+a note saying by what. This holds for every prefix in the table.
+
+**Not a prefix.** `ADR-NNNN` no longer cites anything. The set was dissolved rather than re-locked:
+the design and its reasoning live in `dev/`, and the files under
+[`research/to_revision/`](research/to_revision/README.md) are proposals. Cite one as a research path —
+`research/to_revision/0010 §Decision` — never as authority.
+
+`ADR-NNNN` citations survive throughout `docs/research/`, which is permanent and corrected only with a
+dated note (RD-7), so they are not being swept. Resolve one by reading the file it names: if `dev/` has
+since decided the question, the dev doc wins; if not, it is still an open proposal. A citation *outside*
+`docs/research/` is a bug — report it or fix it.
+
+**Stale prefixes.** `RC-N` is now `RCD-N` and `RP-N` is now `RPL-N`. `RC` numbers were
+**regenerated**, not just re-prefixed, so an old `RC-17` is not today's `RCD-17` — there is no
+`RCD-17`; that rule is now `RPG-DRV-1`. Treat any surviving `RC-N` citation as stale and resolve it by
+reading the rule.
+
+**Stale milestone tokens.** Milestones are `MN`, defined in [`roadmap.md`](plan/roadmap.md).
+research/11, research/12 and research/15 use `M0`–`M6` and `N0`–`N10` from the superseded roadmap —
+those are **not** today's milestones. Resolve such a token inside the research file that uses it, never
+against `roadmap.md`.
+
+## Precedence
+
+**G wins over everything.** Then the rules files, then **`dev/`**, then research. This file loses to
+all of them; it only points.
+
+**`dev/` outranks the code.** It is the design, not a description of what got built: code that
+contradicts it is a defect in the code. Changing the design is a human decision, and RD-8 says how.
+
+**`dev/` outranks `research/`.** Research is the source material a dev doc was written from, and a dev
+doc is allowed to overrule it — a design decision may reject, narrow or reinterpret a research
+finding, and that is the decision, not an error. So where the two disagree about *what we build*,
+`dev/` wins. Where they disagree about *what EVOK or the hardware does*, that is a factual claim and
+research wins — the dev doc is wrong and gets fixed. RD-8 requires a deliberate departure to be marked
+and linked, so that nobody later "fixes" it back.
+
+If research and reality disagree, **reality wins** — and you fix the research file in the same PR,
+with a dated correction note (RD-7).
+
+A rule stated in two places is a bug (RD-6).
