@@ -1,115 +1,144 @@
 # evok-node for developers
 
-TODO - high level description of the package (not repeat whats in root README, look from different perspective, technically explain main features). Other important - tech stack, maintainer, agentic work info for humans, 
+A Node.js/TypeScript drop-in replacement for Unipi Technology's **EVOK 3.x** API.
 
-TODO - ??How to read docu??
+The design puts strong emphasis to full compatibility with EVOK 3 API, while adopting own design strategy to allow high exendability by plugins in various parts of the system, and focusing on high stability by decoupling device drivers from API providing modules. 
 
-## Working with this package and repo/git
+One of the goals is to have rich web based tool to inspect, debug and control Unipi device. Allow easy access to logs, history and system configuration over web brings FOSS tooling on Unipi closer to less CLI cappable users.
 
-TODO - download, install, build, test, run
+## 1. Agentic support
 
-## Architecture, coding basics and rules
+This is project of Unipi fan and enthusiastic - tomasKavan. To achieve the broad scope of this project, a heavily utilization of agentic support is in order. While most of the design, structer and pattern is man-made, research and coding is executed mainly by agents. 
 
-## Documentation 
+All PRs to main are carefully reviewed and tested on broad battery of test including real hardware test on custom made test rig - see [`/docs/design/test-rig`](/docs/design/test-rig/README.md).
 
-### Documentation layout
+Agents are also involved in testing CI/CD and issues intake. Boundaries for each agentic role is set and maintained in [`/AGENTS.md`](/AGENTS.md) and referenced files. 
 
-1. **[`plan/`](plan/README.md)** — where the work actually is. [`STATUS.md`](plan/STATUS.md) first, then
-   [`roadmap.md`](plan/roadmap.md) for the milestone it sits in.
-4. **[`design/`](./)** — **the design, and what you implement against.** Start at
-   [`00-Intro.md`](dev/00-Intro.md) if you are new, then the file for the area you are touching.
-5. **[`research/`](research/README.md)** — the input `dev/` was written from, never a substitute for it.
-   [`to_revision/`](research/to_revision/README.md) is the laboratory: the former ADRs, binding on
-   nothing, each worked into `dev/` if accepted.
-6. **[`modbus-reg-map/`](modbus-reg-map/README.md)** — official Unipi register maps. Ground truth,
-   read-only, no prose.
+## 2. Working with this package and repo/git
 
-### Citing
+Users install Debian package from repository - see [User docu](/docs/user/README.md). Devlopers needs to clone this repository. Because of narrow and specific use, `evok-node` is not published to npm. TS client consuming [nextgen API](/docs/dev/design/evok-node/15-Nextgen-API.md) is published.
 
+```bash
+npm install
+npm run build     # tsc -b across all packages, in reference order
+npm run lint      # eslint, type-checked config
+npm run layering  # dependency-cruiser: the package DAG. Needs a build first
+npm test          # vitest, tier 0 only
+```
 
+Before you start, read [`design/basic`](./design/basics/README.md) and where it's leads you to. Get familiar with the repo structure, package structure and with the build, debug and testing process.
 
-This file is a **map**: where things are, how to cite them, and which one wins. What each document must
-*contain* is RD-2, and how to write one is the rest of [`rules/docs.md`](rules/docs.md) — so the list
-below says where to go and in what order, not what belongs in each file. The precedence chain at the
-bottom is the one normative thing this file owns; everything else here only points.
+The docu describes best practices to use [git](./design/basics/01-Git.md) - branching, commiting and creating PRs. Please follow it.
 
-## Layout, in read order
+Official relases are tagged and build from `main` and released by maintainer only.
 
-1. **[`plan/`](plan/README.md)** — where the work actually is. [`STATUS.md`](plan/STATUS.md) first, then
-   [`roadmap.md`](plan/roadmap.md) for the milestone it sits in.
-2. **[`GOALS.md`](GOALS.md)** — read before arguing that anything is in or out of scope.
-3. **[`rules/`](rules/code.md)** — binding, and mostly CI-enforced: [code](rules/code.md) ·
-   [packages](rules/packages/README.md) · [testing](rules/testing.md) · [docs](rules/docs.md) ·
-   [git](rules/git.md).
-4. **[`dev/`](dev/README.md)** — **the design, and what you implement against.** Start at
-   [`00-Intro.md`](dev/00-Intro.md) if you are new, then the file for the area you are touching.
-5. **[`research/`](research/README.md)** — the input `dev/` was written from, never a substitute for it.
-   [`to_revision/`](research/to_revision/README.md) is the laboratory: the former ADRs, binding on
-   nothing, each worked into `dev/` if accepted.
-6. **[`modbus-reg-map/`](modbus-reg-map/README.md)** — official Unipi register maps. Ground truth,
-   read-only, no prose.
+### 2.1. Plan and current status
 
-## Citing a rule
+[`plan/`](plan/README.md) describes the current status, what is the roadmap and breakdown structure of milestones. When contributing, please follow instruction in the `plan/` and don't forget to update STATUS during each commit. Because of agentic coding, it's important to break milestones to as little chunks as possible. More in `plan/README.md`.
 
-Always with its prefix, never as a bare number. Grep the prefix to find the rule — it is written at
-the rule itself, not only in this table.
+## 3. Architecture, coding basics and rules
 
-| Prefix | Source | Example |
-|---|---|---|
-| **G-N** | [`GOALS.md`](GOALS.md) invariants — scope and architecture | G-5 |
-| **RCD-N** | [code rules](rules/code.md) — how we write TypeScript, nothing project-specific | RCD-2 |
-| **RPG-\<SCOPE\>-N** | [package rules](rules/packages/README.md) — binding only inside the packages the file names | RPG-DRV-1 |
-| **RT-N** | [testing rules](rules/testing.md) | RT-1 |
-| **RD-N** | [docs rules](rules/docs.md) | RD-2 |
-| **RG-N** | [git rules](rules/git.md) | RG-7 |
-| **RPL-N** | [plan rules](plan/README.md) — how the plan is maintained | RPL-1 |
-| **R04-N** | [`research/04`](research/04-known-bugs-and-lessons.md) design rules — evidence, not policy | R04-23 |
-| **GOALS §Section** | a binding statement in [`GOALS.md`](GOALS.md) that is not a numbered invariant | `GOALS §Hardware scope` |
+Because of agentic coding, the [design documentation](./design/evok-node/README.md) must be completed and approved before coding. Design documentation must be accurate - if you need divert, open an issue and discuss it. If you want to write new, please do the same.
 
-`docs/dev/` has **no prefix and no numbered rules** — it is design, not policy. Cite it by file and
-section: `dev/03 §2`. If something in there deserves to be binding, it becomes a rule in
-[`rules/`](rules/code.md) or an invariant in [`GOALS.md`](GOALS.md); it does not become a dev-doc rule
-number.
+Design documentation is structured and each part has written list of prerequisities. This allows you to get familiar with only the right subset to solve the task.
 
-Numbers are stable: **append, never renumber.** A rule that becomes wrong is superseded in place, with
-a note saying by what. This holds for every prefix in the table.
+All general rules, best practise, patterns and anti-patterns are collected in [`design/basics/02-Coding.md`](design/basics/02-Coding.md). These instructions are binding.
 
-**Not a prefix.** `ADR-NNNN` no longer cites anything. The set was dissolved rather than re-locked:
-the design and its reasoning live in `dev/`, and the files under
-[`research/to_revision/`](research/to_revision/README.md) are proposals. Cite one as a research path —
-`research/to_revision/0010 §Decision` — never as authority.
+Testing is important part of the process and extensively described in [`design/basics/03-Testing.md`](design/basics/03-Testing.md). Some tools used in testing are independed packages - [`design/simulator`](design/simulator/README.md) and [`design/test-rig`](design/test-rig/README.md).
 
-`ADR-NNNN` citations survive throughout `docs/research/`, which is permanent and corrected only with a
-dated note (RD-7), so they are not being swept. Resolve one by reading the file it names: if `dev/` has
-since decided the question, the dev doc wins; if not, it is still an open proposal. A citation *outside*
-`docs/research/` is a bug — report it or fix it.
+## 4. Documentation 
 
-**Stale prefixes.** `RC-N` is now `RCD-N` and `RP-N` is now `RPL-N`. `RC` numbers were
-**regenerated**, not just re-prefixed, so an old `RC-17` is not today's `RCD-17` — there is no
-`RCD-17`; that rule is now `RPG-DRV-1`. Treat any surviving `RC-N` citation as stale and resolve it by
-reading the rule.
+### 4.1. Documentation layout
 
-**Stale milestone tokens.** Milestones are `MN`, defined in [`roadmap.md`](plan/roadmap.md).
-research/11, research/12 and research/15 use `M0`–`M6` and `N0`–`N10` from the superseded roadmap —
-those are **not** today's milestones. Resolve such a token inside the research file that uses it, never
-against `roadmap.md`.
+1. **[`plan/`](plan/README.md)** — status of work. Roadmap, milestones.
+2. **[`design/basic`](./design/basics/README.md)** — How to work with repository and package, coding rules and principles.
+3. **[`design/evok-node`](./design/evok-node/README.md)** — The actual architecture and design of the app/daemon.
+4. **[`design/simulator`](./design/simulator/README.md)** — Helper to simulate Unipi hardware for testing purposes. TCP and RTU modbus mocks.
+5. **[`design/test-rig`](./design/test-rig/README.md)** — Design of real HW test rig.
+6. **[`design/tooling`](./design/tooling/README.md)** — Other tooling and misc.
+7. **[`research/`](research/README.md)** — the input `design/evok-node` was written from. Collection of findings. Reference and context, not design guidelines.
+8. **[`modbus-reg-map/`](modbus-reg-map/README.md)** — official Unipi register maps. Ground truth, read-only, no prose.
 
-## Precedence
+All documents in `/docs` and subfolders are numbered (except for READMEs). Double digit folowed by hypen and name. In documents all section are numbered and nested section uses nested numbering. 
 
-**G wins over everything.** Then the rules files, then **`dev/`**, then research. This file loses to
-all of them; it only points.
+Referencing symbol is `A.BB.C(.D)*`; where `A` is directory number from numbered list above, `BB` is document number, `C` is main section number and `D` is nested section number. *Note: README.md files aren't numbered. Use `RD` instead of file number in `BB`.* 
 
-**`dev/` outranks the code.** It is the design, not a description of what got built: code that
-contradicts it is a defect in the code. Changing the design is a human decision, and RD-8 says how.
+Directories numbers are reserved forever. Always add to the end. If directory is removed, don't fill gaps.
 
-**`dev/` outranks `research/`.** Research is the source material a dev doc was written from, and a dev
-doc is allowed to overrule it — a design decision may reject, narrow or reinterpret a research
-finding, and that is the decision, not an error. So where the two disagree about *what we build*,
-`dev/` wins. Where they disagree about *what EVOK or the hardware does*, that is a factual claim and
-research wins — the dev doc is wrong and gets fixed. RD-8 requires a deliberate departure to be marked
-and linked, so that nobody later "fixes" it back.
+Sections are numbered at headings. Always use correct nesting of heading. Eg:
 
-If research and reality disagree, **reality wins** — and you fix the research file in the same PR,
-with a dated correction note (RD-7).
+```
+# Document name
+## 1. Section 1
+### 1.1. Subsection 1.1
+## 2. Section 2
+```
 
-A rule stated in two places is a bug (RD-6).
+There is tool to regenerate docu numbering `@/tools/regenerate-docu-numbering.ts`. It's auto called with `TODO decide and add npm script`. 
+
+* **Inserting** section/subsection - use `??` instead of number. 
+* **Moving** section/subsection - keep old number. Script will fix it.
+* **Removing** section/subsection - don't fix following numbering. Script'll fix it.
+
+Script allways regenerates numbering to have clean sequence from 1.
+
+### 4.2. Rules system
+
+Parts of documentation might be marked as important rules or notes. Severity list:
+
+* **R** - Rule - MUST / MUST NOT
+* **G** - Guideline - SHOULD, overridable with a reason
+* **C** - Convention - naming, formatting, structure
+* **X** - Anti-pattern - explicitly forbidden
+* **N** - Note - rationale
+
+Rules are addressable: `[S A.BB.C(.D)*-XX]`; where `S` is severity from list above. `A`, `BB`, `C` and `D` - same meaning as in layout. `XX` is rule number within a section.
+
+Rule in text is starting with `[address] ` followed by name/title. `address` is rule address described above. All following paragraphs until the section/subsection end are rule content. Rule content can be explicitly stopped by mark `[/]`
+
+* **Inserting** rule - use `??` instead of number/whole address. 
+* **Moving** rule - keep old number.
+* **Removing** rule - don't fix following numbering.
+
+Script regenerating docu numbering is also regenerating rules addresses and creating [`rule-index.md`](./rule-index.md).
+
+### 4.3. Citing
+
+Use citations as much as possible. It's good practice to use verb from following dictionary before each citation:
+
+* **see** - informational cross-reference
+* **per** - this text follows from that rule
+* **implements** - code or spec satisfying it
+* **verifies** - test covering it
+* **violates** - known deviation, needs waiver
+* **supersedes** - this rule replaces that one
+
+Citing sections/subsection or rule is easy - just use it's address:
+
+```
+see [3.02.1.2](/docs/design/evok-node/02-Configuration.md#1.2)
+per [R 3.02.1.2-01](/docs/design/evok-node/02-Configuration.md#R-3.02.1.2-01)
+```
+
+Script regenerating docu numbering is also regenerating citations and setting up anchors into source documents.
+
+### 4.4. Style
+
+[G ??] What to document - why, never what
+
+**Document the non-obvious *why*, never the *what*.** The what is in the code and the types.
+
+Do not write:
+
+> `getRegister(count, index)` — gets `count` registers starting at `index`.
+
+Do write:
+
+> Reads from the cache snapshot, not the bus. Returns `null` if the block has never been read —
+> "no value yet" and "value 0" are different, and clients depend on the distinction.
+
+[R ??] JSDoc on every exported symbol
+
+One summary line, plus `@param`/`@returns` only where the name isn't self-explanatory. Not required on internal functions; an internal function that needs explanation to be understood should be renamed or split.
+
+[X ??] 

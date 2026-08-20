@@ -2,7 +2,7 @@
 
 Start with [`README.md`](./README.md) and get familiar with the structure by following links in there. No need to go deeper yet.
 
-Based of your role follow one of the sections below.
+Based of your role follow one of the sections below. If you are not sure about your role, ask user. If he requires you to work in role not defined here, request user to define the role here.
 
 * **managing the project** - STOP and whine - path to be defined
 * **researching** - STOP and whine - path to be defined
@@ -11,6 +11,14 @@ Based of your role follow one of the sections below.
 * **deploying** - STOP and whine - path to be defined
 * **testing** - STOP and whine - path to be defined
 * **updating documentation** - STOP and whine - path to be defined
+
+## Rules for agents
+
+* Don't create new documentaion out of structure defined in [`/docs/dev/README.md`](/docs/dev/README.md) and [`/docs/user/README.md`](/docs/user/README.md). If you don't know where to put it, ask user.
+* **Brevity is the rule, not a preference.** Long documentation goes stale, and stale documentation is worse than none because it is believed. If you can delete a sentence and lose nothing, delete it.
+* Write Markdown as documents, not fixed-width text.
+
+
 
 This file says how to work here, and **carries no status of its own** — where we are lives in
 [`docs/plan/STATUS.md`](docs/plan/STATUS.md), where we are going in

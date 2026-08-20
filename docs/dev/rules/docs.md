@@ -1,61 +1,5 @@
 # Documentation rules
 
-Binding. Cite as **RD-N**.
-
-**Brevity is the rule, not a preference.** Long documentation goes stale, and stale documentation is
-worse than none because it is believed. If you can delete a sentence and lose nothing, delete it.
-
-**RD-1 — Document the non-obvious *why*, never the *what*.** The what is in the code and the types.
-
-Do not write:
-
-> `getRegister(count, index)` — gets `count` registers starting at `index`.
-
-Do write:
-
-> Reads from the cache snapshot, not the bus. Returns `null` if the block has never been read —
-> "no value yet" and "value 0" are different, and clients depend on the distinction.
-
-**RD-2 — These documents exist, and nothing else.** Anything not on the list needs a reason.
-
-| Doc | Length | Job |
-|---|---|---|
-| `CLAUDE.md` | 1 page | how to work here: workflow, package layout, and where to find the rest. Holds no rules |
-| `docs/README.md` | 1 page | the map: what exists and in what order to read it, how to cite a rule, precedence |
-| `docs/GOALS.md` | 1 page | goals, non-goals, hardware scope, invariants, what 1.0 is. Authoritative on scope |
-| `docs/rules/` | 1–2 pages each | code (RCD), testing (RT), docs (RD), git (RG) |
-| `docs/rules/packages/` | ~½ page each | rules binding inside named packages only (RPG-\*) |
-| `docs/plan/` | brief, task-shaped | what we do next; its own rules are RPL |
-| `docs/dev/` | 1–3 pages each | **the design** — how each part is built and why. Numbered `00`–`21` in reading order; see RD-8 |
-| `docs/research/` | as long as needed | what is true about EVOK and the hardware |
-| `docs/COMPATIBILITY.md` | as long as needed | **first-class deliverable** — see RD-3 |
-| Root `README.md` | 1 page | what it is, install, minimal example, links |
-| Per-package `README.md` | ~10 lines | purpose, and **what it must not depend on** |
-| API reference | generated | typedoc from types + JSDoc. Never hand-written |
-| `CHANGELOG.md` | generated | changesets. Never hand-written |
-
-**RD-3 — `COMPATIBILITY.md` is a product feature.** It states **exactly where we behave differently
-from EVOK 3.x**, including where we deliberately fix its bugs. Derived from
-[research/01 §9](../research/01-evok-api-surface.md) and
-[research/07](../research/07-client-compatibility.md); every entry is backed by a golden-transcript
-test or marked untested. It is also a check on us: a divergence nobody wrote down is a divergence
-nobody decided.
-
-**RD-4 — JSDoc on every exported symbol.** One summary line, plus `@param`/`@returns` only where the
-name isn't self-explanatory. Enforced — typedoc runs with `--validation.notDocumented` and CI fails
-on undocumented exports. Not required on internal functions; an internal function that needs prose
-to be understood should be renamed or split. Required regardless of visibility: any invariant a
-reader could plausibly violate — "callers must hold the port mutex". Comments inside a function are
-RCD-16's job, not this rule's.
-
-**RD-5 — Docs ship in the same PR as the code.** Two explicit exceptions. Alpha/beta **smoothing
-passes**: documentation written incrementally reads like sediment, so before `0.x-alpha` and
-`0.x-beta` a scheduled task reads everything end to end and rewrites for coherence — that is when
-structure, ordering and tone get fixed, not during feature work. In `docs/dev/` the pass is bounded by
-RD-8. And the **`docs-debt` label**: a PR
-that knowingly leaves docs thin opens a `docs-debt` issue instead of blocking, and the smoothing
-pass closes it.
-
 **RD-6 — Prohibited.**
 
 - Restating a type signature in prose.
@@ -98,5 +42,3 @@ elsewhere.
   here, but rejected alternatives, departure markers, TBDs and reversal lines are not theirs to remove.
   Coherence is precisely the argument for removing them, and they are why these files exist rather than
   just the types.
-
-**RD-9 — Markdown is written as documents, not as fixed-width text.** Prose flows; a newline starts a new paragraph or a new block — heading, list, table, quote, code fence — and blocks are separated by a blank line. Nothing is hard-wrapped to a column. Wrapping is the editor's job and the renderer's job, and a hard-wrapped paragraph makes a three-word edit reflow six lines, which is noise in exactly the place where review happens. Enforced by `prettier --check` with `proseWrap: "never"` once T0.6 installs it; until then it is written by hand. Applies to every `.md` in the repo except the verbatim imports already listed in `.prettierignore`.
