@@ -56,7 +56,7 @@ Testing is important part of the process and extensively described in [`design/b
 4. **[`design/simulator`](./design/simulator/README.md)** — Helper to simulate Unipi hardware for testing purposes. TCP and RTU modbus mocks.
 5. **[`design/test-rig`](./design/test-rig/README.md)** — Design of real HW test rig.
 6. **[`design/tooling`](./design/tooling/README.md)** — Other tooling and misc. (Might not exists until it's really needed).
-7. **[`research/`](research/README.md)** — the input `design/evok-node` was written from. Collection of findings. Reference and context, not design guidelines.
+7. **[`research/`](research/README.md)** — the input `design/evok-node` was written from. Collection of findings. Reference and context, **not design guidelines**.
 8. **[`modbus-reg-map/`](modbus-reg-map/README.md)** — official Unipi register maps. Ground truth, read-only, no prose.
 
 All documents in `/docs` and subfolders are numbered (except for READMEs). Double digit folowed by hypen and name. In documents all section are numbered and nested section uses nested numbering. 

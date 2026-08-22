@@ -1,23 +1,6 @@
 # Test hardware and coverage
 
-Available now: **Patron M527, Patron S167-LTE, Patron L527, Gate** (+ at least one xS11
-extension, inferred from the 16 ms RS-485 measurement — confirm). Neuron and Unipi 1.1 to be
-bought approaching 1.0; Edge when the fast-follow starts.
-
-> **Correction, 2026-08-10.** The xS11 is **confirmed** on hand, and an **xG18 is also on hand** —
-> so 1-Wire over RTU (§5 priority 5) is coverable now and is not a purchase. **No xS51**; it is
-> approved but not yet ordered, and until it arrives AI/AO over RTU remains reachable only through
-> the local TCP path. Also confirmed: **all three Patrons and the Gate run Debian 13**, so §5's "run one
-> Patron on each generation" is met instead by imaging the incoming second M527 as Debian 12 rather
-> than reflashing a unit — reflashing would destroy the stock-EVOK fixtures. See
-> [`docs/plan/STATUS.md`](../plan/STATUS.md), open questions and *Blocked / waiting on hardware*. The
-> capture runbook this used to point at was deleted on 2026-08-16 and is rewritten with the new plan;
-> `STATUS.md` carries the list of what must be captured in the meantime.
-
-This document maps what that hardware does and does not exercise, derived from
-`derived/model-io-census.csv`.
-
----
+Available now: **Patron M527, Patron S167-LTE, Patron L527, xG18, IAQ, xS11, xS51, Unipi 1.1, Neuron L527** 
 
 ## 1. What the available units cover
 
@@ -150,11 +133,6 @@ Two consequences:
 2. **Record `/etc/evok/hw_definitions/*.yaml` and `/etc/evok/autogen.yaml` from each unit.**
    They are more trustworthy than the published doc examples. Also capture `unipiid` output (or the
    sysfs equivalent on Debian 12) and board firmware versions per section.
-
-   > **Corrected 2026-08-13 (ADR-0014).** They are not "the stock definitions our overlay merges onto" —
-   > there is no overlay and we read nothing from `/etc/evok` at runtime. They are one of the two **offline
-   > sources** our own definitions are transcribed from, and the only source of the AI/AO mode
-   > enumerations for CSV-only families, which makes this step **blocking** rather than merely useful.
 3. **Confirm which extensions are on hand.** xS11 gives DI/RO/counters/ULED; an **xS51** would
    add AI (6-mode, float32) and AO (raw 0..4000) over RTU, which is otherwise only reachable
    through the local TCP path. Worth adding if not present.

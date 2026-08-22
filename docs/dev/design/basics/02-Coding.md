@@ -123,3 +123,8 @@ Four comments are required, and they are the only ones that are:
 - any workaround for a library bug, with the upstream issue and the condition for removing it;
 - every `TODO`, with an issue number. `// TODO: THIS IS HOTFIX !!! REMOVE IT !!!` is what upstream
   shipped; we do not.
+
+
+-- from former ADRs
+
+- tech stack - Node 24

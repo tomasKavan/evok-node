@@ -36,3 +36,7 @@ A 32-bit value split across two blocks, or across two reads at different rates, 
 it is from one bus transaction and half from another. Checked when definitions load; a definition that
 breaks this is **rejected, not repaired** — silently regrouping the blocks would hide a bad definition
 behind a value that is usually right.
+
+-- notes
+
+- see research 13 for further information - the goal is to create generic modbus driver with possibility to add own plugins and data types

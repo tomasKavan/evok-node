@@ -52,3 +52,7 @@ this rule proves the arithmetic came out injective. Its test half is RT-3.
 
 A driver checks only itself. Addresses are driver-qualified, so uniqueness is local and needs no
 global view — a driver that has to ask another driver what it owns has the wrong boundary.
+
+
+-- from former ADRs
+

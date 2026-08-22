@@ -31,3 +31,16 @@ deployment choice instead of a rewrite.
 
 **Open:** subscribe, as above. Also whether failures cross the boundary as envelopes or as thrown
 errors — 06's "do not throw" rule leans one way, ergonomics the other.
+
+
+-- from former ADRs
+
+- communication between drivers and APIs are serializable messages. It possible to pass them between modules running in one thread as well as between modules running in different threads and processes.
+- Internal addresses are: **`<driverId>:<driver-defined tail>`**, case-sensitive, e.g. `PLC:DI.2.01`.
+- **Convention, not grammar:** a driver exposing relay and digital I/O uses uppercase `DI`, `DO`, `RO`, `AI`, `AO`, `LED` in the tail.
+- Drivers answer `introspect` request and describe themselves as response. Introspection contains driver class, type, version and list of endpoints and other driver-specific infos.
+- Endpoints (anything addressable in driver):
+  - **`shape`** — `channel`, a structured reading, or a `method`. Not everything is a channel: a read-only network configuration is a reading whose value is a structure, and logs are a stream. Forcing those into the reading-and-state shape is the mistake this field avoids.
+  - **`type`** — from a **closed enum in `@evok-node/messaging`**. Eg. DI, DO, RO. Type might have optionals which might be also described (DI has counter, ...)
+  - **`effect`** — **mandatory, no default** (RC-29). Means "changing device status in any way"
+  - **`returns`** — a **closed keyword set** to start: scalars plus `struct`.

@@ -1,5 +1,7 @@
 # evok-node research notes
 
+**This is research - not design document**. Holds gathered facts and deliberation results. Use it for context, but don't consider it as binding design guideline.
+
 Background research for **evok-node** — a Node.js / TypeScript drop-in replacement for
 Unipi Technology's EVOK API.
 
@@ -7,12 +9,6 @@ Compiled 2026-07-27. Reference implementation studied: `UniPiTechnology/evok`
 at commit `47c95c8` (branch `main`, latest tag **3.0.6**, 2025-09-02).
 
 ## Project premise
-
-> **Superseded as the statement of goals, 2026-08-10.** Goals and non-goals are now stated in
-> [`docs/GOALS.md`](../GOALS.md), which is authoritative — including the definition of 1.0, the
-> post-1.0 direction, and the invariants that follow from them. What remains below is the
-> *research premise*: the scope assumptions under which these notes were compiled. Where the two
-> differ, `GOALS.md` wins.
 
 - **Target**: EVOK **3.x** compatibility only. v2 is out of scope (upstream itself
   declares v2→v3 migration unsupported).
@@ -46,31 +42,14 @@ at commit `47c95c8` (branch `main`, latest tag **3.0.6**, 2025-09-02).
 | [`12-modularisation.md`](12-modularisation.md) | **The 2026-08-12 re-steer**, in full: drivers / APIs / main, the addressing scheme, introspection as the source of compat's table, the config and message sketches, and every alternative rejected along the way. Recorded at the time as ADRs 0001–0004; this file carries the reasoning those compress, and outlives them. |
 | [`13-config-and-hw-definition-format.md`](13-config-and-hw-definition-format.md) | The proposed config and hardware-definition format, in detail. Was `plan/hw-definition-format.md`. |
 | [`14-bug-dispositions.md`](14-bug-dispositions.md) | Every known EVOK finding and the disposition proposed for it. Was `plan/bug-dispositions.md`. |
-| [`15-roadmap-to-rework.md`](15-roadmap-to-rework.md) | The N0–N10 roadmap as it stood on 2026-08-16. **Superseded, kept for its sequencing arguments** — the plan is being rebuilt from the development documentation, not from this. Was `plan/roadmap.md`. |
 
 ## Subdirectories
 
 | Path | Contents |
 |---|---|
-| [`to_revision/`](to_revision/README.md) | **All 14 former ADRs.** The set was dissolved 2026-08-18 rather than re-locked: these are **proposals binding on nothing**, each owed an answer by a named file in [`dev/`](../dev/README.md). `ADR-NNNN` is no longer a citable prefix. |
 | [`modbus-reg-map-notes/`](modbus-reg-map-notes/README.md) | What is *ours* about a Unipi register map: how a source was read, what a transcription inferred, what to verify first. |
 | [`derived/`](derived/) | Generated data: `model-io-census.csv`, DI/DO/RO/AI/AO/LED counts per model and section (83 rows). Use to validate hardware definitions at load time. |
 | [`appendix/`](appendix/) | The two full unedited reports the condensed notes were written from. |
-
-## Related, outside this directory
-
-| Path | Purpose |
-|---|---|
-| [`../GOALS.md`](../GOALS.md) | Goals, non-goals, invariants. Authoritative — but the definition of 1.0 currently reads TBD. |
-| [`../plan/`](../plan/README.md) | The plan: `STATUS.md` for current state, `roadmap.md` for the milestone sequence. |
-| [`../rules/`](../rules/code.md) | How we work: code, packages, testing, docs, git. |
-| [`../dev/`](../dev/README.md) | The design these findings feed into. Written from research, and allowed to overrule it about *what we build*. |
-| [`../modbus-reg-map/`](../modbus-reg-map/README.md) | Official Unipi register maps. Ground truth, read-only, and no prose. |
-
-The two appendix reports, cited throughout: full unedited
-[hardware research](appendix/raw-hardware-research.md) (register tables, model lists, KB citations)
-and [bug archaeology](appendix/raw-bug-archaeology.md) (~90 findings with commit hashes and issue
-numbers).
 
 ## Evidence conventions
 

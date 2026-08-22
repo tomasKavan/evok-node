@@ -24,3 +24,7 @@ blocked items
 
 **Open:** blocked on rig hardware and wiring; [`STATUS.md`](../plan/STATUS.md) holds the specifics.
 Parallel track throughout — it must never be on the critical path.
+
+-- from former ADRs
+
+- Test lib and instruments won't share any code with the lib. For good reasons...

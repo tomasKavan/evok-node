@@ -52,3 +52,8 @@ TO review - from GOALS.md
    lease, or take the process down with it. A plugin needing bus access gets a leased, time-budgeted
    transaction through the driver that owns that bus — never a client of its own on a port a scan loop
    owns. 
+
+
+-- from forme ADRs
+
+- 2 type of modules - drivers and APIs, main module to orchestrate, some common services. Strong emphasis on separation, modules is possible to configure to run in separate thread or process. Driver acts, API queries.

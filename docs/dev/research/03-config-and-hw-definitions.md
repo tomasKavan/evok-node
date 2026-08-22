@@ -144,12 +144,6 @@ comm_channels:
     owpower: 1
 ```
 
-**evok-node decision:** consume `autogen.yaml` when present (that is the compatibility
-requirement), but also implement our own equivalent generator so we don't hard-depend on
-`unipi-os-configurator`. Sources for it: `unipiid` files under `/run/unipi-plc/unipi-id/`,
-the per-section sysfs board name/serial/firmware, and — as a cross-check — holding
-registers 1001/1002/1004 on each unit-id. Use `unipiid fingerprint` as the cache key.
-
 ---
 
 ## 3. Aliases

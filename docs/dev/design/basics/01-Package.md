@@ -38,3 +38,18 @@
 from GOALS.md - to review, probably will go also to user docu
 
 6. **G-7 — evok and evok-node never run at the same time.** Not a policy: two processes cannot both own `/dev/ttyNS0` and connect to the same Modbus TCP server. Startup preflight refuses to start if evok is active or the ttys are held — loudly, and **naming the conflicting unit** — rather than racing for the port and failing unexplainably.
+
+-- from former ADRs
+
+- Using of npm workspaces and @evok-node/ namespace:
+**npm workspaces.** No second package manager, no build orchestrator. Thirteen packages under
+`packages/`, published as `@evok-node/<name>`; `rig` is `private: true` and never published (RC-11).
+Builds are `tsc -b` over the root `tsconfig.json`'s project references.
+
+**The consequence that makes this an ADR rather than a preference:** npm workspaces give every package a
+flat `node_modules`, so an import a package never declared resolves anyway. `tsc -b` does not close the
+hole either — a cross-package import with no project reference builds green as long as the target's
+`dist/` exists, which it does after any earlier build (verified empirically; see the comment at the top of
+`.dependency-cruiser.cjs`). So **`dependency-cruiser` is load-bearing, not a nicety**: without it RC-10 is
+unenforceable and ADR-0001's "nothing imports `main`" is aspirational. The DAG is stated once, in that
+file, which also asserts each `package.json` agrees with it.

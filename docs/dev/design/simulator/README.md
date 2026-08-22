@@ -24,3 +24,7 @@ files have not made yet.
   justification.
 
 **Inputs:** research/09 · research/10 · RT-15 · to_revision/0012
+
+-- from former ADRs
+
+- Test lib and instruments won't share any code with the lib. For good reasons...

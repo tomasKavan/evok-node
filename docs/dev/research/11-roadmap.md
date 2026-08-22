@@ -1,7 +1,7 @@
 # Roadmap — from research to code
 
 > **Superseded as a working document.** The executable plan now lives in
-> [`docs/plan/`](../plan/README.md) — `STATUS.md` for current state, `roadmap.md` for milestones,
+> [`docs/plan/`](/docs/dev/plan/README.md) — `STATUS.md` for current state, `roadmap.md` for milestones,
 > `milestones/M*.md` for tasks with acceptance criteria. **That is authoritative; this is not.**
 >
 > This file is retained as the **sequencing rationale**: why the phases are ordered the way they
@@ -19,9 +19,9 @@ and they need the project's rules written down rather than implied.
 
 Do this first, because everything an agent does depends on it.
 
-1. **`CLAUDE.md` at the repo root** — the operating rules, not a README. Should encode:
+1. **`AGENTS.md` at the repo root** — the operating rules, not a README. Should encode:
 
-   > **Correction, 2026-08-12.** Implemented differently, and better. `CLAUDE.md` holds no rules of
+   > **Correction, 2026-08-12.** Implemented differently, and better. `AGENTS.md` holds no rules of
    > its own: it carries the read order, the precedence chain and the citation scheme, and every rule
    > below lives in exactly one numbered home in `docs/rules/` — the non-negotiables as RC-8, RC-14,
    > RC-6, RC-4, RC-17, RC-18; the library rule as RC-22; the layering constraint as RC-10; test-first
@@ -42,11 +42,7 @@ Do this first, because everything an agent does depends on it.
 3. **TypeScript strictness maxed** — `strict`, `noUncheckedIndexedAccess`,
    `exactOptionalPropertyTypes`, `noImplicitOverride`. Most of the upstream bug tail is state
    problems the compiler can catch, but only with these on.
-4. **ADRs** — convert the research decisions into numbered, dated Architecture Decision Records
-   so an agent can read *why* and not relitigate. One per decision in `05` §7–§8: EVOK 3.x only,
-   library-first, `modbus-serial`+wrapper, overlay definitions, nginx front end, Node 24, fastify,
-   scope, compat flags.
-5. **Fastify** as the HTTP layer (decided). Its JSON-Schema-first design maps directly onto
+4. **Fastify** as the HTTP layer (decided). Its JSON-Schema-first design maps directly onto
    EVOK's own `schemas.py`, so the POST validation transcribes almost 1:1.
 
 ## Phase 1 — Generated fixtures and the simulator
@@ -133,12 +129,6 @@ failures live, so it goes first and gets verified hardest.
     per field, and the load-time validations from `03` (multi-word values within one block;
     computed addresses inside a declared block; global uniqueness fatal; census cross-check
     against registers 1001/1002).
-
-    > **Corrected 2026-08-13 (ADR-0014).** There is **no merge and no per-field provenance**: our
-    > definitions and the operator's `custom/` ones are disjoint namespaces, and an id resolves in exactly
-    > one root. What the loader does instead: resolve an id to a file or to a `minFirmware` variant
-    > directory, and run the handshake identity check (`hardwareId`, holding 1004) alongside the census.
-    > Strict schema, frozen output and every validation listed above stand unchanged.
 22. **Device model and registry** — discriminated unions, total decode functions, lifecycle state
     machine, staleness in the data model, monotonic counter totals.
 23. **Scan scheduler** — per-bus, fixed-rate with drift correction and an explicit overrun policy,

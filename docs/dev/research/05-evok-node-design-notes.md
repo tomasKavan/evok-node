@@ -26,6 +26,8 @@ The load-bearing idea: **the API layer never touches hardware**. It reads the re
 current state and enqueues commands. That one boundary retires #190, #141 and #199's
 architecture complaints at once.
 
+Probably will be change during design.
+
 ## 2. Decisions to make before writing code
 
 ### 2.1 Compat fidelity — bug-for-bug or fixed?
@@ -45,16 +47,10 @@ Everything genuinely broken (bulk `group_*`, static 1-Wire sensors, RPC method s
 `register` events, alt-name filters) gets implemented correctly with no flag — no working
 client can depend on a `TypeError`.
 
-> **Settled 2026-08-10.** Adopted. Bug-for-bug fidelity is now an explicit non-goal, and the
-> compat surface is permanent and first-class rather than a migration bridge — see
-> [`GOALS.md`](../GOALS.md). Per-finding outcomes are tracked in
-> [`plan/bug-dispositions.md`](14-bug-dispositions.md); `compat-flagged` there means exactly
-> the opt-in mechanism described above.
-
-**Open question:** do we know of specific deployed clients to stay compatible with? Node-RED
-(`node-red-contrib-unipi-evok`), Home Assistant integrations and `evok-web-jq` are the obvious
-three, and `evok-web-jq` turns out to touch very little (`/rest/all`, `/rest/wd`, `/rest/run`,
-`/rest/device_info`, WS).
+Specific deployed clients to stay compatible with: 
+- Node-RED (`node-red-contrib-unipi-evok`), 
+- Home Assistant integrations and 
+- `evok-web-jq` (touch very little: `/rest/all`, `/rest/wd`, `/rest/run`,`/rest/device_info`, WS).
 
 ### 2.2 HTTP framework
 
@@ -190,13 +186,6 @@ exports a clean programmatic interface (`registry.get(circuit)`, `registry.set(c
 `registry.on('change', cb)`) and every API is a thin adapter over it, then all three options
 above are additive later. If the API layer owns state, none of them are.
 
-> **Strengthened 2026-08-10.** "Additive later" was too weak. Because the post-1.0 direction
-> includes several API surfaces over one core ([`GOALS.md`](../GOALS.md)), the core↔API contract is
-> now required to be a **serialisable message boundary from the first commit** — G-1. A
-> programmatic interface satisfying the paragraph above still fails if it passes callbacks, class
-> instances or Buffers across the boundary, because then the process split is a rewrite rather than
-> a deployment change. Delivery stays in-process for 1.0. See ADR-0001.
-
 Second implication: the event envelope and command schema should be **transport-agnostic and
 serialisation-agnostic** from the start — define them as TS types with a codec boundary, not
 as "the JSON we happen to send over WS".
@@ -209,10 +198,6 @@ of `02-hardware-model.md`) or event-driven reads, not a faster socket. Worth set
 optimising the transport.
 
 ## 6. Things we should deliberately do better than EVOK
-
-> **2026-08-10.** All six are adopted. Items 1–3, 5 and 6 are in 1.0 (milestones M1 and M5).
-> Item 4, declarative interlocks, is the foundation the post-1.0 trigger engine builds on — see
-> the post-1.0 direction in [`GOALS.md`](../GOALS.md).
 
 Beyond the 40 rules in `04-known-bugs-and-lessons.md`, these are product-level:
 
@@ -229,12 +214,6 @@ Beyond the 40 rules in `04-known-bugs-and-lessons.md`, these are product-level:
 ## 7. Decisions taken (2026-07-27)
 
 ### 7.1 Hardware scope for v1: **everything the maps cover**
-
-> **Superseded 2026-08-10 — read §8.3 first.** This section's scope was narrowed the following day:
-> the intersection is Neuron + Patron + Gate + Unipi 1.1 + Extensions, **Edge is a fast follow after
-> 1.0, and Axon is dropped** with no support claimed (§8.3, research/09 §5,
-> [`GOALS.md`](../GOALS.md)). Everything below about *definition-format consequences* still stands and
-> is why the overlay format must accommodate Edge in M3 — only the model list is superseded.
 
 Patron, Neuron, Axon, Edge, Unipi 1.1 / Lite, Extensions. Consequences that must be designed
 in from the start rather than bolted on:
@@ -278,21 +257,11 @@ Implications:
   embedders don't need `/etc/evok`.
 - Defer: apt packaging, systemd unit naming, whether we can `Conflicts: evok`.
 
-> **Resolved 2026-08-10.** The deferred packaging questions are settled: `Conflicts: evok`, with
-> the shared OS dependencies declared by us so removing evok cannot autoremove them, and a one-shot
-> migration rather than reading EVOK's config at runtime. See ADR-0006 and ADR-0006. Config loading
-> still accepts an object rather than a path, per the bullet above.
-
 ### 7.3 Latency: **defer the low-level transport**
 
 API-only for v1, with `core/` decoupled so a unix socket, shared-memory snapshot or
 in-process mode is purely additive. Rationale: a 50 Hz scan puts you 20 ms from the hardware,
 which dominates any IPC choice by an order of magnitude.
-
-> **Amended 2026-08-10.** The *transport* is still deferred — this decision stands. What is no
-> longer optional is the **shape** of the core↔API contract: it must be serialisable messages from
-> the start (§5 note, G-1). Deferring the socket is a
-> scheduling choice; deferring the message boundary is not available to us.
 
 Worth an early spike regardless: **`Interrupt Mask` (register 1007)**, named on every PLC map
 with no documented semantics. If it enables interrupt-driven reads, it changes the polling
@@ -316,7 +285,9 @@ cannot be closed from documentation:
 
 Item 7 is time-sensitive: capture the transcripts while the device still runs stock EVOK.
 
-## 8. Decisions, round 2 (2026-07-28)
+## 8. Some decisions
+
+Some decisions were made during considerations. But these might not be final. Design docu is definite source.
 
 ### 8.1 Debian 12 **and** 13
 
@@ -457,60 +428,13 @@ is exactly why the wrapper list above is not paranoia.
 Read `njs-modbus`'s `RtuProtocolLayer` as a design reference for the framing FSM. **Do not copy
 it** — it is BUSL-1.1, not open source.
 
-### 8.5 Hardware-definition extensions live in an overlay — yes, correct approach
-
-> **Superseded 2026-08-13 by ADR-0014.** The three-layer scheme below is gone. `/etc/evok/hw_definitions/`
-> belongs to `evok-unipi-data`, a package built separately per product, so "the base layer alone is always
-> sufficient" is not true: its content is not identified by its name and version, it is mutually exclusive
-> with `evok-unipi-data-full`, and it does not ship every model its own tooling resolves. We ship our own
-> definitions in our own format and read nothing from `/etc/evok` at runtime.
->
-> What survives is the **list of fields** this section identified as missing from EVOK's format — per-channel
-> mode sets, expected census, bank-stride hints, `eventable`, conversion-time hints. They are all in ours.
-> What goes with the overlay layer: the base/overlay/site merge, `definitionVersion` and `appliesTo`, the
-> per-field provenance, and the unknown-field warn-versus-error asymmetry.
->
-> §2.5's "generate our own autogen equivalent so we don't hard-depend on `unipi-os-configurator`" is
-> **strengthened** by the same ADR: it is now the whole mechanism rather than a fallback.
->
-> Kept below as written, because the requirement analysis is still the evidence for the format.
-
-The proposal is right, and it should be a hard rule: **never read anything but stock
-definitions from `/etc/evok/hw_definitions/`, and never write there.**
-
-```
-base layer      /etc/evok/hw_definitions/*.yaml     ← OS image, read-only, verbatim, untouched
-overlay layer   <pkg>/definitions/overlays/*.yaml   ← ships with evok-node, versioned with it
-site layer      /etc/evok-node/overlays/*.yaml      ← user's own, survives our upgrades
-```
-
-Merge rules, in precedence order base → overlay → site:
-
-- Keyed by **model name**, so an overlay file is `xS51.yaml` / `E410.yaml` and only touches
-  that model.
-- Overlays are **additive and corrective**, never a full redefinition: they add per-channel
-  mode sets, expected I/O census, bank-stride hints, `eventable`, conversion-time hints, and
-  may correct a wrong field in a stock definition.
-- **The base layer alone must always be sufficient** to run in EVOK-equivalent mode. If an
-  overlay is missing, we degrade to exactly what EVOK does and log at info level. That is the
-  backwards-compatibility guarantee: no overlay is ever *required*.
-- Unknown fields in a **stock** definition → warning, ignored (Unipi will add fields). Unknown
-  fields in **our own** overlay → error (it's ours, it should be valid).
-- Every merged definition records its provenance per field, so `evok-node check-definitions`
-  can print "`xS51.modes.AI1` ← overlay v3, overriding base".
-- Overlays carry `definitionVersion` and `appliesTo` (a base-definition fingerprint or a
-  wildcard), so we can refuse to apply an overlay written for a different stock definition.
-
-For models with **no stock definition at all** (Edge, if EVOK doesn't ship one) the overlay can
-be a complete definition — same format, same loader, just nothing to merge onto.
-
-### 8.6 Node.js 24 (current Active LTS)
+### 8.5 Node.js 24 (current Active LTS)
 
 Node **24** is Active LTS as of July 2026 (EOL 2028-04-30); 22 is in maintenance, 26 becomes
 LTS in October 2026. Target 24, keep the code 26-clean, and don't use anything that would
 block a 26 bump.
 
-### 8.7 `Interrupt Mask` — dropped, as suggested
+### 8.6 `Interrupt Mask` — dropped, as suggested
 
 Verified: **EVOK never touches register 1007** (`grep -rni "interrupt\|1007" evok/ docs/` →
 no hits), and the register is named but undocumented in every map. Leaving it out. Recorded in
@@ -519,7 +443,7 @@ latency requirement ever justifies it — and per
 [`08-latency-and-scan-budget.md`](08-latency-and-scan-budget.md), it wouldn't help extensions
 anyway, since their latency is serial wire time.
 
-### 8.8 Latency: 16 ms is the floor, and it's physics
+### 8.7 Latency: 16 ms is the floor, and it's physics
 
 The measured 16 ms for a full xS11 read is **almost exactly the wire time of one 10-register
 Modbus RTU transaction at 19200 8N1** (17.2 ms computed). Worked out in
@@ -533,7 +457,7 @@ Modbus RTU transaction at 19200 8N1** (17.2 ms computed). Worked out in
   24 registers, so polling them at full rate roughly **triples** cycle time. Put them in a
   medium-frequency block and expose a `pulsesSinceLastRead` delta.
 
-### 8.9 Front end: nginx stays
+### 8.8 Front end: nginx stays
 
 We do **not** ship a `:80` listener. evok-node listens on `:8080` exactly as EVOK does, and
 nginx in front remains a documented deployment requirement — the stock `evok` nginx site works
@@ -545,7 +469,7 @@ Two things this makes load-bearing (detail in
 traffic well inside nginx's `proxy_read_timeout 180`, and **integration tests must run through
 the proxy**, since the HA baseline only ever talks to `:80`.
 
-### 8.10 Test hardware
+### 8.9 Test hardware
 
 Available: **Patron M527, S167-LTE, L527, Gate** (+ xS11). Full coverage analysis in
 [`09-test-hardware-coverage.md`](09-test-hardware-coverage.md). The headline:
@@ -560,16 +484,8 @@ The L527 is the richest unit: 3 sections (so unit-0 aggregate addressing), both 
 abstractions, and **exactly 16 DI on section 3** — the bank boundary without crossing it.
 The Gate is the zero-local-I/O case and the cleanest RS-485-only rig.
 
-### 8.11 HTTP layer: fastify
+### 8.10 HTTP layer: fastify
 
 Decided. Its JSON-Schema-first design maps almost 1:1 onto EVOK's own `schemas.py`, so the POST
 validation transcribes directly, and schema-driven serialisation is a good fit for the
 invariant-envelope requirement.
-
-## 9. Still open
-
-1. Confirm which extension models are on hand; an **xS51** is the top purchase (`09` §5).
-2. Which Debian generation each Patron currently runs — ideally one on 12 and one on 13 (§8.1).
-
-Next steps are sequenced in [`11-roadmap.md`](11-roadmap.md); the test kit is specified in
-[`10-test-kit.md`](10-test-kit.md).

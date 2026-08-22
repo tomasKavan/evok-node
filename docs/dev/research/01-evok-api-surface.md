@@ -390,9 +390,7 @@ indexes a `dict_values` with a device object. Both therefore return the error en
 `[V-src]` — this is inference from reading the code paths, but the failure is
 deterministic and easy to confirm on a device.
 
-**Decision needed:** implement `group_*` as documented (they were presumably functional in
-v2), or reproduce the failure. Recommendation: implement them correctly, since no working
-client can depend on the current broken behaviour.
+Implement `group_*` as documented (they were presumably functional in v2). Don't repeat broken behavior.
 
 ---
 
