@@ -27,3 +27,12 @@ Unipi-model-specific.
 **Inputs:** research/02 · research/03 · research/06 · research/13 · research/14 ·
 [`rules/packages/driver-modbus.md`](../rules/packages/driver-modbus.md) ·
 to_revision/0010, 0012, 0014 · [`docs/modbus-reg-map/`](../modbus-reg-map/README.md)
+
+
+-- from former rule list - to be reviewd
+
+**RPG-DMB-1 — A multi-register value lies wholly inside one register block, read at one frequency.**
+A 32-bit value split across two blocks, or across two reads at different rates, is read torn: half of
+it is from one bus transaction and half from another. Checked when definitions load; a definition that
+breaks this is **rejected, not repaired** — silently regrouping the blocks would hide a bad definition
+behind a value that is usually right.

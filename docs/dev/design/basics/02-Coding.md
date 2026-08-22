@@ -1,3 +1,9 @@
+# Coding and code rules
+
+
+
+-- from GOALS.md - to review 
+
 # Code rules
 
 Binding. Cite as **RCD-N**. Breaking one is a blocking review comment; the enforcement column says

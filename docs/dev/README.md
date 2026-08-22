@@ -55,7 +55,7 @@ Testing is important part of the process and extensively described in [`design/b
 3. **[`design/evok-node`](./design/evok-node/README.md)** — The actual architecture and design of the app/daemon.
 4. **[`design/simulator`](./design/simulator/README.md)** — Helper to simulate Unipi hardware for testing purposes. TCP and RTU modbus mocks.
 5. **[`design/test-rig`](./design/test-rig/README.md)** — Design of real HW test rig.
-6. **[`design/tooling`](./design/tooling/README.md)** — Other tooling and misc.
+6. **[`design/tooling`](./design/tooling/README.md)** — Other tooling and misc. (Might not exists until it's really needed).
 7. **[`research/`](research/README.md)** — the input `design/evok-node` was written from. Collection of findings. Reference and context, not design guidelines.
 8. **[`modbus-reg-map/`](modbus-reg-map/README.md)** — official Unipi register maps. Ground truth, read-only, no prose.
 
@@ -76,9 +76,9 @@ Sections are numbered at headings. Always use correct nesting of heading. Eg:
 
 There is tool to regenerate docu numbering `@/tools/regenerate-docu-numbering.ts`. It's auto called with `TODO decide and add npm script`. 
 
-* **Inserting** section/subsection - use `??` instead of number. 
-* **Moving** section/subsection - keep old number. Script will fix it.
-* **Removing** section/subsection - don't fix following numbering. Script'll fix it.
+- **Inserting** section/subsection - use `??` instead of number. 
+- **Moving** section/subsection - keep old number. Script will fix it.
+- **Removing** section/subsection - don't fix following numbering. Script'll fix it.
 
 Script allways regenerates numbering to have clean sequence from 1.
 
@@ -86,19 +86,19 @@ Script allways regenerates numbering to have clean sequence from 1.
 
 Parts of documentation might be marked as important rules or notes. Severity list:
 
-* **R** - Rule - MUST / MUST NOT
-* **G** - Guideline - SHOULD, overridable with a reason
-* **C** - Convention - naming, formatting, structure
-* **X** - Anti-pattern - explicitly forbidden
-* **N** - Note - rationale
+- **R** - Rule - MUST / MUST NOT
+- **G** - Guideline - SHOULD, overridable with a reason
+- **C** - Convention - naming, formatting, structure
+- **X** - Anti-pattern - explicitly forbidden
+- **N** - Note - rationale
 
 Rules are addressable: `[S A.BB.C(.D)*-XX]`; where `S` is severity from list above. `A`, `BB`, `C` and `D` - same meaning as in layout. `XX` is rule number within a section.
 
-Rule in text is starting with `[address] ` followed by name/title. `address` is rule address described above. All following paragraphs until the section/subsection end are rule content. Rule content can be explicitly stopped by mark `[/]`
+Rule in text is starting with `[address] ` followed by name/title. `address` is rule address described above. All following paragraphs until the section/subsection end are rule content. Rule content is also stopped by mark `[/]` or by start of another rule.
 
-* **Inserting** rule - use `??` instead of number/whole address. 
-* **Moving** rule - keep old number.
-* **Removing** rule - don't fix following numbering.
+- **Inserting** rule - use `??` instead of number/whole address. 
+- **Moving** rule - keep old number.
+- **Removing** rule - don't fix following numbering.
 
 Script regenerating docu numbering is also regenerating rules addresses and creating [`rule-index.md`](./rule-index.md).
 
@@ -106,12 +106,12 @@ Script regenerating docu numbering is also regenerating rules addresses and crea
 
 Use citations as much as possible. It's good practice to use verb from following dictionary before each citation:
 
-* **see** - informational cross-reference
-* **per** - this text follows from that rule
-* **implements** - code or spec satisfying it
-* **verifies** - test covering it
-* **violates** - known deviation, needs waiver
-* **supersedes** - this rule replaces that one
+- **see** - informational cross-reference
+- **per** - this text follows from that rule
+- **implements** - code or spec satisfying it
+- **verifies** - test covering it
+- **violates** - known deviation, needs waiver
+- **supersedes** - this rule replaces that one
 
 Citing sections/subsection or rule is easy - just use it's address:
 
@@ -141,4 +141,8 @@ Do write:
 
 One summary line, plus `@param`/`@returns` only where the name isn't self-explanatory. Not required on internal functions; an internal function that needs explanation to be understood should be renamed or split.
 
-[X ??] 
+[X ??] Marketing tone
+
+This is an industrial control library; the audience wants precision. Marketing or relaxed tone of documentation is undesired.
+
+[/]

@@ -34,3 +34,21 @@ components move without being rewritten.
 
 **Open:** whether in-driver and inspector plugins are real extension points at 1.0, or just internal
 structure we should stop calling plugins.
+
+
+
+TO review - from GOALS.md
+
+1. **G-1 — Driver↔API is a serialisable message boundary.** Not a function-call interface that happens to
+   be crossable. One process for now; splitting components into separate processes later must be
+   additive. A function-call boundary leaks callbacks, class instances and Buffers and makes the
+   split a rewrite. Supersedes the "purely additive later" framing in
+   [research/05](research/05-evok-node-design-notes.md) §5 and §7.3.
+
+3. **G-4 — One instance, one PLC.** As EVOK. Circuit ids stay flat. A SPA may point at several
+   instances and aggregate client-side.
+
+5. **G-6 — A driver or api module (internal or plugin) cannot compromise the daemon.** It may not starve a scan loop, hold a bus past its
+   lease, or take the process down with it. A plugin needing bus access gets a leased, time-budgeted
+   transaction through the driver that owns that bus — never a client of its own on a port a scan loop
+   owns. 

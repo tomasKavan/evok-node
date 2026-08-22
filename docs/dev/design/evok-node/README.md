@@ -1,22 +1,58 @@
-# 00 — Intro
+# evok-node design
 
-**Job:** orient someone about to design or implement part of evok-node.
+## Why replace EVOK rather than patched it
 
-This **is not** an introduction to the project 
-* the root [`README.md`](../../README.md) does that for outsiders, 
-* [`CLAUDE.md`](../../CLAUDE.md) for agents/people working/coding here, and 
-* [`GOALS.md`](../GOALS.md) for scope. 
+TBD - see below
 
-This **is**
+## Goals
 
-* an introduction to **the design**: why the thing exists in this shape, and the constraints every file
-  from 01 on is already committed to;
-* **authoritative over the code.** No code may contradict this design. Where the design turns out to be
-  wrong, the design changes first, and a human approves it (RD-8).
+EVOK is a load-bearing part of Unipi's FOSS stack. It is also a decade of accumulated fixes with a long tail of open, known defects and limited maintainer attention. **evok-node is a drop-in replacement that addresses the known defects.**
+
+We are offering EVOK's *interface* as a compatibility (compat) api, but we are not inheriting the EVOK *design*. Compat API is first-class citizen, won't be deprecated until EVOK 3 is.
+
+EVOK is very low-level and narrow focused system. It's focus is on Unipi HW (PLCs, extensions and some sensors). Everything else is not supported must be drived by other libraries and daemons. If you connect M-Bus device or DALI gate, you'll endup with setting up many channels and openning multiple ports. **evok-node offers comfortable way how all devices connected to Unipi PLC can be plugged and offered thru one channel**.
+
+Reliability and separation is big topic in evok-node. Modularized architecture with possibility to dedicate compute heavy or foreign drivers or API to separate threads and processes makes sure the API won't crash or stale. Considering drivers as in memory copy of HW state helps with query reliability.
+
+Integrated web interface is here to determine holistic state of connected devices, including configuration and logs, and provide simple means to configure devices without need to touch CLI.
+
+evok-node publishes nodejs client package allowing developers to consume nextgen API.
+
+### Goals for later versions
+
+TBD - ACL and auth on next gen API
+
+### Hardware scope
+
+- **1.0 supports Patron, Neuron, Unipi 1.1, Extensions, Gate, 1W sensors and Air quality sensor.** Same as EVOK 3.
+- **Edge is a fast follow after 1.0**
+- **Axon is dropped** — support was discontinued on EVOK side. 
+- **`Iris` is disregarded** - we don't know, what it is.
+
+### Drop-in replacement
+
+Users have option to convert their current EVOK configuration to evok-node and run compat API with it. It allows very smooth transition from EVOK to evok-node.
+
+### Non-goals
+
+- EVOK v2 compatibility.
+- A visual flow editor.
+- NodeRED nodes.
+- Replacing Mervis, or being a general-purpose PLC runtime.
+- Timeseries storage of readings.
+
+
+
+
+
+
+-- to review
 
 ## Why we replaced EVOK rather than patched it
 
-EVOK works. It runs on thousands of installations and it is the reason Unipi hardware is usable from
+
+
+EVOK works. It runs on many installations and it is the reason Unipi hardware is usable from
 anything that speaks HTTP. Structurally it is thin: a Modbus **client** with an HTTP and WebSocket
 surface on top, reaching onboard I/O over Modbus TCP to a local server — `unipitcp` on `127.0.0.1:502`
 on the PLC families, `unipi-one-modbus` on `50200` on Unipi 1.1 — and extensions over RS-485

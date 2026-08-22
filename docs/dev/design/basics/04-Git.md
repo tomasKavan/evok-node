@@ -1,5 +1,8 @@
 # Git, issues and CI rules
 
+
+-- from GOALS.md - to review
+
 Binding. Cite as **RG-N**.
 
 Trunk-based: one protected branch, short-lived work branches, squash merge. No `develop`, no

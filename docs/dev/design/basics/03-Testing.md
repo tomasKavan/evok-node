@@ -1,5 +1,8 @@
 # Testing rules
 
+
+-- from GOALS.md - to review
+
 Binding. Cite as **RT-N**. Framework: **vitest**, workspace mode, one project per package.
 
 We cannot buy hardware that reproduces our worst bug ([research/10 §4](../research/10-test-kit.md)),
