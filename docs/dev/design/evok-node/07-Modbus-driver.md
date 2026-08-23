@@ -40,3 +40,4 @@ behind a value that is usually right.
 -- notes
 
 - see research 13 for further information - the goal is to create generic modbus driver with possibility to add own plugins and data types
+- let Claude study on modbus libraries again and decide what to use.
