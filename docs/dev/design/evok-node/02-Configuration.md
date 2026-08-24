@@ -32,3 +32,18 @@ set was dissolved)
 
 **Open:** reload granularity — per-instance restart versus in-place reconfiguration, and whether the
 module or `main` decides which it gets.
+
+
+From GOALS.md - to review
+
+4. **G-5 — Four kinds of data, four lifecycles.** Conflating the first two is where EVOK's alias handling failed (finding 3.9).
+
+   | | Contents | Written by | Where |
+   |---|---|---|---|
+   | Config | Operator intent: buses, ports, scan rates, enabled APIs, auth, compat flags | A human by hand, or the migration tool at install — **never the daemon** | `/etc/evok-node/config.yaml` |
+   | User data | Aliases, groups, ordering, labels, layout drawings, rules, plugin settings | Users, through the API at runtime | `/var/lib/evok-node/` — durable store |
+   | Platform facts | What the hardware *is*: our hardware definitions, our generated inventory | **Us alone** — our package ships the definitions, our generator writes the inventory; never a human by hand, never the daemon | `<pkg>/definitions/`, `/etc/evok-node/hw_definitions/custom/`, `/etc/evok-node/autogen.yaml` |
+   | Readings | Current values, health, counters | The scan loop | Memory only, never persisted |
+
+   Platform facts are descriptions of hardware, not intent. **Frozen per load, not once per process**:
+   immutable and `readonly` while loaded (RCD-4), and reloaded when hardware change is detected.
