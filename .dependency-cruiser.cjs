@@ -1,48 +1,8 @@
 /**
- * N0/T0.3. The load-bearing guard.
- *
- * We chose npm workspaces, whose flat `node_modules` resolves an import a package
- * never declared. `tsc -b` does not close this: a cross-package import with no
- * project reference builds green as long as the target's `dist/` exists, which it
- * always does after any earlier build — verified empirically, see the PR that added
- * this file. So nothing but this file stops a driver importing an api, or `main`
- * importing either — which is the edge that would quietly put it back in the data
- * path.
- *
- * Rewritten 2026-08-12: `core` and `server` no longer exist, and driver↔api is now a
- * partition rather than a one-directional rule.
- *
- * This file is the *only* statement of the layering. The prose rules that used to
- * restate it were deleted on 2026-08-16 for exactly that reason — a rule a linter
- * checks does not also need a paragraph, and two copies drift.
- */
-
-/**
  * The layering DAG, as workspace dependencies. One entry per package; the value is
  * the complete set of workspace packages it may import. Everything absent is
  * forbidden, and every rule below is generated from this table, so the DAG is stated
  * once.
- *
- * - `messaging` is the root: the internal contract only, so it depends on nothing of
- *   ours. It holds no package's *public* wire schema (RCD-10).
- * - **No driver imports an api; no api imports a driver.** Both directions, which is
- *   what makes it a partition and fully checkable.
- * - `main` gets `messaging` and `hw-definitions` and **no concrete driver or api** —
- *   they are manifest-loaded from config. Without this edge missing, "main is never a
- *   conduit" is unenforceable.
- * - drivers get `driver-kit`, `modbus` and `hw-definitions`; they need the address
- *   tables, since that is where the one audited address function lives (RPG-DRV-1).
- * - `driver-kit` gets `messaging` only: transport and hardware knowledge belong to
- *   the concrete drivers.
- * - each api gets `messaging` only, and owns the public schema of its own surface.
- *   `api-compat` importing nothing that carries our groups, labels or ordering is
- *   what makes G-3 a missing edge instead of a review rule.
- * - `simulator` deliberately excludes `modbus`, and gets `messaging` and
- *   `hw-definitions`. `rig` imports nothing of ours at all. Both edges are RT-15,
- *   which carries the reasoning and the residual risk in the `hw-definitions` case;
- *   this file is only its enforceable form.
- * - `ui` is over the public API only, and nothing imports *it* — `api-nextgen` serves
- *   built assets from a packaging path, not a bundled import.
  */
 const WORKSPACE_DEPS = {
   messaging: [],
@@ -63,14 +23,6 @@ const WORKSPACE_DEPS = {
 /**
  * Edges that are neither allowed nor forbidden yet, and are therefore left unruled
  * rather than decided by omission.
- *
- * - `client → api-nextgen`: the client targets that surface's public schema, which
- *   does not exist until N6. The alternative is a separate `schema-nextgen` package
- *   so the client need not depend on a server package at all. Both are real; picking
- *   one by omission would settle it silently. Decide when the schema lands.
- * - `ui → client`: open question 5 in docs/plan/STATUS.md. T0.3 said the SPA depends
- *   only on the public contract, but the obvious implementation consumes our own
- *   client. Encoding it as forbidden would settle that question silently too.
  */
 const UNDECIDED_DEPS = {
   client: ['api-nextgen'],

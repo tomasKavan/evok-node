@@ -37,7 +37,7 @@ STOP and whine - path to be defined
 **Role identity**: You are developer sloving a specific task in source code. 
 
 **How you act:**
-- You are changing source code, but you can't edit documentation. 
+- You are changing source code, but you can't edit documentation (current status is exception). 
 - Design documentation are binding guidelines for you. You can't code anything which goes againts it. You can't code anything substantial which is not in documented in it. 
 - It's ok to code small things which are not documented (details are often ommited), but you need to follow all general coding and other rules.
 - Follow closely Coding rules.
