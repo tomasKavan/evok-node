@@ -2,7 +2,7 @@
 
 Design of this repository, artifacts and toolchain to generate them.
 
-## Repository structure
+## 1. Repository structure
 
 This is a monolith repository containing all:
 
@@ -18,7 +18,7 @@ All documentation is in [`/docs/dev`](/docs/dev/README.md) or [`/docs/user`](/do
 
 To organize source code and logic modules npm workspaces are used. All source code is in [`/packages`](/packages) directory. All packages lives under `@evok-node/` namespace and are buildable independedly. 
 
-### Package list
+### 1.1. Package list
 
 Relevant to the tool:
 - **[`main`](/packages/main/)** - the daemon: config, validation, spawn, supervise, reload. Documented in this file, in [01-Achitecture](/docs/dev/design/evok-node/01-System-architecture.md) and in [02-Configuration.md](/docs/dev/design/evok-node/02-Configuration.md).
@@ -38,7 +38,7 @@ Supporting, testing and other:
 - **[`client`](packages/client)** - Nextgen API TypeScript client. Based on [user docu](/docs/user/README.md), TBD: deployed to npm `@evok-node/nextgen-cli-ts.
 - **[`evok-migration`](packages/evok-migration)** - Migration tool to convert classic evok config to `evok-node` format. See in [Rplacing classic evok](#replacing-classic-evok).
 
-## Toolchain
+## 2. Toolchain
 
 Every package is buildable by `tsc -b`. All together are buildable by same command run from the repo root. Cleaning si done by `tsc -b --clean`. NPM shortcuts are `npm run build` and `npm run clean`
 
@@ -51,13 +51,13 @@ Test bach is performed by `vitest run` (`npm run test`) or interactively by `vit
 [R ??] **Use NPM shortcuts instead of direct script calls**
 When using toolchain it's desired to use shortcuts defined in package.json instead of calling directly. 
 
-## Packaging and Installation
+## 3. Packaging and Installation
 
 Tool is installed with Debian packages onto [Unipi Base OS](https://kb.unipi.technology/en:files:software:os-images:00-start) (Debian arm Linux). Supported versions are Debian 12 and Debian 13. 
 
 There are two packages `evok-node` and `evok-node-data`.
 
-### `evok-node-data`
+### 3.1. `evok-node-data`
 
 Holds configuration files for supported Unipi devices and `autogen` script used by (plugged to) `unipi-os-configurator` to configure specific device.
 
@@ -76,14 +76,26 @@ in configure case.
 Script greatly inspired by [autogen script](https://github.com/UnipiTechnology/evok-unipi-data/blob/main/evok-autogen.py) in `evok-unipi-data` package.
 
 Notes:
-- `Recommends: unipi-os-configurator`
+- `Recommends: unipi-os-configurator evok-node`
 - All yaml files with hw definitions are installed to `/etc/evok-node/hw_definitions`. Files are considered as conffiles and should be listed in controlfile.
 
-### `evok-node`
+### 3.2. `evok-node`
 
-TBD
+Contains the tool, configuration, migration script and system.d service. 
 
-### Replacing classic evok
+Package lives in [`/packages/main`](/packages/main/README.md).
+
+System.d service responds to `start`, `stop`, `restart` and `reload` commands. Reload is described in [02-Configuration](/docs/dev/design/evok-node/02-Configuration.md).
+
+Configuration file is `/etc/evok-node/config.yaml`. Runtime data goes to `/var/lib/evok-node/` directory.
+
+Package is not recommending `nginx` or any other web server. It's user/admin responsibility to configure it if needed.
+
+Notes:
+- `Recommends: unipi-os-configurator evok-node-data`
+- `Conflicts: evok`
+
+### 3.3. Replacing classic evok
 
 `evok` and `evok-node` are in conflict. Can't be installed on one system at the same time. (Occupying same port and openning same serial files). `evok-unipi-data` and `evok-node-data` is ok to have on one system simultaneously.
 
@@ -93,6 +105,8 @@ To replace `evok` with `evok-node` with preserving configuration it's necessary:
 3. Run migration tool
 4. Optionally purge 
 
-## Config migration script
+#### 3.3.1. Config migration script
 
-`evok-node` has `evok` configuration [migration tool](/packages/evok-migration). Migration tool understands 
+`evok-node` has `evok` configuration [migration tool](/packages/evok-migration). Migration tool understands.
+
+TBD: define how the migration script should be designed. We'll know more once 02-Configuration is ready.
