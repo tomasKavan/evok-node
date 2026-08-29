@@ -28,3 +28,10 @@ files have not made yet.
 -- from former ADRs
 
 - Test lib and instruments won't share any code with the lib. For good reasons...
+
+**RT-15 — A test instrument shares no code with the path it measures.** Enforced from the layering
+table in `.dependency-cruiser.cjs`, as `layer-simulator`, `layer-rig` and `rig-no-modbus-client`:
+
+- **`rig` imports nothing of ours at all.**
+- **`simulator` may import `messaging` and `hw-definitions`, and never `modbus`.** It implements its own
+  slave-side CRC-16 and PDU framing.

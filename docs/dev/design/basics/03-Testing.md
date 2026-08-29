@@ -1,154 +1,187 @@
-# Testing rules
+# Testing
+
+There are 3 services to be regulary, properly and thoroughly tested:
+
+- `evok-node` service - this is the core of testing,
+- helper simulator services and
+- rig control service.
+
+Simulator services and rig control service is tested only by first tier - unit tests. These components are made only to enable E2E testing of the `evok-node`. 
+
+## How to test
+
+3 tiers of testing are unit, simulator and hardware test rig. 
+
+### Tier 1: Unit testing
+
+Unit testing uses vite framework and it's run by `vitest run` or rather `npm run test`. Watch mode can be enabled by `vitest` or rather `npm run test:watch`.
+
+[R ??] **Unit testing**
+Each component of `evok-node`, simulators or rig control service must have it's own testing module. Using `src/**/*.test.ts` convention. Unit tests should include boundary scenarios and test of module's basic functionality.
+
+[R ??] **Unit test focus**
+Unit test must allways test at least codecs, data types, data conversions, address computaitons, transport framing, timeouts, counters and similar.
+
+[G ??] **Design unit test before coding**
+Read design docu before making the test design to understand what is tested module materiality. Before you start coding, design unit tests validating desired behavior.
+
+[R ??] **Unit tests are fast**
+The total battery of tests finishes under 2 minutes. 
+[/]
+
+Unit test should be performed on every save or at least before every commit. Unit tests are run by CI in Github on PR.
+
+### Tier 2: Simulator testing
+
+First level of E2E test is simulator. There is a set of [simulator tools](/packages/simulator/README.md), documented in [`/docu/dev/design/simulator`](/docs/dev/design/simulator/README.md). E2E Test Runner (see [End to end (E2E) test runner](#end-to-end-e2e-test-runner)) runs prescribed tests using simulation tools.
+
+[R ??] **Simulator testing**
+Tests configuration lives in [`/tests/battery`](/tests/battery/). To learn how to write test follow to [End to end (E2E) test runner](#end-to-end-e2e-test-runner).
+
+[R ??] **Simulator testing: Transport** 
+Thoroughly test each transport - (`0xFFFF → 0`, ≥200 000 transactions), asserting every response matches its own request. Plus one test per injectable fault, and specifically **stale-frame desync**: timeout, late response, next request to the same unit and function code — the late response must be rejected, never returned as the new answer.
+
+[R ??] **Every fault has a named assertion about observable API behaviour.** "Device marked offline", "error returned with kind `bus_timeout`", "other devices unaffected" — never merely "does not crash".
+
+[R ??] **One test per `evok` research finding**
+[`/docu/dev/research/04`](/docs/dev/research/04-known-bugs-and-lessons.md) documents all real production failures with their mechanisms. Each bug should be covered by E2E tests.
+
+The only exemption is a finding dispositioned `construction` in [`/docu/dev/research/14`](/docs/dev/research/14-bug-dispositions.md).
+[/]
+
+Tests on simulator can be run by `npm run test:simulate` (real command behind npm call - TBD). 
+
+Simulator tests should be performed before every push. Simulator tests are run by CI in Github on PR.
+
+### Tier 3: Hardware rig testing
+
+Second level of E2E test is physical hardware test rig. Test rig is set up on maintainer premisess and only maintainer can run tests on it. 
+
+Test rig is controlled by [test rig service](/packages/rig/README.md), documented in [`/docu/dev/design/test-rig`](/docs/dev/design/test-rig/README.md). E2E Test Runner (see [End to end (E2E) test runner](#end-to-end-e2e-test-runner)) runs prescribed tests using test rig client library.
+
+[R ??] **Test rig tests scope**
+Test rig should run the same tests as simulator does. Some simulator tests might be explicitly ommited due to a lack of HW or Test rig cappabilities - in this case allways explain in the test config comments. 
+
+Might add some additional test suitable only for HW rig.
+[/]
+
+Tests on rig can be run by `npm run test:rig` (real command behind npm call - TBD). 
+
+Test rig tests should be performed before every release of a new version by maintainer.
+
+### Other and common testing rules
+
+[R ??] **No wall-clock sleeps.** 
+Fake timers or an injected clock. A test that sleeps is a test that goes flaky on the CI runner.
+
+[R ??] **Tests are independent and order-free.** 
+No shared mutable module state.
+
+[R ??] **No mocking our own code in E2E tests** 
+If you need to mock there - use the simulator. Mocks assert what we believe; the simulator asserts what the maps say.
+
+## End to end (E2E) test runner
+
+### Architecture
+
+### Test configuration
 
 
--- from GOALS.md - to review
-
-Binding. Cite as **RT-N**. Framework: **vitest**, workspace mode, one project per package.
-
-We cannot buy hardware that reproduces our worst bug ([research/10 §4](../research/10-test-kit.md)),
-so **generated tests are the primary safeguard, not a supplement**. They are safety equipment.
 
 ## Fixtures
 
 ```
 fixtures/
-  generated/    derived from docs/modbus-reg-map/ by a committed generator
-  captured/     recorded from real hardware or stock EVOK. Immutable.
+  generated/    anything generated by script from another static document. Like modbus register map from Unipi documentation.
+  captured/     recorded from real hardware. Immutable.
   handwritten/  small hand-built cases. Editable, must say why in a comment.
 ```
 
-**RT-1 — Never edit `generated/` or `captured/`.** The most important rule here, because the failure
-mode is specific to how agents work: faced with a failing assertion, an agent edits the expected
-value and produces a green build over a real bug. If a test fails against a fixture, the code is
-wrong.
+[R ??] **Never edit `generated/` or `captured/` fixtures.** 
+If a test fails against a fixture, the code is wrong.
 
-Enforced three ways: CI regenerates `fixtures/generated/` and fails on any diff (fix the generator,
-never the output); `fixtures/captured/` is in `CODEOWNERS`, so changes need Tomas's approval and a PR
-explaining why reality changed; both directories are `.prettierignore`d so a stray format pass cannot
-rewrite them.
+[G ??] **`handwritten/` fixtures are editable by humans or on human's request.** 
+Don't tweak with handwritten fixtures, unless you are asked to do it.
+[/]
 
-Captured fixtures are irreplaceable — once stock EVOK is off the Patrons they cannot be re-recorded.
-Treat them as measurements, not code.
+### TODO - describe each fixture we have, how it's build and where it's used
 
-## Tiers
 
-| Tier | What | Where | Runs |
-|---|---|---|---|
-| **0 · unit** | pure logic, codecs, address maps, decoders | `src/**/*.test.ts` | every save, every push |
-| **0 · generated** | address tables for every model × section in the map corpus | `tests/generated/` | every push |
-| **0 · simulator** | full stack against the in-process Modbus slave, with fault injection | `tests/integration/` | every push |
-| **0 · golden** | replay of transcripts captured from stock EVOK 3.0.6 | `tests/golden/` | every push |
-| **1 · hardware** | against the rig | `tests/hardware/` | merge to `main`, or PR labelled `hardware-required` |
-| **2 · soak** | days of polling with injected faults | `tests/soak/` | nightly, pre-release |
-| **2 · acceptance** | Node-RED and Home Assistant, through nginx | `tests/acceptance/` | pre-release |
 
-**RT-2 — Tier 0 finishes in under two minutes.** Past that, agents stop running it and start
-guessing. Protect the budget.
 
-## What must be tested
+Notes:
+- 3 tiers - unit, simulator, hardware
+- unit - each component it's own battery of tests `src/**/*.test.ts`
+- simulator - end to end tests againts simulator of each transport
+- hardware - end to end tests againts harware test rig
 
-**RT-3 — Address computation, table-driven and generated,** for every model and section in the
-corpus *including the discontinued 28-RO and 30-DI Neurons*. Assert
-`(model, section, kind, channel) → (register, bitOffset, coil)`, plus a property test for global
-uniqueness: no two circuits on the same coil or (register, bit). This is the test half of RPG-DRV-1
-and RPG-DRV-3. Branch coverage floor: **100%**.
+Platforms:
+- Simulator for each transport 
+  - staticly configured (prescription with predefined actions on time or input events)
+  - independed of specific hw configuration - this is on antoher layer
+  - Modbus, Onewire, ...
+  - lives in /packages/simulator, docu in /docu/dev/design/simulator 
+- HW Test Rig
+  - 
 
-**RT-4 — Codecs, golden tables per register type** — `i16`, `u16`, `u32` CDAB word-swapped,
-`float32`, raw 0..4000 AO counts, resistance scaling — including negatives, boundaries, and
-NaN → `null`.
+Test tools:
+- Test drivers - performing test prescription using specific platform
+- Unipimodbus test driver (simulator, rig)
+  - For Simulator: understands hw_definition format and using simulator to emulate specific unipi devices
+  - For Test rig: uses test rig to setup and communicate with physical unipi device
+- Test drivers allows to define test scripts, but unifying communication with test platform
+- Unified format to configure driver (yaml manifest + script/multiple script files)
+- lives in /packages/test-drivers/
 
-**RT-5 — Transport, a property test across the transaction-id wrap** (`0xFFFF → 0`, ≥200 000
-transactions), asserting every response matches its own request. Plus one test per injectable fault,
-and specifically **stale-frame desync**: timeout, late response, next request to the same unit and
-function code — the late response must be rejected, never returned as the new answer.
+E2E tests:
+- defined in /tests/XX-test-name/
+- E2E tests uses test drivers to run E2E test on both platforms
+- E2E test is configuration for test driver
+- TBD: expected result and assert
 
-**RT-6 — Every fault has a named assertion about observable API behaviour.** "Device marked
-offline", "error returned with kind `bus_timeout`", "other devices unaffected" — never merely "does
-not crash".
+Test config:
+- platform: simulator, rig
+  - device(s): Unipi PLC
+  - extensions/accessories (simulator only - rig is static): what it is and where it's connected
+- evok-node configuration
+- test script (async function receiving test runner instance)
 
-**RT-7 — A regression test names its origin.**
-`it('rejects a stale frame after timeout (#regression-142)')`.
+Test runner process:
+- Inits with a test config and options
+- Based on target platform it 
+  - Prepares HW rig
+    - Checks if target devices are available.
+    - Build deb from worktree 
+    - Installs deb on rig devices (using rig module)
+  - Setup simulator
+    - Build evok-node in worktree
+    - Init simulators for onboard, extensions and other defined devices
+- Runs the test script
+  - Offers commands to test script:
+    - S,R start/stop evok-node
+    - S,R wait ms
+    - 
+  - Command implementation might be differen based on platform, eg: Start/stop runs from local build in simulator or calls rig cli start/stop on rig.
 
-**RT-8 — One test per upstream finding, written before the feature.**
-[research/04](../research/04-known-bugs-and-lessons.md) documents 29 real production failures with
-their mechanisms and the 40 design rules they imply — a ready-made regression suite for bugs we have
-not written yet, and the highest-value test backlog we have. Tag them `upstream-regression`.
+For E2E tests we need:
+- capture EVOK model api response on hws we own and store it as reference
+- finish hw_definitions
+- define test configuration format
+- write test drivers
+- write E2E test runner (runs test drivers, configure and run evok-node)
 
-The only exemption is a finding dispositioned `construction` in
-[`../research/14-bug-dispositions.md`](../research/14-bug-dispositions.md), where the mechanism is a type or an
-exhaustive switch and the test would be asserting that the compiler works. **That is three findings
-out of 29** — 1.3, 2.4 and 3.3. A claimed fourth is probably code you intend to write correctly,
-which is what a test is for.
+Procedure and Pseudocode of E2E test:
+We'll test if setting up DI.1 will appear in nextgen api response
+1. In manifest we set a set of device types to run this test on simulator and on rigs
+2. Evok node config file (config.yaml) will be a template allowing test runner to replace some configs (like port)
+3. In main.test.ts file we'll return an async function with runner instance as param
+4. We'll wait until runner is ready
+5. Runner will provide connection params for each api it runs
+6. We'll connect to nextgen api and check status of DI.1
+7. Runner provides test driver instance for each transport
+8. We'll use modbus TCP (onboard) driver to set DI.1 to true
+9. Wait a couple of ms (or mabye until driver confirms it is set)
+10. Read status of DI.1 again
 
-## Instruments
-
-**RT-15 — A test instrument shares no code with the path it measures.** Enforced from the layering
-table in `.dependency-cruiser.cjs`, as `layer-simulator`, `layer-rig` and `rig-no-modbus-client`:
-
-- **`rig` imports nothing of ours at all.**
-- **`simulator` may import `messaging` and `hw-definitions`, and never `modbus`.** It implements its own
-  slave-side CRC-16 and PDU framing.
-
-The failure this prevents is silent and specific: a symmetric bug in shared code — a byte order, a CRC
-seed, a length-field off-by-one — **cancels out**. Instrument and subject agree, the suite is green, and
-the wrongness surfaces only against real hardware, which for most of our model coverage is never. The
-accepted cost is CRC-16 and PDU framing implemented twice, forever, in exchange for the simulator being
-able to disagree with us — and a framer whose purpose is never to emit a bad CRC cannot be asked to emit
-one, which RT-5 requires it to do.
-
-**The two allowed imports are deliberate, and one of them is a residual risk.** `messaging` is the
-internal contract, not a measurement path. `hw-definitions` carries the generated address tables, and a
-simulator addressed from the same table as the subject *can* cancel an error in that table — the exact
-mechanism this rule exists to break. It is allowed anyway because the alternative is a second address
-derivation, which is a worse thing to get wrong. What closes the gap is that the tables are generated
-from [`docs/modbus-reg-map/`](../modbus-reg-map/README.md) and re-generated in CI with a diff gate
-(RT-1, RT-3), so their correctness is asserted against ground truth rather than against agreement
-between the two sides.
-
-Beyond those two, the sides may share **data** — codec golden vectors, captured transcripts — but never
-code. A fixture is a measurement both sides are checked against; that is the opposite of a shared
-implementation, and it is what makes a symmetric bug detectable.
-
-**Owed:** a differential test asserting the two framers agree on valid frames cannot live in either
-package, since both directions of that import are forbidden. A neutral location is decided when the
-simulator lands. Until then both framers are checked against known-answer CRC vectors from the Modbus
-specification and against captured transcripts — byte-level agreement with reality rather than with each
-other.
-
-The `rig` has a second reason: a wedged evok-node must not be able to disable the mechanism meant to
-recover it. So all switching is the test host's own RO/DO and never a DUT's, and loopbacks are
-cross-unit — each direction measured by an independent device, because a DUT's own AO→AI loop can cancel
-a shared codec error and pass. Design detail is `dev/19` and `dev/20`.
-
-## Coverage
-
-**RT-9 — No global coverage gate**, because it produces tests written to hit lines. Hard per-module
-floors instead, where a bug is expensive:
-
-| Module | Branch coverage floor |
-|---|---|
-| `hw-definitions` address computation | **100%** |
-| `modbus` framing, correlation, timing | **95%** |
-| `protocol` codecs and schemas | **95%** |
-| `core` device decode and lifecycle | 90% |
-| everything else | none |
-
-**RT-10 — Mutation testing (Stryker) on address computation and codecs, weekly.** Those two cannot
-be checked against hardware for the cases that matter most, so we verify the *tests* rather than
-trust them.
-
-## Style
-
-**RT-11 — No wall-clock sleeps.** Fake timers or an injected clock. A test that sleeps is a test that
-goes flaky on the CI runner.
-
-**RT-12 — Tests are independent and order-free.** No shared mutable module state.
-
-**RT-13 — No mocking our own code in integration tests** — use the simulator. Mocks assert what we
-believe; the simulator asserts what the maps say.
-
-**RT-14 — Hardware tests read the wiring from `rig.yaml`,** call `rig reset` in `beforeEach`, and are
-safely re-runnable after a crashed run. A test that hardcodes a channel number is a bug.
-
-`describe` names the unit; `it` reads as a sentence:
-`it('returns device_offline when the slave does not answer')`.
+Notes: 
+- Test driver will have methods to on/off device or break some communication - TBD - must think it thru
