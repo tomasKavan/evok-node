@@ -33,10 +33,10 @@ Unit test should be performed on every save or at least before every commit. Uni
 
 ### Tier 2: Simulator testing
 
-First level of E2E test is simulator. There is a set of [simulator tools](/packages/simulator/README.md), documented in [`/docu/dev/design/simulator`](/docs/dev/design/simulator/README.md). E2E Test Runner (see [End to end (E2E) test runner](#end-to-end-e2e-test-runner)) runs prescribed tests using simulation tools.
+First level of E2E test is simulator. There is a set of [simulator tools](/packages/simulator/README.md), documented in [`/docu/dev/design/simulator`](/docs/dev/design/simulator/README.md). E2E Test suite (see [End to end (E2E) test suite](#end-to-end-e2e-test-suite)) runs prescribed tests using simulation tools.
 
 [R ??] **Simulator testing**
-Tests configuration lives in [`/tests/battery`](/tests/battery/). To learn how to write test follow to [End to end (E2E) test runner](#end-to-end-e2e-test-runner).
+Tests lives in [`/tests/e2e/sim`](/tests/e2e/sim/). To learn how to write test follow to [End to end (E2E) test suite](#end-to-end-e2e-test-suite).
 
 [R ??] **Simulator testing: Transport** 
 Thoroughly test each transport - (`0xFFFF → 0`, ≥200 000 transactions), asserting every response matches its own request. Plus one test per injectable fault, and specifically **stale-frame desync**: timeout, late response, next request to the same unit and function code — the late response must be rejected, never returned as the new answer.
@@ -49,25 +49,40 @@ Thoroughly test each transport - (`0xFFFF → 0`, ≥200 000 transactions), asse
 The only exemption is a finding dispositioned `construction` in [`/docu/dev/research/14`](/docs/dev/research/14-bug-dispositions.md).
 [/]
 
-Tests on simulator can be run by `npm run test:simulate` (real command behind npm call - TBD). 
+Tests on simulator can be run by `npm run test:simulate` (real command behind npm call - `vitest --project e2e-sim`). 
 
 Simulator tests should be performed before every push. Simulator tests are run by CI in Github on PR.
+
+#### Coding and testing a simulator
+
+[R ??] **Devices and transports must be backed by simualor for testing**
+For all supported devices, like Unipi onboard sections, Unipi extensions and sensors, 3rd party devices connected using Modbus etc., you must code a simulator for testing purposes. Simulator must expose all supported features of simulated device (eg. temperature sensor over Modbus RTU must expose calls to set observed temperature which must translates to respective modbus registers).
+
+Similar for all suported transport layers. Modbus TCP/RTU, Onewire and all other transport layers must have respective simulators. Device simulators use instances of transport simulators.
+
+[R ??] **Simulator validation**
+Simulator static behavioar should be validated against generated fixuters with device registers. Validation should be done by unit tests. Fixtures hasn't common format - only device's unit test module must understand it. Usual process is: Obtain documentaiton from device vendor -> Generate fixtures in machine readable format -> Implement fixture reading in unit test module -> Write proper unit test module for device's simulator.
+
+Dynamic behaviour may on be captured by fixtures, but rather implemented directly in unit test module.
 
 ### Tier 3: Hardware rig testing
 
 Second level of E2E test is physical hardware test rig. Test rig is set up on maintainer premisess and only maintainer can run tests on it. 
 
-Test rig is controlled by [test rig service](/packages/rig/README.md), documented in [`/docu/dev/design/test-rig`](/docs/dev/design/test-rig/README.md). E2E Test Runner (see [End to end (E2E) test runner](#end-to-end-e2e-test-runner)) runs prescribed tests using test rig client library.
+Test rig is controlled by [test rig service](/packages/rig/README.md), documented in [`/docu/dev/design/test-rig`](/docs/dev/design/test-rig/README.md). E2E Test Suite (see [End to end (E2E) test suite](#end-to-end-e2e-test-suite)) runs prescribed tests using test rig client library.
 
 [R ??] **Test rig tests scope**
-Test rig should run the same tests as simulator does. Some simulator tests might be explicitly ommited due to a lack of HW or Test rig cappabilities - in this case allways explain in the test config comments. 
+Tests lives in [`/tests/e2e/rig`](/tests/e2e/rig/). Test rig should run the same tests as simulator does. Some simulator tests might be explicitly ommited due to a lack of HW or Test rig cappabilities - in this case allways explain in the sim test comments. 
 
 Might add some additional test suitable only for HW rig.
 [/]
 
-Tests on rig can be run by `npm run test:rig` (real command behind npm call - TBD). 
+Tests on rig can be run by `npm run test:rig` (real command behind npm call - `vitest --project e2e-rig`).
 
 Test rig tests should be performed before every release of a new version by maintainer.
+
+[R ??] **Simluator and HW rig test batteries are disjointed**
+To keep things simple it was decided to have simulator and HW rig tests defined separately. The divergence risk is accepted and it might be addressed in the future.
 
 ### Other and common testing rules
 
@@ -80,13 +95,78 @@ No shared mutable module state.
 [R ??] **No mocking our own code in E2E tests** 
 If you need to mock there - use the simulator. Mocks assert what we believe; the simulator asserts what the maps say.
 
-## End to end (E2E) test runner
+## End to end (E2E) test suite
+
+Vitest based test suite to perform e2e tests. It lives in [`/tests/e2e`]. 
 
 ### Architecture
 
-### Test configuration
+```
+tests/e2e/
+  vitest.config.ts
+  harness/
+    context.ts      // test context 
+    define.ts       // definitions, platform getters, config factory, test factory
+    platform-sim.ts // simulator specific factory - uses `simulators` 
+    platform-rig.ts // rig specific factory - uses `test-rig`. Init and deploy to test rig, controlling rig over `test-rig`
+    global-setup.ts // setup for vitests
+  sim/
+    sim01-di-edge-to-ws.test.ts
+  rig/
+    rig01-di-edge-to-ws.test.ts
 
+```
 
+### Test definition
+
+Example of rig test (inspiration only, calls might be different):
+```ts
+// /tests/e2e/rig/01-di-edge-to-ws.test.ts
+
+import { expect } from 'vitest'
+import { platform, e2e, makeConfig } from '../harness/define.js`
+import { race, setExTimeout } from '../harness/helpers.js'
+
+const HARD_TIMEOUT_MS = 1000
+const BUDGET_MS = 600
+
+const config = makeConfig({
+  id: 'di-edge-to-ws'
+  title: 'DI rising edge arrives as nextgen WS diff',
+  description: 'DI test on HW rig'
+})
+
+e2e(config, (test) => {
+  test(config.title, async ({ ctx }) => {
+
+    // init HW rig
+    const rig = await platform.getRig()
+
+    // get first controllable DI and set it to false
+    const device = rig.getDevice(platform.Rig.M527)
+    const dis = device.controllableDis()
+    expect(dis.length).toBeGreatherThan(0)
+    const di = dis[0]
+    await device.set(dis, false)
+
+    // get nextegn cli and check if DI is false
+    const cli = await platform.openNextgenCli(device)
+    await expect.poll(() => cli.get(di)).toBe(false)
+
+    // subscribe
+    const onEvent = await cli.subscribe(di)
+
+    // set DI to 1 and wait for event
+    const t0 = ctx.stopwatch.mark()
+    await device.set(dsi, true)
+    race(setExTimeout(1000), () => { 
+      const diff = await t0.next()
+      expect(diff).toMatchObject({ address: di.address, value: true })
+      expect(ctx.stopwatch.since(t0)).toBeLessThan(BUDGET_MS)
+    })    
+  })
+})
+```
 
 ## Fixtures
 
@@ -105,83 +185,3 @@ Don't tweak with handwritten fixtures, unless you are asked to do it.
 [/]
 
 ### TODO - describe each fixture we have, how it's build and where it's used
-
-
-
-
-Notes:
-- 3 tiers - unit, simulator, hardware
-- unit - each component it's own battery of tests `src/**/*.test.ts`
-- simulator - end to end tests againts simulator of each transport
-- hardware - end to end tests againts harware test rig
-
-Platforms:
-- Simulator for each transport 
-  - staticly configured (prescription with predefined actions on time or input events)
-  - independed of specific hw configuration - this is on antoher layer
-  - Modbus, Onewire, ...
-  - lives in /packages/simulator, docu in /docu/dev/design/simulator 
-- HW Test Rig
-  - 
-
-Test tools:
-- Test drivers - performing test prescription using specific platform
-- Unipimodbus test driver (simulator, rig)
-  - For Simulator: understands hw_definition format and using simulator to emulate specific unipi devices
-  - For Test rig: uses test rig to setup and communicate with physical unipi device
-- Test drivers allows to define test scripts, but unifying communication with test platform
-- Unified format to configure driver (yaml manifest + script/multiple script files)
-- lives in /packages/test-drivers/
-
-E2E tests:
-- defined in /tests/XX-test-name/
-- E2E tests uses test drivers to run E2E test on both platforms
-- E2E test is configuration for test driver
-- TBD: expected result and assert
-
-Test config:
-- platform: simulator, rig
-  - device(s): Unipi PLC
-  - extensions/accessories (simulator only - rig is static): what it is and where it's connected
-- evok-node configuration
-- test script (async function receiving test runner instance)
-
-Test runner process:
-- Inits with a test config and options
-- Based on target platform it 
-  - Prepares HW rig
-    - Checks if target devices are available.
-    - Build deb from worktree 
-    - Installs deb on rig devices (using rig module)
-  - Setup simulator
-    - Build evok-node in worktree
-    - Init simulators for onboard, extensions and other defined devices
-- Runs the test script
-  - Offers commands to test script:
-    - S,R start/stop evok-node
-    - S,R wait ms
-    - 
-  - Command implementation might be differen based on platform, eg: Start/stop runs from local build in simulator or calls rig cli start/stop on rig.
-
-For E2E tests we need:
-- capture EVOK model api response on hws we own and store it as reference
-- finish hw_definitions
-- define test configuration format
-- write test drivers
-- write E2E test runner (runs test drivers, configure and run evok-node)
-
-Procedure and Pseudocode of E2E test:
-We'll test if setting up DI.1 will appear in nextgen api response
-1. In manifest we set a set of device types to run this test on simulator and on rigs
-2. Evok node config file (config.yaml) will be a template allowing test runner to replace some configs (like port)
-3. In main.test.ts file we'll return an async function with runner instance as param
-4. We'll wait until runner is ready
-5. Runner will provide connection params for each api it runs
-6. We'll connect to nextgen api and check status of DI.1
-7. Runner provides test driver instance for each transport
-8. We'll use modbus TCP (onboard) driver to set DI.1 to true
-9. Wait a couple of ms (or mabye until driver confirms it is set)
-10. Read status of DI.1 again
-
-Notes: 
-- Test driver will have methods to on/off device or break some communication - TBD - must think it thru

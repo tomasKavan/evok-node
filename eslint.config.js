@@ -71,8 +71,7 @@ export default tseslint.config(
     ignores: [
       '**/dist/**',
       '**/coverage/**',
-      // Fixtures and the official register maps are measurements and ground truth,
-      // not code. RT-1.
+      // Fixtures and the official register maps are measurements and ground truth, not code.
       'fixtures/generated/**',
       'fixtures/captured/**',
       'docs/modbus-reg-map/**',
