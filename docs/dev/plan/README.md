@@ -15,19 +15,19 @@ Neither [`research`](/docs//dev/research/README.md) nor [`design`](/docs/dev/REA
 
 ## Rules
 
-[R ??] **`STATUS.md` is updated in the same PR as the work.**
+### **`STATUS.md` is updated in the same PR as the work.**
 `STATUS.md` is updated in the same PR as the work. Not afterwards, not in a batch. A PR that completes a task and leaves `STATUS.md` stale is incomplete; the checklist item exists for this.
 
-[R ??] **A task is done when its acceptance criteria are demonstrable**
+### **A task is done when its acceptance criteria are demonstrable**
 A task is done when its acceptance criteria are demonstrable, not when the code exists. Demonstrable means a test, a command someone can run, or a captured artefact.
 
-[R ??] **Diverent reality from the plan.**
+### **Diverent reality from the plan.**
 When reality diverges from the plan, change the plan in the PR that diverges. Silent drift is what makes a plan worthless. A one-line note saying why is enough.
 
-[R ??] **Agents do not invent milestones.** 
+### **Agents do not invent milestones.** 
 Milestones are `M`, numbered in `roadmap.md`, and only humans adds one. If work doesn't fit the current milestone, open an issue proposing it and continue with what does fit. Mid-task scope creep is expensive to unwind. The roadmap does not run ahead of what is understood: it ends at the last milestone whose shape is actually known, and grows from there.
 
-[G ??] **Milestone files stay under one page.** 
+### **Milestone files stay under one page.** 
 If a milestone needs more than 1 page, it is probably two milestones.
 
 ## Task format

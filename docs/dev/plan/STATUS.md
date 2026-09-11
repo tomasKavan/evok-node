@@ -20,10 +20,6 @@
 - Dev docs README.md is finalized. Documentaiton has rules.
 - AGENTS.md has generic rules and some roles defined, but some role's reading paths and instructions for specific roles are yet TBD.
 
-Next:
-- TBD - write all design documentation (up to point where development can start). 
-- TBD - script to refresh docu numbering and rule numbers (+ create rule index)
-
 ## Next
 
 **Not yet defined.** M3 defines it (RPL-4). No milestone numbers past M3 exist, and none should be

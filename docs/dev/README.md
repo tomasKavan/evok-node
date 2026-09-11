@@ -63,7 +63,7 @@ All documents in `/docs` and subfolders are numbered (except for READMEs). Doubl
 
 Referencing symbol is `A.BB.C(.D)*`; where `A` is directory number from numbered list above, `BB` is document number, `C` is main section number and `D` is nested section number. *Note: README.md files aren't numbered. Use `RD` instead of file number in `BB`.* 
 
-Directories numbers are reserved forever. Always add to the end. If directory is removed, don't fill gaps.
+Directories numbers are reserved forever. Always add to the end. If directory is removed, don't fill gaps If inserting, use low letter - like 1a inserted between 1 and 2.
 
 Sections are numbered at headings. Always use correct nesting of heading. Eg:
 
@@ -74,57 +74,13 @@ Sections are numbered at headings. Always use correct nesting of heading. Eg:
 ## 2. Section 2
 ```
 
-There is tool to regenerate docu numbering `@/tools/regenerate-docu-numbering.ts`. It's auto called with `TODO decide and add npm script`. 
-
-- **Inserting** section/subsection - use `??` instead of number. 
-- **Moving** section/subsection - keep old number. Script will fix it.
-- **Removing** section/subsection - don't fix following numbering. Script'll fix it.
-
-Script allways regenerates numbering to have clean sequence from 1.
-
-### 4.2. Rules system
-
-Parts of documentation might be marked as important rules or notes. Severity list:
-
-- **R** - Rule - MUST / MUST NOT
-- **G** - Guideline - SHOULD, overridable with a reason
-- **C** - Convention - naming, formatting, structure
-- **X** - Anti-pattern - explicitly forbidden
-- **N** - Note - rationale
-
-Rules are addressable: `[S A.BB.C(.D)*-XX]`; where `S` is severity from list above. `A`, `BB`, `C` and `D` - same meaning as in layout. `XX` is rule number within a section.
-
-Rule in text is starting with `[address] ` followed by name/title. `address` is rule address described above. All following paragraphs until the section/subsection end are rule content. Rule content is also stopped by mark `[/]` or by start of another rule.
-
-- **Inserting** rule - use `??` instead of number/whole address. 
-- **Moving** rule - keep old number.
-- **Removing** rule - don't fix following numbering.
-
-Script regenerating docu numbering is also regenerating rules addresses and creating [`rule-index.md`](./rule-index.md).
-
-### 4.3. Citing
-
-Use citations as much as possible. It's good practice to use verb from following dictionary before each citation:
-
-- **see** - informational cross-reference
-- **per** - this text follows from that rule
-- **implements** - code or spec satisfying it
-- **verifies** - test covering it
-- **violates** - known deviation, needs waiver
-- **supersedes** - this rule replaces that one
-
-Citing sections/subsection or rule is easy - just use it's address:
-
-```
-see [3.02.1.2](/docs/design/evok-node/02-Configuration.md#1.2)
-per [R 3.02.1.2-01](/docs/design/evok-node/02-Configuration.md#R-3.02.1.2-01)
-```
-
-Script regenerating docu numbering is also regenerating citations and setting up anchors into source documents.
+- **Inserting** section/subsection - use low-case letter instead of number. Eg. 1a to insert between 1 and 2. 
+- **Moving** section/subsection - keep the old number.
+- **Removing** section/subsection - keep the number in the list, but put "REMOVED" in the title and delete content.
 
 ### 4.4. Style
 
-[G ??] What to document - why, never what
+#### What to document - why, never what
 
 **Document the non-obvious *why*, never the *what*.** The what is in the code and the types.
 
@@ -137,12 +93,10 @@ Do write:
 > Reads from the cache snapshot, not the bus. Returns `null` if the block has never been read —
 > "no value yet" and "value 0" are different, and clients depend on the distinction.
 
-[R ??] JSDoc on every exported symbol
+#### JSDoc on every exported symbol
 
 One summary line, plus `@param`/`@returns` only where the name isn't self-explanatory. Not required on internal functions; an internal function that needs explanation to be understood should be renamed or split.
 
-[X ??] Marketing tone
+#### Marketing tone
 
 This is an industrial control library; the audience wants precision. Marketing or relaxed tone of documentation is undesired.
-
-[/]
