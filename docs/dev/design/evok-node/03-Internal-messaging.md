@@ -30,7 +30,7 @@ deployment choice instead of a rewrite.
 **Inputs:** research/12 · research/08 (latency and scan budget) · to_revision/0002, 0003, 0004
 
 **Open:** subscribe, as above. Also whether failures cross the boundary as envelopes or as thrown
-errors — 06's "do not throw" rule leans one way, ergonomics the other.
+errors — 05's "do not throw" rule leans one way, ergonomics the other.
 
 
 -- from former ADRs

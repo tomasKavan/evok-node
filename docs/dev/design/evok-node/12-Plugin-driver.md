@@ -18,7 +18,7 @@
 - **Logging standards** for plugin authors.
 - A **worked minimal example** — small enough to read in one sitting.
 
-**Inputs:** 03 · 06 · [`rules/packages/drivers.md`](../rules/packages/drivers.md) · to_revision/0003
+**Inputs:** 03 · 05 · [`rules/packages/drivers.md`](../rules/packages/drivers.md) · to_revision/0003
 
 **Open:** the plugin isolation model is **deliberately deferred** (recorded in
 [`STATUS.md`](../plan/STATUS.md)), and G-1's one-process-for-now means the message boundary is all

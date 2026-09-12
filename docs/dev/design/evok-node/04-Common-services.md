@@ -1,10 +1,10 @@
-# 05 — Common services
+# 04 — Common services
 
 > **Memo, not content.** What belongs in this file, and what it gets written from. Written during
 > [M3](../plan/roadmap.md); do not implement against a memo.
 
 **Job:** the shared runtime a module may rely on — everything that is not messaging (03), config (02)
-or storage (04).
+or the KV-store driver (06).
 
 **This file is filled in on demand.** An entry appears here only once a **second** file needs it; one
 caller is not a common service. Expect it to be the last of these files to settle.

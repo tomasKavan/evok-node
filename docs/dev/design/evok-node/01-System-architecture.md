@@ -46,11 +46,13 @@ An **address** is `<driverId>:<tail>`. The tail is owned by the driver that issu
 
 **Introspection is a driver describing itself**, not only listing its endpoints: its type, its configuration, its capabilities, and the endpoints it has. It is always reachable — every driver answers it — and it is how an api discovers what a driver offers without knowing the driver exists at build time. What exactly an endpoint declares about itself — kind, data type, which operations it supports — is 06's and 13's job to define; this file only requires that the declaration exists and that an api can act on it generically.
 
-## 7. Transport drivers and shared transports
+## 7. Sharing a driver-owned resource
 
-A transport — a serial line, a TCP socket, an owserver connection — may be shared by devices of different kinds that a single driver module should not have to understand together (an air-quality sensor and an AC controller on one RS-485 line, written as separate plugins). The transport is still owned by exactly one driver — a **transport driver** — and every other driver on that line holds no client of its own on the port. A device driver reaches the bus by requesting a leased, time-budgeted transaction from the transport driver that owns it, over the same request/response mechanism used everywhere else (§5). This is driver-to-driver messaging, and it is the only sanctioned kind — drivers do not otherwise depend on each other.
+A resource one driver owns — a transport, a KV namespace — can be shared by other drivers that should not each hold a client of their own on it. It stays owned by exactly one driver, and every other driver reaches it through that owner, over the same request/response mechanism used everywhere else (§5). This is driver-to-driver messaging, and it is the only sanctioned kind — drivers do not otherwise depend on each other.
 
-This is still the two-kind model: a transport driver is a driver like any other, distinguished only by what it exposes — transactions, to other drivers — not by being a new kind. Which device driver leases from which transport driver is a config property of the device driver; 07 has the concrete shape for Modbus.
+What the owning driver manages differs by resource, and that is the point of putting it there rather than in every caller. A **transport driver** arbitrates and routes: it owns a serial line, a TCP socket, an owserver connection, and resolves races between whichever device drivers share it — an air-quality sensor and an AC controller on one RS-485 line, written as separate plugins, say. A device driver on that line declares, in its own config, which transport driver it shares and its own address on that transport: addressing is the device driver's concern, arbitration is the transport driver's. A **KV-store driver** (06) manages no races at all; it separates callers by namespace, defaulting to the caller's own driver id from config and overridable there.
+
+This is still the two-kind model: an owning driver is a driver like any other, distinguished only by what it exposes to other drivers, not by being a new kind. 07 has the concrete shape for Modbus; 06 has it for the KV store.
 
 ## 8. Non-blocking as a structural rule
 
@@ -77,6 +79,7 @@ evok-node can be extended without changing its own code, at two different levels
 | Package | Role |
 |---|---|
 | `messaging` | The wire contract: envelope, request/event shapes, correlation, deadlines, fan-in. Depends on nothing of ours. |
+| `plugin-sdk` | The module contract: `ModuleDescriptor`, `ModuleInstance`, `InstanceContext`, and the runtime guard a loaded module is checked against (02 §4). Published to npm, like `client`, for third-party plugin authors. |
 | `hw-definitions` | Platform facts — device/model definitions, generated inventory. |
 | `modbus` | The Modbus transport. |
 | `main` | Orchestration: config, the runner, spawn, supervise, reload. |
@@ -90,4 +93,4 @@ evok-node can be extended without changing its own code, at two different levels
 | `ui` | The inspector SPA, served by `api-nextgen`. |
 | `rig` | The hardware-in-the-loop test instrument, deliberately outside the messaging graph. |
 
-The complete set of permitted edges between these packages is `.dependency-cruiser.cjs`'s `WORKSPACE_DEPS` table — that file, not this one, is what a build actually enforces. A driver not yet built (`driver-onewire`, `driver-system`, `driver-store`) is still one of the two kinds above, never a third.
+The complete set of permitted edges between these packages is `.dependency-cruiser.cjs`'s `WORKSPACE_DEPS` table — that file, not this one, is what a build actually enforces. A driver not yet built (`driver-onewire`, `driver-system`, `driver-kv-store`) is still one of the two kinds above, never a third.

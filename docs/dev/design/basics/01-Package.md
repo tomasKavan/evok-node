@@ -25,7 +25,7 @@ Relevant to the tool:
 - **[`messaging`](/packages/messaging)** - the internal driver↔API contract: envelopes, introspection. Documented in [03-Internal-messaging](/docs/dev/design/evok-node/03-Internal-messaging.md).
 - **[`modbus`](/packages/modbus)** - modbus transport layer: framing, correlation, timing, circuit breakers.
 - **[`hw-definitions`](/packages/hw-definitions)** - unipi hardware definitions. Relevant mostly for `driver-onboard` and `driver-extension`.
-- **[`driver-kit`](/packages/driver-kit)** - shared driver runtime: scan loop, reading state, handshake, introspection. See [06-Driver.md](/docs/dev/design/evok-node/06-Drivers.md).
+- **[`driver-kit`](/packages/driver-kit)** - shared driver runtime: scan loop, reading state, handshake, introspection. See [05-Drivers.md](/docs/dev/design/evok-node/05-Drivers.md).
 - **[`driver-onboard`](packages/driver-onboard)** - the controller's own I/O sections, over Modbus TCP. Documented in [08-Onboard-driver.md](/docs/dev/design/evok-node/08-Onboard-driver.md).
 - **[`driver-extension`](packages/driver-extension)** - Unipi RTU extensions, one instance per RS-485 line. For docu see [09-Extension-driver.md](/docs/dev/design/evok-node/09-Extension-driver.md).
 - **[`api-nextgen`](packages/api-nextgen)** - Our new WebSocket + HTTP API/surface. Owns its public schema. Documented in [15-Nextgen-API.md](/docs/dev/design/evok-node/15-Nextgen-API.md).
@@ -36,6 +36,7 @@ Supporting, testing and other:
 - **[`simulator`](packages/simulator)** - Tool to simulate modbus slave based on given static map and configurable event reaction. See [`design/simulator`](/docs/dev/design/simulator/README.md).
 - **[`rig`](packages/rig)** - hardware-rig control service. Private, low level access to devices. No sharing code with main tool. Documented in [`design/test-rig](/docs/dev/design/test-rig/README.md). Rig is private package.
 - **[`client`](packages/client)** - Nextgen API TypeScript client. Based on [user docu](/docs/user/README.md), TBD: deployed to npm `@evok-node/nextgen-cli-ts.
+- **[`plugin-sdk`](packages/plugin-sdk)** - published types (`ModuleDescriptor`, `ModuleInstance`, `InstanceContext`) and the runtime guard (`isModuleDescriptor`) a driver or api plugin author builds against — the same check `main` runs on a loaded module. Published to npm, like `client`. See [02-Main-and-configuration.md §4](/docs/dev/design/evok-node/02-Main-and-configuration.md).
 - **[`evok-migration`](packages/evok-migration)** - Migration tool to convert classic evok config to `evok-node` format. See in [Rplacing classic evok](#replacing-classic-evok).
 
 ## 2. Toolchain

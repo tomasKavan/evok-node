@@ -19,6 +19,7 @@
 - Root README.md is finalized, TBD at URLs which is uknown at the moment.
 - Dev docs README.md is finalized. Documentaiton has rules.
 - AGENTS.md has generic rules and some roles defined, but some role's reading paths and instructions for specific roles are yet TBD.
+- 02 §4 designed `plugin-sdk` — published types (`ModuleDescriptor`, `ModuleInstance`, `InstanceContext`) and the runtime guard (`isModuleDescriptor`) a plugin author builds against, and that `main` checks a loaded module with. **Not yet scaffolded** — `packages/plugin-sdk` does not exist, and `.dependency-cruiser.cjs` does not yet carry its edges: `main`, `driver-onboard`, `driver-extension`, `api-nextgen`, `api-compat` and `driver-kit` all depend on it. Coder work, not started; this is a note so it isn't lost before then.
 
 ## Next
 

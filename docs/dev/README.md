@@ -38,7 +38,7 @@ Official relases are tagged and build from `main` and released by maintainer onl
 
 ## 3. Architecture, coding basics and rules
 
-Because of agentic coding, the [design documentation](./design/evok-node/README.md) must be completed and approved before coding. Design documentation must be accurate - if you need divert, open an issue and discuss it. If you want to write new, please do the same.
+Because of agentic coding, the [design documentation](./design/evok-node/README.md) for each step must be completed and approved before coding. But agents can do gradual increments. The minimal coding step should be 1 design document (more if one doesn't make sense alone). Design documentation must be accurate - if you need divert, open an issue and discuss it. If you want to write new, please do the same.
 
 Design documentation is structured and each part has written list of prerequisities. This allows you to get familiar with only the right subset to solve the task.
 
