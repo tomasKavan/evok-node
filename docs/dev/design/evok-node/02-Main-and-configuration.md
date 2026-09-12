@@ -1,13 +1,12 @@
-# 02 — Configuration
+# 02 — Main: configuration and runner
 
-> **Memo, not content.** What belongs in this file, and what it gets written from. Written during
-> [M3](../plan/roadmap.md); do not implement against a memo.
+> **Memo, not content.** What belongs in this file, and what it gets written from. Written during [M3](../plan/roadmap.md); do not implement against a memo. Renamed from "02 — Configuration" once the runner (01 §4) was placed here rather than in its own file.
 
-**Job:** how one config file becomes a running set of module instances, and how it changes without a
-restart.
+**Job:** how one config file becomes a running set of module instances hosted by runners, and how it changes without a restart.
 
 **Covers**
 
+- **The runner.** How `main` hosts a driver or api instance identically across the `single_thread`, `worker_thread` and `child_process` placements, and enforces its lifecycle (construct → configure → handshake → run → reload → drain → stop) the same way regardless of which one it is. 01 §4 states the concept and the guarantee; the mechanics belong here.
 - **Structure.** What is global, what is per-instance, and what a module owns outright. Instance
   identity — the thing reload compares on — is decided here.
 - **The parse pipeline:** read → shape-validate (zod) → semantic-validate → resolve → hand each module

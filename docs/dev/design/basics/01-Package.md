@@ -21,7 +21,7 @@ To organize source code and logic modules npm workspaces are used. All source co
 ### 1.1. Package list
 
 Relevant to the tool:
-- **[`main`](/packages/main/)** - the daemon: config, validation, spawn, supervise, reload. Documented in this file, in [01-Achitecture](/docs/dev/design/evok-node/01-System-architecture.md) and in [02-Configuration.md](/docs/dev/design/evok-node/02-Configuration.md).
+- **[`main`](/packages/main/)** - the daemon: config, validation, spawn, supervise, reload. Documented in this file, in [01-Achitecture](/docs/dev/design/evok-node/01-System-architecture.md) and in [02-Main-and-configuration.md](/docs/dev/design/evok-node/02-Main-and-configuration.md).
 - **[`messaging`](/packages/messaging)** - the internal driver↔API contract: envelopes, introspection. Documented in [03-Internal-messaging](/docs/dev/design/evok-node/03-Internal-messaging.md).
 - **[`modbus`](/packages/modbus)** - modbus transport layer: framing, correlation, timing, circuit breakers.
 - **[`hw-definitions`](/packages/hw-definitions)** - unipi hardware definitions. Relevant mostly for `driver-onboard` and `driver-extension`.
@@ -85,7 +85,7 @@ Contains the tool, configuration, migration script and system.d service.
 
 Package lives in [`/packages/main`](/packages/main/README.md).
 
-System.d service responds to `start`, `stop`, `restart` and `reload` commands. Reload is described in [02-Configuration](/docs/dev/design/evok-node/02-Configuration.md).
+System.d service responds to `start`, `stop`, `restart` and `reload` commands. Reload is described in [02-Main-and-configuration](/docs/dev/design/evok-node/02-Main-and-configuration.md).
 
 Configuration file is `/etc/evok-node/config.yaml`. Runtime data goes to `/var/lib/evok-node/` directory.
 
@@ -109,4 +109,4 @@ To replace `evok` with `evok-node` with preserving configuration it's necessary:
 
 `evok-node` has `evok` configuration [migration tool](/packages/evok-migration). Migration tool understands.
 
-TBD: define how the migration script should be designed. We'll know more once 02-Configuration is ready.
+TBD: define how the migration script should be designed. We'll know more once 02-Main-and-configuration is ready.

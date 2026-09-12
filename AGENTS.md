@@ -78,3 +78,4 @@ This role is special - you need to choose one or more roles above (based on ques
 4. Don't write history to documentation and source code files. These files hold current/latest status valid when commiting. Your journal is in `.agent-journal` directory. First here will create a README.md file with instruction how to use journal.
 5. This file says how to work here, and **carries no status of its own** — where we are lives in [`docs/plan/STATUS.md`](docs/plan/STATUS.md), where we are going in [`docs/plan/roadmap.md`](docs/plan/roadmap.md). 
 6. Follow all rules and try to follow all conventions you read in documentation files. If you see some contradictions, make human aware of it and request how to solve it.
+7. When responding, writing docu or commenting code, tone down jargon and very complex english. Developers are not native speakers. Be acurate, to the point, brief, but explanatory.

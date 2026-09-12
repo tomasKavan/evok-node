@@ -1,59 +1,93 @@
 # 01 — System architecture
 
-> **Memo, not content.** What belongs in this file, and what it gets written from. Written during
-> [M3](../plan/roadmap.md); do not implement against a memo.
+## 1. Scope
 
-**Job:** the shape of the daemon — two component kinds, one orchestrator, and the seams that let
-components move without being rewritten.
+This file states the shape of the daemon: what kinds of component exist, how an instance of one is hosted regardless of where it runs, and the seams that keep those two questions independent of each other. It is deliberately silent on the concrete — how a specific driver polls a specific bus, what a specific api's wire format looks like, how configuration is parsed — which is 02's, 03's, 06's and 13's job, and further down, the numbered files under each. Read this file first; nothing later is allowed to contradict it.
 
-**Covers**
+## 2. Two component kinds, no third
 
-- **`main` orchestrates:** config, validation, spawn, supervise, reload. It is on **no request path**.
-  Say what that buys and what it forbids.
-- **Drivers act, APIs query.** There is no third component kind — anything that would have been one is
-  a driver whose transport is not Modbus.
-- **The four plugin kinds** and what distinguishes them: driver plugin, API plugin, in-driver plugin
-  (device definitions, data types, chip families), inspector plugin (UI for the above).
-- **Non-blocking loop as architecture, not style.** What "never block" means at each seam, and where
-  work that cannot honour it is supposed to go instead.
-- **The isolation seam.** G-1 says one process *for now*, and `to_revision/0004` proposes going further
-  to single-threaded — deciding which of those 1.0 actually commits to is this file's job. Either
-  way, a driver or API must be movable into a worker thread or a separate process **without changing
-  its code**. What that costs, and what it therefore
-  forbids: shared mutable state, direct imports across components, clone-hostile payloads.
-- **APIs choose their drivers.** An API declares which drivers it can consume and which endpoints it
-  exposes. Compat's narrow fixed set versus nextgen's open one, and why that asymmetry is correct.
-- **The runner.** The module that hosts a component instance, wires its messaging and enforces its
-  lifecycle identically regardless of where it runs. This is the piece that makes placement a config
-  decision.
-- The package-to-component mapping, with the layering DAG in `.dependency-cruiser.cjs` as its
-  enforceable form.
+Every running piece of evok-node is a **driver**, an **api**, or **main** — and main is not a third kind, it orchestrates the other two and never appears in a request path.
 
-**Inputs:** research/12 · to_revision/0001, 0002, 0003, 0004 ·
-[`GOALS.md`](../GOALS.md) invariants · `.dependency-cruiser.cjs`
+- **A driver owns exactly one transport endpoint** — a bus, a socket, a line, the filesystem, a process-exec surface. It polls or listens, holds the only in-memory copy of what it knows, answers queries from that memory, and describes itself through introspection (§6). System configuration and user data are drivers too: their transport is the filesystem and a database file instead of Modbus, and that is the only difference that matters.
+- **An api is a stateless translator** between the internal message bus and one public protocol. It holds no device state and caches no readings. Whatever it does hold — subscriptions, sessions, a schema cache — is rebuilt on restart, never a second copy of what a driver already owns.
+- **main parses config, spawns, supervises and reloads** — drivers and apis, not itself. It sits on no request path: no client request and no scan result ever passes through main's own code.
 
-**Open:** whether in-driver and inspector plugins are real extension points at 1.0, or just internal
-structure we should stop calling plugins.
+Anything that looks like it needs a third kind is a driver whose transport happens not to be Modbus.
 
+## 3. Placement
 
+Where a driver or an api actually executes is a configuration property of that instance, not a property of its code. Three placements exist:
 
-TO review - from GOALS.md
+| Placement | Runs | Default |
+|---|---|---|
+| `single_thread` | inside `main`'s own event loop | yes |
+| `worker_thread` | a Node `worker_thread` | — |
+| `child_process` | a separate OS process | — |
 
-1. **G-1 — Driver↔API is a serialisable message boundary.** Not a function-call interface that happens to
-   be crossable. One process for now; splitting components into separate processes later must be
-   additive. A function-call boundary leaks callbacks, class instances and Buffers and makes the
-   split a rewrite. Supersedes the "purely additive later" framing in
-   [research/05](research/05-evok-node-design-notes.md) §5 and §7.3.
+A component's own code is written once and is correct under all three; only the runner hosting it (§4) differs. This is possible only because nothing may cross the driver↔api boundary except serialisable data — no callbacks, no class instances, no `Buffer`s, no shared mutable state. `single_thread` gets that for free from discipline alone; `worker_thread` and `child_process` get it because the channel enforces it by construction. Moving a component between placements is therefore a config change, never a rewrite.
 
-3. **G-4 — One instance, one PLC.** As EVOK. Circuit ids stay flat. A SPA may point at several
-   instances and aggregate client-side.
+## 4. The runner
 
-5. **G-6 — A driver or api module (internal or plugin) cannot compromise the daemon.** It may not starve a scan loop, hold a bus past its
-   lease, or take the process down with it. A plugin needing bus access gets a leased, time-budgeted
-   transaction through the driver that owns that bus — never a client of its own on a port a scan loop
-   owns. 
+A **runner** is what turns a driver or api module into a running instance: it constructs the module, wires its messaging to whatever channel the chosen placement provides, and enforces the same lifecycle — construct → configure → handshake → run → reload → drain → stop — regardless of which of the three placements it is. The runner lives in `main`; it is main's hosting mechanism, not a fourth component kind, and it is what main actually spawns. `main` never statically imports a driver or an api module — the runner resolves and loads one at start, by id, from the manifest.
 
+The runner's job stops at hosting. What each lifecycle step must guarantee for a driver versus an api, and how the three placements each implement the channel underneath it, is 02's job.
 
--- from forme ADRs
+## 5. The messaging boundary
 
-- 2 type of modules - drivers and APIs, main module to orchestrate, some common services. Strong emphasis on separation, modules is possible to configure to run in separate thread or process. Driver acts, API queries.
+Everything a driver and an api exchange is one of three shapes: a **request** (read, write, invoke, introspect, subscribe), a **response** to one, or an **event** (a driver pushing readings, a topology change, a health flip). All three travel in an envelope carrying a correlation id, an origin and a deadline — the deadline is part of the envelope, not a per-call-site afterthought, so nothing on this boundary can wait forever.
+
+The concrete envelope schema, its versioning, and the introspection payload shape are 03's.
+
+## 6. Endpoints and addressing
+
+An **endpoint** is anything inside a driver that can be addressed: a single channel (a relay, a temperature reading), a structured reading with no single-scalar shape (a network status block), or a callable with an effect (`invoke` — a discovery scan, say). What unifies these is not their shape but that each is one addressable, introspectable thing the driver chooses to expose. A driver does not force everything it has into a channel just because that is the most common shape.
+
+An **address** is `<driverId>:<tail>`. The tail is owned by the driver that issued it and opaque to everyone else — nothing outside that driver parses it. A tail names what it addresses inside that driver: usually one endpoint, but it may also carry an endpoint-specific selector (a value versus its counter), a sub-operation (setting a debounce rather than reading it), or name several endpoints at once. The tail's grammar is entirely the driver's to define; 03 is where a concrete grammar gets specified, per driver class.
+
+**Introspection is a driver describing itself**, not only listing its endpoints: its type, its configuration, its capabilities, and the endpoints it has. It is always reachable — every driver answers it — and it is how an api discovers what a driver offers without knowing the driver exists at build time. What exactly an endpoint declares about itself — kind, data type, which operations it supports — is 06's and 13's job to define; this file only requires that the declaration exists and that an api can act on it generically.
+
+## 7. Transport drivers and shared transports
+
+A transport — a serial line, a TCP socket, an owserver connection — may be shared by devices of different kinds that a single driver module should not have to understand together (an air-quality sensor and an AC controller on one RS-485 line, written as separate plugins). The transport is still owned by exactly one driver — a **transport driver** — and every other driver on that line holds no client of its own on the port. A device driver reaches the bus by requesting a leased, time-budgeted transaction from the transport driver that owns it, over the same request/response mechanism used everywhere else (§5). This is driver-to-driver messaging, and it is the only sanctioned kind — drivers do not otherwise depend on each other.
+
+This is still the two-kind model: a transport driver is a driver like any other, distinguished only by what it exposes — transactions, to other drivers — not by being a new kind. Which device driver leases from which transport driver is a config property of the device driver; 07 has the concrete shape for Modbus.
+
+## 8. Non-blocking as a structural rule
+
+Nothing on the driver↔api boundary may block: an api's query is answered from a driver's in-memory state, never from a live bus read, so a slow answer means the driver is genuinely wedged rather than that the bus was slow this once.
+
+`single_thread` only stays non-blocking if every component sharing that thread actually honours this — `main` has no logic here, it reads config and hands each component to the runner its config names (§3), nothing more. Keeping a component that does genuinely heavy work off `single_thread` is the administrator's decision, made once in config, not something main or the component decides at runtime. 13 says what "heavy" means for an api and 06 for a driver, so that decision can be made correctly — but making it is always the config author's job.
+
+## 9. APIs choose their drivers
+
+An api declares which driver ids it consumes; it is wired to those and nothing else — wiring is configuration, not discovery. What it does with a driver it does not recognise is the api's own business: skip it, not refuse the whole config.
+
+How open or fixed a given api's declared set is, and what it does with a driver outside it, is that api's own business to state — 14 and 15 are where each concrete api answers this.
+
+## 10. Extension points
+
+evok-node can be extended without changing its own code, at two different levels.
+
+**A new component** is a driver plugin or an api plugin — each a manifest-loaded module, hosted by a runner (§4) exactly like a built-in driver or api, because nothing in §2 through §9 distinguishes "built-in" from "plugin".
+
+**New content inside an existing driver** does not add a component. A new device or register-map definition extends what a driver already understands — 09 has the concrete mechanism for driver-extension — and a driver may also ship its own additions to the nextgen api and the inspector UI, beyond what generic introspection already exposes (17). Both stay inside the driver that declares them and leave §2's two kinds untouched.
+
+## 11. Package ↔ component mapping
+
+| Package | Role |
+|---|---|
+| `messaging` | The wire contract: envelope, request/event shapes, correlation, deadlines, fan-in. Depends on nothing of ours. |
+| `hw-definitions` | Platform facts — device/model definitions, generated inventory. |
+| `modbus` | The Modbus transport. |
+| `main` | Orchestration: config, the runner, spawn, supervise, reload. |
+| `driver-kit` | Shared driver machinery: scan scheduling, readings, handshake, introspection assembly. |
+| `driver-onboard` | The transport driver for the controller's own onboard I/O. |
+| `driver-extension` | The transport driver for one RS-485/TCP (modbus) extension line. |
+| `api-nextgen` | The open, evok-node-native api. |
+| `api-compat` | The fixed EVOK 3.x projection. |
+| `simulator` | Test-only stand-in for hardware transports. |
+| `client` | TS client retargeting `api-nextgen`'s schema. |
+| `ui` | The inspector SPA, served by `api-nextgen`. |
+| `rig` | The hardware-in-the-loop test instrument, deliberately outside the messaging graph. |
+
+The complete set of permitted edges between these packages is `.dependency-cruiser.cjs`'s `WORKSPACE_DEPS` table — that file, not this one, is what a build actually enforces. A driver not yet built (`driver-onewire`, `driver-system`, `driver-store`) is still one of the two kinds above, never a third.

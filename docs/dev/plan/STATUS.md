@@ -9,7 +9,7 @@
 
 ## Done
 
-**M1 — Research.** [`docs/dev/research/`](docs/dev/research/README.md) is the knowledge base: EVOK 3.x API surface, Unipi hardware model, config and hw-definition formats, upstream bug archaeology (29 condensed findings from ~90 raw), client compatibility matrix, latency budget, test-kit design, and the register-map corpus imported and indexed under [`docs/modbus-reg-map/`](../modbus-reg-map/README.md). [Goals](/docs/dev/design/evok-node/README.md) is authoritative on scope.
+**M1 — Research.** [`docs/dev/research/`](docs/dev/research/README.md) is the knowledge base: EVOK 3.x API surface, Unipi hardware model, config and hw-definition formats, upstream bug archaeology (29 condensed findings from ~90 raw), client compatibility matrix, latency budget, test-kit design, and the register-map corpus imported and indexed under [`docs/modbus-reg-map/`](../modbus-reg-map/README.md).
 
 **M2 — Repo scaffolding.** npm workspaces over thirteen packages; a shared strict TS base; vitest in workspace mode with coverage floors wired and switched off; `pr` and `main` CI workflows with actions pinned by SHA; eslint with the type-checked config; `dependency-cruiser` carrying the layering DAG. `npm run build`, `test`, `lint` and `layering` each exit 0 — 27 modules, 13 edges, no violations.
 
@@ -22,5 +22,5 @@
 
 ## Next
 
-**Not yet defined.** M3 defines it (RPL-4). No milestone numbers past M3 exist, and none should be
+**Not yet defined.** M3 defines it. No milestone numbers past M3 exist, and none should be
 invented.
