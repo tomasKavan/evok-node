@@ -12,7 +12,7 @@ The distinction is not academic — conflating the first two is exactly where EV
 
 ## 3. Config structure
 
-Global config is small: which drivers and apis exist, which extra plugin locations to scan (§4), and nothing else — no defaults that quietly change a module's behaviour out from under it. Everything a specific instance needs is that instance's own slice, opaque to `main` and to every other instance.
+Global config is small: which drivers and apis exist, and nothing else — no defaults that quietly change a module's behaviour out from under it. Everything a specific instance needs is that instance's own slice, opaque to `main` and to every other instance.
 
 `drivers:` and `apis:` are maps keyed by id. The key is the instance's **identity** — the thing reload compares old and new config on (§5). An id is not a device address and not a display name; renaming one is deletion plus creation, not a rename, and anything keyed on that id (the KV-store driver's default namespace, per 06) goes with it.
 
@@ -71,7 +71,11 @@ interface ModuleInstance<Config> {
   start(): Promise<void>;
   drain(): Promise<void>;
   stop(): Promise<void>;
-  reload?(config: Config): Promise<void>;   // absent ⇒ the runner reports no support (§6)
+  reload?(config: Config): Promise<void>;              // absent ⇒ the runner stops it instead (§6)
+  prepareReload?(nextConfig: Config): Promise<void>;    // releases what nextConfig won't need;
+                                                         // sibling to reload, not a replacement — a
+                                                         // module with nothing shareable to give up
+                                                         // can implement reload alone (§6)
 }
 ```
 
@@ -100,8 +104,7 @@ At startup, `main` assembles its manifest — `typeName → descriptor`, still j
 
 1. Listing `node_modules`'s top-level entries (one extra level down for `@scope/` directories). This is what discovers a built-in exactly the same way as a plugin: a workspace package is already a `node_modules` entry, via npm workspaces.
 2. Reading each entry's `package.json` and checking for `evokNodePlugin`. No such key, no interest — skip it.
-3. Doing the same for any extra directories or files named in config's `plugins:` key (§3), for anything installed outside `node_modules`.
-4. Recording `typeName → descriptor` for every `kind: "driver"` and `kind: "api"` plugin found.
+3. Recording `typeName → descriptor` for every `kind: "driver"` and `kind: "api"` plugin found.
 
 Two entries claiming the same `typeName` — anywhere, built-in or plugin — is fatal at startup, the same class of error as a resource conflict (§7): not a precedence rule, a configuration error. So is a `package.json` whose `evokNodePlugin` field does not match its own shape. Both are checked here, unconditionally, because both are just reading JSON — nothing is imported yet, so nothing here can fail because of a plugin's own code being broken.
 
@@ -175,7 +178,6 @@ Startup is one sequence, run once, in order:
    const ConfigFile = z.object({
      drivers: z.record(z.string().regex(/^[A-Za-z0-9_-]+$/), InstanceEntry),
      apis: z.record(z.string().regex(/^[A-Za-z0-9_-]+$/), InstanceEntry),
-     plugins: z.array(z.string()).optional(),   // extra manifest locations, §4
    });
    ```
 
@@ -194,17 +196,28 @@ Startup is one sequence, run once, in order:
 
 Every failure from step 1 through 4 is fatal at startup — a bad manifest, a config file that does not parse, a `type` with no manifest entry, an instance body that fails its own module's schema. None of these degrade; the daemon does not start on any of them. This is deliberately one failure class, whether the mistake is in the manifest or in the config: both mean "this cannot possibly run," never "this runs in a reduced way."
 
-**Reload repeats steps 2 through 6 against a new file**, and then, for each id, decides what changes:
+### 5.1. Reload
 
-- **absent from the old config** → `runnerFactory.spawn` then `runner.start(config)` (added).
-- **present in both, `isConfigEqual` true** → NOP. `main` calls nothing; the running instance is not even told a reload happened.
-- **present in both, `isConfigEqual` false** → `main` calls `runner.reload(newConfig)` (§6) and acts on what comes back: `true` means the running instance handled it in place, nothing else to do; `false` means `main` calls `runner.stop()`, then spawns a fresh runner and `start()`s it with the new config — a restart.
+**Reload repeats steps 2 through 5 against a new file.** A failure anywhere in those steps — the file no longer parses, an instance's body no longer fits its module's schema — rejects the reload outright: a caught, handled decision, not a thrown exception that could take `main` down. Every running instance is left exactly as it was; reload either replaces the whole config or changes nothing, never partially.
 
-An id **absent from the new config** gets `runner.stop()`, and nothing replaces it.
+Once steps 2 through 5 succeed, the new config **is** current — from here on `main` compares against it, whatever happens next to any individual instance. Applying it to the running instances is two rounds, not one, run as a barrier: every id's prepare completes before any id's commit begins. This is what keeps two drivers exchanging a shared transport safe — whichever one is giving it up has released it in prepare, before the one gaining it can acquire anything in commit, and `main` never has to know the two are related to get that ordering right.
 
-A reload's own step 2–3 failure — a config that no longer parses — rejects the new config outright and leaves every running instance exactly as it was. A step 4 failure, one instance's body no longer valid, is treated the same way: the whole reload is rejected, not just that one instance. Reload either replaces the whole config or changes nothing, never partially — the same rule startup already follows.
+**Prepare**, for every id:
 
-Reload granularity is therefore never a global policy — it is whatever `runner.reload` resolves to for one instance, and `main`'s own logic does not need to know why. Nothing here promises an order between independent instances; each one's transition is its own, and an instance being restarted has no visibility into any other instance's transition.
+- **absent from the new config** (removed) → `runner.stop()`. Its resources are gone; nothing about it survives into commit.
+- **present in both, `isConfigEqual` true** → untouched. Not part of this reload at all.
+- **present in both, `isConfigEqual` false** → `runner.prepareReload(newConfig)` (§6). What that actually does is the runner's decision, not `main`'s: call the instance's own `prepareReload` if it has one, do nothing yet if it only has `reload`, or stop it outright if it has neither — three different outcomes behind one call.
+- **absent from the old config** (added) → untouched here; it has nothing to release yet.
+
+**Commit**, only once every prepare above has resolved, for every id:
+
+- **added** → `runnerFactory.spawn` then `runner.start(newConfig)`.
+- **changed** → `runner.commitReload(newConfig)` (§6): reloads the instance in place if it survived prepare, or constructs and starts a fresh one if prepare stopped it.
+- **removed or unchanged** → nothing further.
+
+A `start()` that rejects during commit — the config was valid, but the instance still could not come up — is accepted, not retried: `main` logs it and moves on to every other id in the batch. That instance is simply not running, current config or not, until the next reload or an explicit restart gives `start()` another chance. Being graceful under `start()` is the module's own responsibility; `main` does not compensate for it, the same way it does not retry a driver's own "device unreachable."
+
+Reload granularity is therefore never a global policy — it is whatever `prepareReload`/`commitReload` resolve to for one instance, and `main`'s own logic does not need to know why. Nothing here promises an order between independent instances beyond the one barrier above: two changed ids commit in no particular order relative to each other, only ever after, never before, every prepare is done.
 
 ## 6. The runner
 
@@ -218,9 +231,11 @@ interface Runner<Config> {
   readonly placement: Placement;
 
   start(config: Config): Promise<void>;
-  // Attempts an in-place reload. false means the hosted instance has no reload() —
-  // main then falls back to stop() and spawning a fresh runner (§5).
-  reload(config: Config): Promise<boolean>;
+  // Prepare/commit are §5's barrier. What each one actually does — call the instance's
+  // own hook, do nothing yet, or stop/restart outright — is this runner's decision alone;
+  // main only ever makes these two calls, never a branch on what the instance supports.
+  prepareReload(config: Config): Promise<void>;
+  commitReload(config: Config): Promise<void>;
   stop(): Promise<void>;
 }
 
@@ -231,7 +246,7 @@ interface RunnerFactory {
 
 What `spawn` actually does is the one place placement matters, and it is the *only* place:
 
-- **`single_thread`** — the runner constructs a `ModuleInstance` with `descriptor.createInstance(...)` in `main`'s own process. Every `Runner` method is a direct call into it; `reload` calls `instance.reload` if it exists and returns `true`, or returns `false` immediately if there is nothing to call.
+- **`single_thread`** — the runner constructs a `ModuleInstance` with `descriptor.createInstance(...)` in `main`'s own process. Every `Runner` method is a direct call into it: `prepareReload` calls `instance.prepareReload` if it exists, does nothing if only `reload` exists, or calls `instance.stop()` if neither does; `commitReload` calls `instance.reload` if the instance survived prepare, or constructs and starts a fresh `ModuleInstance` if prepare stopped it.
 - **`worker_thread`** — `spawn` starts a `worker_threads.Worker` running a small bootstrap, code living in `main`'s own package, never the module's. The bootstrap receives `{ descriptor, id, config }` over `postMessage` — `descriptor` still the manifest's string, not yet resolved — resolves it to a `ModuleDefinition` through its own `ModuleRegistry` (§4 — the same mechanism, just running inside the worker), and constructs the `ModuleInstance` from its `descriptor` there. Every subsequent `Runner` method sends a message and awaits the matching reply; `Config` and the lifecycle results cross as structured-clone-safe data (§4).
 - **`child_process`** — the same shape as `worker_thread`, over `child_process.fork`'s IPC channel instead of `postMessage`. The bootstrap and the resolution step are identical; only the transport differs.
 
