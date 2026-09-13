@@ -79,3 +79,7 @@ This role is special - you need to choose one or more roles above (based on ques
 5. This file says how to work here, and **carries no status of its own** — where we are lives in [`docs/plan/STATUS.md`](docs/plan/STATUS.md), where we are going in [`docs/plan/roadmap.md`](docs/plan/roadmap.md). 
 6. Follow all rules and try to follow all conventions you read in documentation files. If you see some contradictions, make human aware of it and request how to solve it.
 7. When responding, writing docu or commenting code, tone down jargon and very complex english. Developers are not native speakers. Be acurate, to the point, brief, but explanatory.
+
+### Temporary, but binding
+
+A. Memos in design docu are not final structure. These are only relict of previous design version we are keeping them to not forget what was there before. But it's not biding, we might change it - ask if something doesn't make sense or if I try to differ. Also don't cite or link them - the structure won't prevail.

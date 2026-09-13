@@ -12,7 +12,9 @@ The distinction is not academic — conflating the first two is exactly where EV
 
 ## 3. Config structure
 
-Global config is small: which drivers and apis exist, and nothing else — no defaults that quietly change a module's behaviour out from under it. Everything a specific instance needs is that instance's own slice, opaque to `main` and to every other instance.
+Global config is small: which drivers and apis exist, plus main's own operational settings, and nothing else — no defaults that quietly change a *module's* behaviour out from under it. Everything a specific instance needs is that instance's own slice, opaque to `main` and to every other instance.
+
+The one property at this level that is not a driver or an api is `logging:` — main's own setting, described in [04 §3](04-Common-services.md#3-logging). It is optional; absent, `main` logs to stdout/journald only, at `info`.
 
 `drivers:` and `apis:` are maps keyed by id. The key is the instance's **identity** — the thing reload compares old and new config on (§5). An id is not a device address and not a display name; renaming one is deletion plus creation, not a rename, and anything keyed on that id (the KV-store driver's default namespace, per 06) goes with it.
 
@@ -175,7 +177,14 @@ Startup is one sequence, run once, in order:
      run: z.enum(['single_thread', 'worker_thread', 'child_process']).default('single_thread'),
    }).passthrough();   // everything else is the module's own body — opaque here
 
+   const LoggingConfig = z.object({
+     level: z.enum(['trace', 'debug', 'info', 'warn', 'error', 'fatal']).default('info'),
+     file: z.string().optional(),
+     pretty: z.boolean().default(false),
+   }).optional();   // absent ⇒ stdout/journald only, level info (04 §3.3.1)
+
    const ConfigFile = z.object({
+     logging: LoggingConfig,
      drivers: z.record(z.string().regex(/^[A-Za-z0-9_-]+$/), InstanceEntry),
      apis: z.record(z.string().regex(/^[A-Za-z0-9_-]+$/), InstanceEntry),
    });
