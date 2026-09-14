@@ -28,7 +28,7 @@ A component's own code is written once and is correct under all three; only the 
 
 ## 4. The runner
 
-A **runner** is what turns a driver or api module into a running instance: it constructs the module, wires its messaging to whatever channel the chosen placement provides, and enforces the same lifecycle — construct → configure → handshake → run → reload → drain → stop — regardless of which of the three placements it is. The runner lives in `main`; it is main's hosting mechanism, not a fourth component kind, and it is what main actually spawns. `main` never statically imports a driver or an api module — the runner resolves and loads one at start, by id, from the manifest.
+A **runner** is what turns a driver or api module into a running instance: it constructs the module, wires its messaging to whatever channel the chosen placement provides, and enforces the same lifecycle — construct → configure → run → reload → drain → stop — regardless of which of the three placements it is. The runner lives in `main`; it is main's hosting mechanism, not a fourth component kind, and it is what main actually spawns. `main` never statically imports a driver or an api module — the runner resolves and loads one at start, by id, from the manifest.
 
 The runner's job stops at hosting. What each lifecycle step must guarantee for a driver versus an api, and how the three placements each implement the channel underneath it, is 02's job.
 

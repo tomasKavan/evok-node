@@ -166,5 +166,3 @@ When a call spawns another — an api's request reaching a driver, that driver's
 ### 6.3. Enforcement
 
 Every wait races against the `AbortSignal` `signalFor` produces, derived from the injected `Clock` — never `AbortSignal.timeout()`, which reads the wall clock and inherits the same NTP-step problem §4.1 exists to avoid. This is the mechanism behind `basics/02-Coding.md` §4.1's "no unbounded loop, no promise without a timeout, no `setTimeout`/`setInterval` without an abort path tied to a lifecycle" — that rule states the requirement; this section states the one way it is satisfied, so there is a single pattern to review against rather than one per call site.
-
-**Inputs:** `basics/02-Coding.md` §§1.1, 2, 4 · research/08 · research/11 Phase 5 (item 23) · 01 §§3–5, 7 · 02 §§3–5 · 05 (degradation levels, fatal reservation)

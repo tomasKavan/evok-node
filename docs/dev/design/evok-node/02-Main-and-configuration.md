@@ -68,8 +68,7 @@ interface ModuleDescriptor<Config> {
 // What the runner (§6) hosts on the instance's own side, wherever that is. Identical
 // shape under single_thread, worker_thread and child_process (01 §3).
 interface ModuleInstance<Config> {
-  configure(config: Config): Promise<void>;
-  handshake(): Promise<void>;
+  configure(config: Config): Promise<void>;   // async init a constructor can't do — createInstance is synchronous
   start(): Promise<void>;
   drain(): Promise<void>;
   stop(): Promise<void>;
@@ -259,6 +258,10 @@ What `spawn` actually does is the one place placement matters, and it is the *on
 - **`worker_thread`** — `spawn` starts a `worker_threads.Worker` running a small bootstrap, code living in `main`'s own package, never the module's. The bootstrap receives `{ descriptor, id, config }` over `postMessage` — `descriptor` still the manifest's string, not yet resolved — resolves it to a `ModuleDefinition` through its own `ModuleRegistry` (§4 — the same mechanism, just running inside the worker), and constructs the `ModuleInstance` from its `descriptor` there. Every subsequent `Runner` method sends a message and awaits the matching reply; `Config` and the lifecycle results cross as structured-clone-safe data (§4).
 - **`child_process`** — the same shape as `worker_thread`, over `child_process.fork`'s IPC channel instead of `postMessage`. The bootstrap and the resolution step are identical; only the transport differs.
 
+`start(config)` sequences `instance.configure(config)` → `instance.start()`, failing fast at whichever step rejects. `stop()` sequences `instance.drain()` → `instance.stop()`: drain tells the instance to stop taking on new work so anything in flight can finish, then stop releases the underlying resources. Both hold for every placement — for `worker_thread`/`child_process` the sequencing happens inside the bootstrap, not as separate round-trips.
+
+The runner tracks its own state per instance (not-started / running / stopping / stopped / failed), which is what makes `start()` and `stop()` idempotent: a second `stop()` on an already-stopped or stopping runner resolves without calling `instance.stop()` again; `start()` while already running is a no-op. A `start()` that rejects leaves the instance and its underlying thread/process exactly as they are — the runner neither stops nor discards them — so a later `start()` retry or an explicit `stop()` can still be issued against the same instance. Whether the instance is actually safe to retry from a partially-completed lifecycle is the module's own responsibility (§5).
+
 A `Runner`'s calls to its instance, and everything the instance sends onward to other drivers or apis once running, all travel as the same kind of envelope, whatever carries it underneath — an in-process call, `postMessage`, IPC. What that envelope actually contains — a request, a response, an event — is 03's; this file only needs that a `Runner`'s methods cross *some* channel, and that the channel is opaque to `main`.
 
 ## 7. Resource reservation
@@ -266,3 +269,60 @@ A `Runner`'s calls to its instance, and everything the instance sends onward to 
 `main` does not enforce resource exclusivity — two drivers naming the same serial port, the same TCP host and port, the same explicit KV-store namespace, are not `main`'s problem to solve. It is the developer's and the administrator's responsibility not to configure a collision, and 01 §7's whole point is that the common case (several drivers wanting one bus) has a correct answer that does not need policing: share it through a transport driver rather than opening it twice.
 
 What `main` does do: at parse time, warn on a detectable collision — same port, same host:port, same explicit namespace — so a mistake surfaces immediately instead of as a runtime failure days later. A warning is not a gate; an administrator who wants two drivers on one port anyway gets to have it.
+
+## 8. Testing
+
+Tier 1 (unit) only, scoped to `main`'s own package — no simulator, no hardware, no other module's code. See [`design/basics/03-Testing.md`](../basics/03-Testing.md) for the tiers.
+
+### 8.1. Fixture modules
+
+Backing every test below that needs a real, resolvable module: fixture "packages" under `packages/main/tests/fixtures/modules/`, each shaped exactly like a real plugin (§4) — `package.json` with an `evokNodePlugin` block, `dist/index.js` exporting a `ModuleDescriptor` as default.
+
+- `module-ok/` — a valid descriptor. Its schema carries at least one required field and one defaulted field, reused by §8.4's config-parse tests. `createInstance` returns a fully controllable mock instance (§8.2).
+- `module-load-fails/` — `dist/index.js` throws on import.
+- `module-bad-shape/` — imports fine, but the export fails `isModuleDescriptor`.
+- `module-dup/` — a copy of `module-ok` reusing its `typeName`, for the duplicate-typeName-is-fatal case.
+- one fixture declaring a `kind` other than `driver`/`api`, asserting assembly leaves it alone.
+
+### 8.2. The mock instance
+
+`module-ok`'s `createInstance` takes config knobs a test can set: `failAt: 'configure' | 'start' | null`, `delayMs`, and a path to append lifecycle events to — the only way to observe call order across a `worker_thread`/`child_process` boundary.
+
+Manifest-root injection: `assembleManifest(rootDir?)` takes the fixture directory directly instead of real `node_modules`. For `worker_thread`/`child_process`, `rootDir` rides along in the same `{ descriptor, id, config }` message the bootstrap already receives (§6) — no environment variable needed.
+
+### 8.3. Module loading
+
+- Assembly never imports: `module-ok`'s load-side-effect counter stays 0 after `assembleManifest()`.
+- `module-load-fails` and `module-bad-shape` are recorded at assembly without throwing.
+- `module-dup` against `module-ok` is fatal at assembly, before any import.
+- A malformed `evokNodePlugin` shape is fatal at assembly.
+- An unrecognised `kind` is skipped.
+- `resolve(typeName)` succeeds for `module-ok`; rejects for an unknown type, `module-load-fails`, and `module-bad-shape`.
+- Memoization: resolving the same `typeName` twice leaves the load counter at 1.
+
+### 8.4. Config parse and validate
+
+Fixtures under `packages/main/tests/fixtures/config/*.yaml`, one issue per file, each targeting one step of §5: `valid.yaml`; `invalid-yaml.yaml`; `bad-skeleton-*.yaml` (bad id / missing `type` / bad `run`); `unknown-type.yaml`; `module-body-invalid.yaml` (body fails `module-ok`'s own schema). Every fixture's test asserts the specific cause, even though §5 treats all of them as one failure class.
+
+### 8.5. Config equality and the reload plan
+
+Worth naming §5.1's removed/unchanged/changed/added logic as its own pure function — `computeReloadPlan(oldConfig, newConfig, registry)` — testable with no `Runner` involved. One test per bucket, using `module-ok`'s `isConfigEqual` driven by a `marker` field.
+
+### 8.6. The runner
+
+Against `module-ok`, in all three placements:
+
+- `spawn` constructs the instance — in-process for `single_thread`; a real `Worker`/child for the others (assert a pid/threadId, or that non-cloneable data fails to cross, as proof it's genuinely out-of-process).
+- `start()` sequences `configure → start` (§6); graceful and errored runs (mock rejecting at either step) are each asserted via the lifecycle log / the rejection surfacing through `Runner.start()`.
+- `stop()` sequences `drain → stop`; assert the underlying thread/process actually exits.
+- Idempotency: a second `stop()` doesn't re-invoke `instance.stop()`; `start()` while running is a no-op — assert via the mock's own call count.
+- Cleanup after a failed `start()`: the thread/process is still alive, and a retried `start()` completes against the same instance, not a re-spawn.
+
+### 8.7. Reload
+
+Using a spy `RunnerFactory` — no real threads; real placement is already covered by §8.6:
+
+- The barrier: delay one id's prepare, assert no commit fires before it resolves.
+- An instance stopped in prepare is freshly spawned in commit.
+- A config failing parse/schema touches zero runners.
+- One id's `start()` failing during commit doesn't affect siblings or reject the reload as a whole.
