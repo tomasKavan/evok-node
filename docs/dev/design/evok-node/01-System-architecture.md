@@ -16,15 +16,16 @@ Anything that looks like it needs a third kind is a driver whose transport happe
 
 ## 3. Placement
 
-Where a driver or an api actually executes is a configuration property of that instance, not a property of its code. Three placements exist:
+Where a driver or an api actually executes is a configuration property of that instance, not a property of its code. Two placements exist:
 
 | Placement | Runs | Default |
 |---|---|---|
-| `single_thread` | inside `main`'s own event loop | yes |
-| `worker_thread` | a Node `worker_thread` | — |
+| `worker_thread` | a Node `worker_thread` | yes |
 | `child_process` | a separate OS process | — |
 
-A component's own code is written once and is correct under all three; only the runner hosting it (§4) differs. This is possible only because nothing may cross the driver↔api boundary except serialisable data — no callbacks, no class instances, no `Buffer`s, no shared mutable state. `single_thread` gets that for free from discipline alone; `worker_thread` and `child_process` get it because the channel enforces it by construction. Moving a component between placements is therefore a config change, never a rewrite.
+A component's own code is written once and is correct under either; only the runner hosting it (§4) differs. This is possible only because nothing may cross the driver↔api boundary except serialisable data — no callbacks, no class instances, no `Buffer`s, no shared mutable state — and both placements enforce that by construction: each gets its own event loop, sharing none with `main` or with any other instance. Moving a component between the two is therefore a config change, never a rewrite.
+
+There used to be a third placement, `single_thread`, running inside `main`'s own event loop — removed because it could not offer the one guarantee the other two give for free: a module's own bug stays contained to that module. `single_thread` depended on every component sharing that loop honouring non-blocking discipline voluntarily; a single forgotten `await` or an uncaught exception could take down every driver and api at once, `main`'s own orchestration included. `worker_thread` costs a few megabytes of isolate overhead per instance in exchange — measured, not assumed, at roughly 3 MB per instance beyond a shared-heap baseline for a representative dependency load — which is cheap next to that risk.
 
 ## 4. The runner
 
@@ -58,7 +59,7 @@ This is still the two-kind model: an owning driver is a driver like any other, d
 
 Nothing on the driver↔api boundary may block: an api's query is answered from a driver's in-memory state, never from a live bus read, so a slow answer means the driver is genuinely wedged rather than that the bus was slow this once.
 
-`single_thread` only stays non-blocking if every component sharing that thread actually honours this — `main` has no logic here, it reads config and hands each component to the runner its config names (§3), nothing more. Keeping a component that does genuinely heavy work off `single_thread` is the administrator's decision, made once in config, not something main or the component decides at runtime. 13 says what "heavy" means for an api and 06 for a driver, so that decision can be made correctly — but making it is always the config author's job.
+This now holds structurally rather than by convention: every instance has its own event loop (§3), so a blocked promise or a slow handler wedges only that instance, never `main` and never another. `main` still has no logic here — it reads config and hands each component to the runner its config names, nothing more. The two remaining placements are not equally isolated, though: both share one OS process, so a native-code crash — a bug in a serial-port binding's C++ layer, say — takes the whole process down regardless of which thread it happened on; only `child_process`'s own separate process survives that. Choosing it over `worker_thread` for a component whose transport leans on native code, or that does genuinely heavy computation, is the config author's call; 13 says what "heavy" means for an api and 06 for a driver.
 
 ## 9. APIs choose their drivers
 

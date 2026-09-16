@@ -18,19 +18,19 @@ The one property at this level that is not a driver or an api is `logging:` — 
 
 `drivers:` and `apis:` are maps keyed by id. The key is the instance's **identity** — the thing reload compares old and new config on (§5). An id is not a device address and not a display name; renaming one is deletion plus creation, not a rename, and anything keyed on that id (the KV-store driver's default namespace, per 06) goes with it.
 
-Every instance, driver or api, carries one property `main` itself understands beyond its id: `run`, the placement (01 §3) — `single_thread`, `worker_thread` or `child_process`, defaulting to `single_thread`. An api carries one more: `drivers`, the driver ids it links to (03 §8) — standardized at this level because 01 §9 states it as a rule for every api, not a per-api convention. A driver's equivalent is never a generic key here; it comes from that driver's own descriptor (§4, 03 §8), because what it needs to say alongside a peer's id is the driver's own business. Everything else under an instance's key is that module's own schema, validated by that module's own rules (§5), never `main`'s.
+Every instance, driver or api, carries one property `main` itself understands beyond its id: `run`, the placement (01 §3) — `worker_thread` or `child_process`, defaulting to `worker_thread`. An api carries one more: `drivers`, the driver ids it links to (03 §8) — standardized at this level because 01 §9 states it as a rule for every api, not a per-api convention. A driver's equivalent is never a generic key here; it comes from that driver's own descriptor (§4, 03 §8), because what it needs to say alongside a peer's id is the driver's own business. Everything else under an instance's key is that module's own schema, validated by that module's own rules (§5), never `main`'s.
 
 ```yaml
 # /etc/evok-node/config.yaml
 drivers:
   PLC:
     type: onboard
-    run: single_thread          # default; shown for clarity
+    run: worker_thread          # default; shown for clarity
     # ... the rest is driver-onboard's own schema
 
   EXT:
     type: extension
-    run: worker_thread
+    run: child_process
     # ... driver-extension's own schema
 
 apis:
@@ -67,7 +67,7 @@ interface ModuleDescriptor<Config> {
 }
 
 // What the runner (§6) hosts on the instance's own side, wherever that is. Identical
-// shape under single_thread, worker_thread and child_process (01 §3).
+// shape under worker_thread and child_process (01 §3).
 interface ModuleInstance<Config> {
   configure(config: Config): Promise<void>;   // async init a constructor can't do — createInstance is synchronous
   start(): Promise<void>;
@@ -174,7 +174,7 @@ Startup is one sequence, run once, in order:
    ```ts
    const InstanceEntry = z.object({
      type: z.string(),
-     run: z.enum(['single_thread', 'worker_thread', 'child_process']).default('single_thread'),
+     run: z.enum(['worker_thread', 'child_process']).default('worker_thread'),
    }).passthrough();   // everything else is the module's own body — opaque here
 
    const LoggingConfig = z.object({
@@ -235,7 +235,7 @@ Reload granularity is therefore never a global policy — it is whatever `prepar
 `main` holds a `Runner` per running instance, and calls only this — never a `ModuleInstance` directly. That is the whole point: placement is invisible on `main`'s side of this interface.
 
 ```ts
-type Placement = 'single_thread' | 'worker_thread' | 'child_process';
+type Placement = 'worker_thread' | 'child_process';
 
 interface Runner<Config> {
   readonly id: string;
@@ -261,13 +261,11 @@ interface RunnerFactory {
 }
 ```
 
-What `spawn` actually does is the one place placement matters, and it is the *only* place. `config` reaches an instance only through `configure`, never through `spawn` — `createInstance` takes just `ctx` (02 §4), so `ctx` (including its messaging handle, wired from `links`) has to exist before construction, not after:
+What `spawn` actually does is the one place placement matters — and now that only two placements exist, both share one description with a single difference at the bottom. `config` reaches an instance only through `configure`, never through `spawn` — `createInstance` takes just `ctx` (02 §4), so `ctx` (including its messaging handle, wired from `links`) has to exist before construction, not after.
 
-- **`single_thread`** — `spawn` wires `ctx` from `links` (03 §9, §10) in `main`'s own process, then constructs a `ModuleInstance` with `descriptor.createInstance(ctx)`. Every `Runner` method is a direct call into it: `configure` calls `instance.configure`; `start` calls `instance.start`; `prepareReload` calls `instance.prepareReload` if it exists, does nothing if only `reload` exists, or calls `instance.stop()` if neither does; `commitReload` calls `instance.reload` if the instance survived prepare, or constructs and starts a fresh `ModuleInstance` if prepare stopped it.
-- **`worker_thread`** — `spawn` starts a `worker_threads.Worker` running a small bootstrap, code living in `main`'s own package, never the module's. The bootstrap receives `{ descriptor, id, links }` over `postMessage` — `descriptor` still the manifest's string, not yet resolved — resolves it to a `ModuleDefinition` through its own `ModuleRegistry` (§4, the same mechanism, running inside the worker), wires its own `ctx` from `links`, and constructs the `ModuleInstance` there. Every subsequent `Runner` method sends a message and awaits the matching reply; `Config` and the lifecycle results cross as structured-clone-safe data (§4), first at `configure`, never at `spawn`.
-- **`child_process`** — the same shape as `worker_thread`, over `child_process.fork`'s IPC channel instead of `postMessage`. The bootstrap and the resolution step are identical; only the transport differs.
+`spawn` starts the hosting environment — a `worker_threads.Worker` for `worker_thread`, a forked process for `child_process` — running a small bootstrap, code living in `main`'s own package, never the module's, and attaches an `'error'`/`'exit'` listener to it (03 §11 — this is how `main` finds out about a crash it didn't ask for). The bootstrap receives `{ descriptor, id, links }` over `postMessage` (worker) or the fork's IPC channel (child process) — `descriptor` still the manifest's string, not yet resolved — resolves it to a `ModuleDefinition` through its own `ModuleRegistry` (§4, the same mechanism, running inside the worker/child), wires its own `ctx` from `links` (binding whatever socket 03 §10 says it needs), and constructs the `ModuleInstance` there. Every subsequent `Runner` method sends a message and awaits the matching reply; `Config` and the lifecycle results cross as structured-clone-safe data (§4), first at `configure`, never at `spawn`. Only the underlying transport differs between the two — `postMessage` versus the fork's IPC — the bootstrap and resolution step are otherwise identical.
 
-`main` sequences every instance's `configure` before any instance's `start` (§5, 03 §9) — the runner itself no longer chains the two, that ordering is main's own barrier now. `stop()` sequences `instance.drain()` → `instance.stop()`: drain tells the instance to stop taking on new work so anything in flight can finish, then stop releases the underlying resources. This holds for every placement — for `worker_thread`/`child_process` the sequencing happens inside the bootstrap, not as separate round-trips.
+`main` sequences every instance's `configure` before any instance's `start` (§5, 03 §9) — the runner itself no longer chains the two, that ordering is main's own barrier now. `stop()` sequences `instance.drain()` → `instance.stop()`: drain tells the instance to stop taking on new work so anything in flight can finish, then stop releases the underlying resources. This sequencing happens inside the bootstrap, not as separate round-trips.
 
 The runner tracks its own state per instance (not-started / running / stopping / stopped / failed), which is what makes `start()` and `stop()` idempotent: a second `stop()` on an already-stopped or stopping runner resolves without calling `instance.stop()` again; `start()` while already running is a no-op. A `configure()` or `start()` that rejects leaves the instance and its underlying thread/process exactly as they are — the runner neither stops nor discards them — so a later retry or an explicit `stop()` can still be issued against the same instance. Whether the instance is actually safe to retry from a partially-completed lifecycle is the module's own responsibility (§5).
 
@@ -319,9 +317,9 @@ Worth naming §5.1's removed/unchanged/changed/added logic as its own pure funct
 
 ### 8.6. The runner
 
-Against `module-ok`, in all three placements:
+Against `module-ok`, in both placements:
 
-- `spawn` constructs the instance — in-process for `single_thread`; a real `Worker`/child for the others (assert a pid/threadId, or that non-cloneable data fails to cross, as proof it's genuinely out-of-process).
+- `spawn` constructs the instance via a real `Worker`/child (assert a pid/threadId, or that non-cloneable data fails to cross, as proof it's genuinely out-of-process — both placements guarantee this now, with no in-process case left to compare against).
 - `configure()` then `start()` are two separate calls now (§6); graceful and errored runs (mock rejecting at either step) are each asserted via the lifecycle log / the rejection surfacing through the matching call.
 - `stop()` sequences `drain → stop`; assert the underlying thread/process actually exits.
 - Idempotency: a second `stop()` doesn't re-invoke `instance.stop()`; `start()` while running is a no-op — assert via the mock's own call count.

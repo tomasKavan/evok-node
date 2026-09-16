@@ -8,7 +8,7 @@ Error handling is decided elsewhere. The general shape — expected failure is a
 
 ## 2. Where this lives
 
-`@evok-node/plugin-sdk` (01 §11) is where `Logger`, `Clock`, `Deadline` and the scheduler helper are typed and published — `InstanceContext` already lives there (02 §4), and a third-party plugin author needs these exactly as much as a built-in driver does. The actual sinks a `Logger` writes to — the pino instance(s), the file/stdout destinations — are constructed once, in `main`, because `main` is the only thing ever allowed to touch them (§3.2). A plugin author imports the interface, never a concrete pino handle.
+`@evok-node/module-sdk` (01 §11) is where `Logger`, `Clock`, `Deadline` and the scheduler helper are typed and published — `InstanceContext` already lives there (02 §4), and a third-party plugin author needs these exactly as much as a built-in driver does. The actual sinks a `Logger` writes to — the pino instance(s), the file/stdout destinations — are constructed once, in `main`, because `main` is the only thing ever allowed to touch them (§3.2). A plugin author imports the interface, never a concrete pino handle.
 
 ## 3. Logging
 
@@ -18,10 +18,10 @@ Structured JSON by default, fast, `logger.child({...})` for scoping, and — per
 
 ### 3.2. One writer, reached the same way regardless of placement
 
-Every instance gets a scoped `Logger` through `InstanceContext`, the same object shape whichever of the three placements (01 §3) it runs under:
+Every instance gets a scoped `Logger` through `InstanceContext`, the same object shape under either placement (01 §3):
 
 ```ts
-// @evok-node/plugin-sdk
+// @evok-node/module-sdk
 interface Logger {
   trace(msg: string, fields?: Record<string, unknown>): void;
   debug(msg: string, fields?: Record<string, unknown>): void;
@@ -33,10 +33,7 @@ interface Logger {
 }
 ```
 
-Only `main` ever holds a real pino instance. What `ctx.log` actually does is placement's business, exactly as 01 §4 already says for the runner in general:
-
-- **`single_thread`** — a direct call into a pino child logger, already scoped to `{ instanceId, placement }`, living in `main`'s own process.
-- **`worker_thread` / `child_process`** — a log call becomes a message over the same channel as everything else crossing that boundary (03): fire-and-forget, never awaited, queued with a bounded size and a drop-oldest policy under backpressure. A log line must never be able to block a scan — 01 §8 ("nothing on the driver↔api boundary may block") applies here too, even though a log call isn't a request/response.
+Only `main` ever holds a real pino instance. Every instance runs in its own `worker_thread` or `child_process` (01 §3), so `ctx.log` is always crossing that boundary: a log call becomes a message over the same channel as everything else crossing it (03), fire-and-forget, never awaited, queued with a bounded size and a drop-oldest policy under backpressure. A log line must never be able to block a scan — 01 §8 ("nothing on the driver↔api boundary may block") applies here too, even though a log call isn't a request/response.
 
 ### 3.3. Sinks and configuration
 
@@ -78,7 +75,7 @@ Human-readability is a presentation concern layered on top, never a second store
 | `time` | Wall-clock, for humans and for a collector's own timestamping. Never used for duration or staleness (§4.1) — that is what `Date.now()` outside logging is banned for (`basics/02-Coding.md` §4.2). |
 | `level` | One of §3.6's six. |
 | `instanceId` | The driver/api id from config (02 §3) — absent for a log line from `main` itself. |
-| `placement` | `single_thread` \| `worker_thread` \| `child_process` (01 §3), so a reader can tell which runner a line came through without needing to already know the config. |
+| `placement` | `worker_thread` \| `child_process` (01 §3), so a reader can tell which runner a line came through without needing to already know the config. |
 | `correlationId` | Present when the log call happened inside a request/response/event's scope (03) — a `child()` logger set it once, not threaded through every call site by hand. |
 | `msg` | One line, imperative or descriptive, no interpolated values that belong in `fields` instead — that's what structured fields are for. |
 | `err` | Present on `error`/`fatal` calls that carry one, via `pino.stdSerializers.err` — a real stack, not `String(err)`. |
@@ -105,13 +102,15 @@ The point of reusing pino's own six rather than inventing a parallel set: when 0
 `basics/02-Coding.md` §4.2 already bans `Date.now()` outside logging and requires an injected, monotonic source for anything measuring duration or staleness. This file names that source:
 
 ```ts
-// @evok-node/plugin-sdk
+// @evok-node/module-sdk
 interface Clock {
   now(): Millis;   // monotonic; never wall-clock, never affected by an NTP step
 }
 ```
 
 `SystemClock` wraps `process.hrtime.bigint()` and is what `InstanceContext` actually hands out. A `FakeClock` — settable, advanceable by a test — is the only other implementation that should ever exist; nothing else needs a second one. Every duration and every staleness check in the codebase reads this clock, never the wall clock.
+
+One consequence worth stating plainly: `process.hrtime`'s reference point is chosen once, per process, and means nothing to any other process. Two instances always read *different* clocks now that every one runs in its own `worker_thread` or `child_process` (01 §3) — `now()` values, and anything built from one without going back through `remaining`/`deadlineFrom` first, are never comparable across that boundary. §6.2a is the consequence for `Deadline` specifically.
 
 ## 5. Scheduling
 
@@ -124,7 +123,7 @@ interface Clock {
 ### 5.2. `scheduleRepeating`
 
 ```ts
-// @evok-node/plugin-sdk
+// @evok-node/module-sdk
 type OverrunPolicy =
   | 'skip'      // the run in flight is left to finish; the missed tick is simply not run
   | 'coalesce'; // the run in flight is left to finish; exactly one run follows immediately after,
@@ -149,7 +148,7 @@ Ticks are scheduled against the *target* time — `start + n * intervalMs` — n
 ### 6.1. A deadline is a value, not a duration
 
 ```ts
-// @evok-node/plugin-sdk
+// @evok-node/module-sdk
 type Deadline = Brand<Millis, 'Deadline'>;   // an absolute point on Clock's own scale, never "ms from now" — that rots the moment it sits in a queue before anyone reads it
 
 function deadlineFrom(clock: Clock, budgetMs: Millis): Deadline;
@@ -162,6 +161,12 @@ This is the concrete form of what 01 §5 already requires — "the deadline is p
 ### 6.2. Propagation
 
 When a call spawns another — an api's request reaching a driver, that driver's own call into a shared transport it doesn't own outright (01 §7) — the inner call's deadline is `min(remaining(clock, outerDeadline), innerCall'sOwnDefaultTimeout)`, never longer than what the caller has left. A shared transport with its own generous timeout must not be able to make a caller wait past a budget the caller already set.
+
+### 6.2a. Crossing a link
+
+§4.1 already says why: `Clock`'s scale is per-process, so a `Deadline` — an absolute point on *some* `Clock`'s scale — means nothing on another process's `Clock`. Every messaging link (03 §10) crosses exactly this boundary now that every instance runs in its own `worker_thread` or `child_process` (01 §3), so the sender's raw `Deadline` can never be what actually travels the wire.
+
+What crosses instead is `remaining(senderClock, deadline)` — a plain duration, already clamped to 0, meaningful regardless of which process reads it — and the receiver reconstructs its own local `Deadline` via `deadlineFrom(receiverClock, thatDuration)` before building the `Request` its own module code ever sees. Nothing new to build: both functions already exist for exactly this; this is a rule about calling them at every hop, not a new primitive. It composes the same way §6.2's propagation rule does across an inner call — a driver forwarding to a transport driver it shares (01 §7) reconstructs again at that hop, using its own already-reconstructed `Deadline` as the outer bound.
 
 ### 6.3. Enforcement
 
