@@ -78,8 +78,7 @@ evok-node can be extended without changing its own code, at two different levels
 
 | Package | Role |
 |---|---|
-| `messaging` | The wire contract: envelope, request/event shapes, correlation, deadlines, fan-in. Depends on nothing of ours. |
-| `plugin-sdk` | The module contract: `ModuleDescriptor`, `ModuleInstance`, `InstanceContext`, and the runtime guard a loaded module is checked against (02 §4). Also the common services every instance receives through `InstanceContext` — `Logger`, `Clock`, `Deadline`, the scheduler (04). Published to npm, like `client`, for third-party plugin authors. |
+| `module-sdk` | The module contract and the wire contract in one place: `ModuleDescriptor`, `ModuleInstance`, `InstanceContext` and the runtime guard a loaded module is checked against (02 §4); the envelope, addressing, methods and error kinds a module speaks through it (03); and the common services every instance receives through `InstanceContext` — `Logger`, `Clock`, `Deadline`, the scheduler (04). Depends on nothing of ours — root of the DAG. Published to npm, like `client`, for third-party plugin authors. |
 | `hw-definitions` | Platform facts — device/model definitions, generated inventory. |
 | `modbus` | The Modbus transport. |
 | `main` | Orchestration: config, the runner, spawn, supervise, reload. |

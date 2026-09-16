@@ -1,1 +1,1 @@
-See AGENTS.md
+Follow to AGENTS.md. Your instructions are in that file! You must follow!

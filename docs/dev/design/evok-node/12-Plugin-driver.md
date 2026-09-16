@@ -19,8 +19,3 @@
 - A **worked minimal example** — small enough to read in one sitting.
 
 **Inputs:** 03 · 05 · [`rules/packages/drivers.md`](../rules/packages/drivers.md) · to_revision/0003
-
-**Open:** the plugin isolation model is **deliberately deferred** (recorded in
-[`STATUS.md`](../plan/STATUS.md)), and G-1's one-process-for-now means the message boundary is all
-that keeps the options open. So say what a plugin must not rely on, in order that isolation can
-arrive later without breaking it.
