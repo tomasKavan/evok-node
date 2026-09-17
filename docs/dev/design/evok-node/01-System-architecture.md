@@ -45,7 +45,9 @@ An **endpoint** is anything inside a driver that can be addressed: a single chan
 
 An **address** is `<driverId>:<tail>`. The tail is owned by the driver that issued it and opaque to everyone else — nothing outside that driver parses it. A tail names what it addresses inside that driver: usually one endpoint, but it may also carry an endpoint-specific selector (a value versus its counter), a sub-operation (setting a debounce rather than reading it), or name several endpoints at once. The tail's grammar is entirely the driver's to define; 03 is where a concrete grammar gets specified, per driver class.
 
-**Introspection is a driver describing itself**, not only listing its endpoints: its type, its configuration, its capabilities, and the endpoints it has. It is always reachable — every driver answers it — and it is how an api discovers what a driver offers without knowing the driver exists at build time. What exactly an endpoint declares about itself — kind, data type, which operations it supports — is 06's and 13's job to define; this file only requires that the declaration exists and that an api can act on it generically.
+**Introspection is a driver describing itself**, not only listing its endpoints: its type, its configuration, its capabilities, and the endpoints it has. It is always reachable — every driver answers it — and it is how an api discovers what a driver offers without knowing the driver exists at build time. What exactly an endpoint declares about itself — kind, data type, which operations it supports — is 03's job to define; this file only requires that the declaration exists and that an api can act on it generically.
+
+One split is worth stating at this level, because it is what makes "generically" possible at all rather than a hope: **kind is open** — any driver, built-in or plugin, can introduce one nobody else has — while the small vocabulary of value types a `kind` is built from is closed. A generic api acts on that closed vocabulary and never switches on `kind` itself, which is what lets a driver the api's author never heard of still render and validate correctly the first time.
 
 ## 7. Sharing a driver-owned resource
 
@@ -79,11 +81,11 @@ evok-node can be extended without changing its own code, at two different levels
 
 | Package | Role |
 |---|---|
-| `module-sdk` | The module contract and the wire contract in one place: `ModuleDescriptor`, `ModuleInstance`, `InstanceContext` and the runtime guard a loaded module is checked against (02 §4); the envelope, addressing, methods and error kinds a module speaks through it (03); and the common services every instance receives through `InstanceContext` — `Logger`, `Clock`, `Deadline`, the scheduler (04). Depends on nothing of ours — root of the DAG. Published to npm, like `client`, for third-party plugin authors. |
+| `module-sdk` | The module contract and the wire contract in one place: `ModuleDescriptor`, `ModuleInstance`, `InstanceContext` and the runtime guard a loaded module is checked against (02 §4); the envelope, addressing, methods and error kinds a module speaks through it (03); the common services every instance receives through `InstanceContext` — `Logger`, `Clock`, `Deadline`, the scheduler (04); and the endpoint-type vocabulary a driver and an api both need — `Codec`, the three `EndpointType` shapes, and the built-in catalog (05). Depends on nothing of ours — root of the DAG. Published to npm, like `client`, for third-party plugin authors. |
 | `hw-definitions` | Platform facts — device/model definitions, generated inventory. |
 | `modbus` | The Modbus transport. |
 | `main` | Orchestration: config, the runner, spawn, supervise, reload. |
-| `driver-kit` | Shared driver machinery: scan scheduling, readings, handshake, introspection assembly. |
+| `driver-kit` | Shared driver machinery: scan scheduling, the endpoint dispatcher (`bind`/`unbind`/`attach`), handshake. |
 | `driver-onboard` | The transport driver for the controller's own onboard I/O. |
 | `driver-extension` | The transport driver for one RS-485/TCP (modbus) extension line. |
 | `api-nextgen` | The open, evok-node-native api. |

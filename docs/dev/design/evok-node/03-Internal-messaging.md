@@ -10,15 +10,22 @@ Everything that crosses the boundary is one of three kinds — a **request**, a 
 
 ```ts
 type DriverId  = Brand<string, 'DriverId'>;
+type ApiId     = Brand<string, 'ApiId'>;
+type Tail      = Brand<string, 'Tail'>;       // the part after the colon — a driver's own namespace, never valid outside it
 type Address   = Brand<string, 'Address'>;    // "PLC:DI.2.01" — driverId:tail, tail opaque past the colon (01 §6)
 type Seq       = Brand<number, 'Seq'>;
 type MessageId = Brand<string, 'MessageId'>;
 type Value     = string | number | boolean | null | readonly Value[] | { readonly [key: string]: Value };
 
+function tail(...segments: string[]): Tail;                                  // the one audited join
+function extendTail(base: Tail, ...segments: string[]): Tail;                // a sub-tail from an existing one
+function address(driverId: DriverId, tail: Tail): Address;                   // the one place ':' gets inserted
+function parseAddress(address: Address): { driverId: DriverId; tail: Tail }; // the dispatcher's own inverse — the prefix a handler never sees (§4)
+
 /** Provenance, not routing — kept for logging/attribution even though nothing brokers on it. */
 interface Origin {
-  readonly instanceId: string;   // the api or driver that issued the request
-  readonly client?: string;      // an api's own end-client id, opaque past it
+  readonly instanceId: DriverId | ApiId;   // the api or driver that issued the request
+  readonly client?: string;                // an api's own end-client id, opaque past it
 }
 
 type Method = 'GET' | 'SET' | 'CALL' | 'SUBSCRIBE' | 'UNSUBSCRIBE';
@@ -49,6 +56,8 @@ interface Event {
 type Envelope = Request | Response | Event;
 ```
 
+`Tail`/`Address` are never built by a raw template literal outside the four functions above — RPG-DRV-1's "one audited address function" (05 §6.4), generalized past Modbus register arithmetic to addressing itself.
+
 `Request.deadline` is never the sender's raw value once a link is crossed — every link crosses one now (§10) — 04 §6.2a says how it's reconstructed fresh at each hop. The type above is what a module's own code always sees: already locally valid, nothing further to convert.
 
 One shape for every method, not a discriminated union per method — a deliberate, narrow exception to `basics/02-Coding.md` §1.3: GET/SET/CALL/SUBSCRIBE/UNSUBSCRIBE are one thing with a varying payload, the way HTTP verbs share one request line. What each method requires of its payload is declared per-endpoint in introspection (§5) and checked once, generically, before a handler ever runs — not encoded in the type.
@@ -59,7 +68,7 @@ A batched, cross-driver read — an api asking for several qualified addresses i
 
 `<driverId>:<tail>` (01 §6), case-sensitive, tail grammar owned entirely by the issuing driver. Four tails are reserved at the messaging layer, outside any driver's own grammar, and never reach a driver's `onRequest` handler:
 
-- `$introspect` — `GET` returns the driver's introspection payload (01 §6).
+- `$introspect` — `GET` returns the driver's introspection payload (01 §6); also `SUBSCRIBE`-able — §5a.
 - `$subscriptions` — `GET` returns the caller's own active subscriptions on that driver.
 - `$health` — a driver `emit`s here whenever its own reachability or degradation state changes (05's job to define the taxonomy); consumed like any other address, by `subscribe` (§4). `main` never inspects it — a driver's degradation is a business signal for whoever subscribes, not something `main` supervises (§11 covers what `main` actually reacts to).
 - `$getCallProgress.<id>` — parameterized by a `CALL` `Request`'s own `MessageId`, not a fixed string; exists only while that call is in flight. Both `GET`-able and `subscribe`-able — §6.4.
@@ -95,6 +104,8 @@ interface MessagingHandle {
 }
 ```
 
+A handler's own `Response.id` and `re` are never load-bearing — the runtime mints the real `id` and sets `re: req.id` itself before anything reaches the wire, overwriting whatever the handler supplied. Keeping the full `Response` shape as the handler's return type, rather than a narrower success/failure pair, is deliberate: a handler that wants `id`/`re` for its own logging can still have them, even though nothing downstream trusts the values it chose.
+
 `onRequest`'s handler only ever sees `GET`/`SET`/`CALL` against the module's own real, base-address endpoints — `$introspect`, `$subscriptions`, `$getCallProgress.<id>` (§6.4), and any facet or wildcard resolution (§6) are all intercepted before this point. `SUBSCRIBE`/`UNSUBSCRIBE` still exist as wire methods (§2) — the dispatcher needs them to talk to a driver's own live bookkeeping (§6.3) — but a module reaches every method only through its own dedicated `get`/`set`/`call`/`introspect`/`subscribe`/`unsubscribe`, never by constructing a `Request` by hand, so the durable want-list §6.3 describes and the per-call progress state §6.4 describes can't be bypassed. `send` isn't part of this interface at all — `get`/`set`/`call`/`introspect` share one primitive underneath, but that's `main`'s own implementation, the same split 04 §2 draws for `Logger` (§2). The handler never sees its own driver id in `address` either — the dispatcher strips it, since a handler only ever serves its own tail grammar and would just have to discard the prefix.
 
 Until a module calls `onRequest`, *every* request — `GET`/`SET`/`CALL`, and any `SUBSCRIBE`/`UNSUBSCRIBE` a `subscribe`/`unsubscribe` call generates — answers `not-ready` (§7), never a hang, never a dropped connection. Nothing about subscriptions, facets or `tailMode` can be interpreted safely before this point either, since it's `onRequest`'s own call that supplies `tailMode` in the first place. This is a statement about the module's own startup (02 §5's two-phase `configure`/`start`, §9); `unreachable` (§7) is the separate, later signal for the device or bus that module owns.
@@ -105,7 +116,17 @@ Nothing here ever throws across the boundary. A handler that throws is a bug, no
 
 Answered generically at `$introspect` from a driver's own declared endpoint table — building that table is `driver-kit`'s job (01 §11, "introspection assembly"), reusable by any driver built on it. A driver not built on `driver-kit` answers `$introspect` itself, as ordinary `onRequest` logic — nothing about the address is privileged at the protocol level, only in the convenience `driver-kit` provides.
 
-Each endpoint declares, at minimum: `shape` (`channel` | reading | `method`), `kind` (closed enum, 01 §6), `effect` (mandatory, no default), `returns`, which methods it supports and whether each requires a payload, and — for a `struct`-returning endpoint — an optional `facets: readonly string[]` naming which of its fields are individually addressable (§6). A driver's `capabilities` array (already sketched in research/12) gains `'dotted-addressing'` when it opted into that `tailMode` (§6). The dispatcher checks a request's method and payload against this before calling the handler (`bad-payload`/`unsupported-method`, §7), so no handler re-checks what introspection already promised.
+Every endpoint declares `shape` (`reading` | `channel` | `method`) and `kind`; the rest follows from `shape` rather than being declared separately. A `reading` is `GET`-only, `effect: 'none'`, implied; a `channel` is `GET`+`SET`, `effect: 'mutates'`, implied — both add `subscribe: boolean` for whether `SUBSCRIBE` is available, and `returns` for the value's shape (05 has the `Codec`/`EndpointType` machinery `returns` comes from). A `channel` may also declare `setReturns`, only when `SET`'s echoed value is a narrower type than `GET`'s — defaults to `returns` when omitted. A `method` is `CALL`-only and, alone among the three, still declares its own `effect` (query versus command genuinely varies), plus `payload?` and `returns` for its own argument and result shapes. A `struct`-returning `reading`/`channel` may declare `facets: readonly string[]`, naming which fields are individually addressable (§6).
+
+`kind` is open, not the closed enum an earlier draft of 01 §6 called it: any driver, built-in or plugin, can declare one nobody else has (`'unipi:DI'`, `'dali:BRIGHTNESS'`), namespaced by convention — driver-family prefix, colon, name — so two plugins introducing the same concept under different names don't collide in whatever groups or labels by `kind` (12 has the concrete plugin-authoring guidance for this). Nothing generic ever switches on `kind` exhaustively; it exists for grouping and display, never for correctness.
+
+`returns` is the closed half, and correctness leans on it instead: a fixed vocabulary of value types — `bool`, `uint8`, `uint16`, `uint32`, `int8`, `int16`, `int32`, `float32`, `{ type: 'enum', values: readonly string[] }`, `{ type: 'struct', fields: Record<string, TypeDescriptor> }`, and `json` for data with no stable shape to declare (opaque past well-formedness — no generic validation, no generic rendering beyond a raw dump). Switching exhaustively on this vocabulary, rather than on `kind`, is what lets a brand-new plugin's endpoints render and validate correctly with zero code written for that plugin. Widening it later is additive and reviewed centrally — the same discipline research/12 already asked for when `returns` was scalars-plus-`struct` alone. In practice it comes from a `Codec`'s own `describe()` (05), never hand-typed by a driver author — one less place for the wire shape and the driver's own code to quietly disagree.
+
+A driver's `capabilities` array (already sketched in research/12) gains `'dotted-addressing'` when it opted into that `tailMode` (§6). The dispatcher checks a request's method and payload against this before calling the handler (`bad-payload`/`unsupported-method`, §7), so no handler re-checks what introspection already promised.
+
+## 5a. Introspection change notification
+
+`$introspect` is also `SUBSCRIBE`-able, delivering `{ generation: Seq }` on every change to the driver's own endpoint table — a fresh bind, an unbind, never a change to an existing endpoint's own value, which is what its own address's events are for. Same precedent as `$health` (§3): a driver emits here itself, consumed like any other address, by `subscribe` (§4), through the exact same coalescing buffer and reconnect-replay §6.3 already describes — no new envelope kind, no new capability flag. The payload stays minimal on purpose: a client that sees the number change issues a fresh `introspect()` if it cares what changed, the same "a gap is harmless, re-`GET`" reasoning §6.3 already relies on everywhere else.
 
 ## 6. Facets, wildcards and subscriptions
 
