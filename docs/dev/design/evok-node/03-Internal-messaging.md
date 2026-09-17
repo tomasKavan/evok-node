@@ -16,15 +16,20 @@ type Address   = Brand<string, 'Address'>;    // "PLC:DI.2.01" — driverId:tail
 type Seq       = Brand<number, 'Seq'>;
 type MessageId = Brand<string, 'MessageId'>;
 type Value     = string | number | boolean | null | readonly Value[] | { readonly [key: string]: Value };
+type InstanceKind = 'driver' | 'api';
 
 function tail(...segments: string[]): Tail;                                  // the one audited join
 function extendTail(base: Tail, ...segments: string[]): Tail;                // a sub-tail from an existing one
 function address(driverId: DriverId, tail: Tail): Address;                   // the one place ':' gets inserted
 function parseAddress(address: Address): { driverId: DriverId; tail: Tail }; // the dispatcher's own inverse — the prefix a handler never sees (§4)
 
-/** Provenance, not routing — kept for logging/attribution even though nothing brokers on it. */
+/** Provenance, primarily for logging/attribution — `main` stamps it, a module never constructs
+ * its own. 06 is the one place it's actually load-bearing rather than descriptive: the KV-store
+ * driver derives a caller's namespace from `instanceType`/`instanceId` alone. */
 interface Origin {
   readonly instanceId: DriverId | ApiId;   // the api or driver that issued the request
+  readonly instanceType: InstanceKind;     // which map instanceId came from — drivers: and apis: are
+                                            // separate keyed maps (02 §3), so the id alone can't tell you
   readonly client?: string;                // an api's own end-client id, opaque past it
 }
 
@@ -173,7 +178,7 @@ Expected failure is always a `Response` value; nothing on this boundary throws (
 
 ```ts
 type ErrorKind =
-  | 'unknown-address' | 'unsupported-method' | 'bad-payload' | 'not-subscribed'
+  | 'unknown-address' | 'unsupported-method' | 'bad-payload' | 'not-subscribed' | 'not-found'
   | 'not-ready' | 'unreachable' | 'timeout' | 'deadline-exceeded' | 'link-down' | 'internal-error';
 ```
 
@@ -181,6 +186,7 @@ type ErrorKind =
 |---|---|---|
 | `unknown-address` | tail doesn't exist on this driver, doesn't resolve as a facet either (§6.1), or names a `$getCallProgress` id for a call that's already resolved (§6.4) | caller |
 | `unsupported-method` | endpoint doesn't support this method | caller |
+| `not-found` | the address resolved and the method is supported, but a `method`-shaped endpoint declaring `resultOptional` (05 §6.1) had nothing to answer for this particular input — the address exists, the *content* doesn't (06's `get` is the first user) | caller |
 | `bad-payload` | failed the endpoint's declared payload check | caller |
 | `not-subscribed` | `unsubscribe` on something never subscribed | caller |
 | `not-ready` | module hasn't called `onRequest` yet | timing |

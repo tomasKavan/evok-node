@@ -74,6 +74,14 @@ interface MethodType<R, A = void> {
   readonly effect: 'none' | 'mutates';   // the one shape where this still varies
   readonly resultCodec: Codec<R>;
   readonly argsCodec?: Codec<A>;   // omitted ⇒ no payload
+  readonly resultOptional?: boolean;   // absent ⇒ false. When true, `onCall` (§6.4) may resolve
+                                        // `undefined` for an input that's honestly empty rather than
+                                        // wrong — driver-kit answers `not-found` (03 §7), never
+                                        // `internal-error`. `undefined` from a method that didn't
+                                        // declare this is still a bug, same as a throw. 06's `get` is
+                                        // the first user; not offered on `reading`/`channel` — those
+                                        // answer from held state, which either exists or the endpoint
+                                        // doesn't (03 §7's `unknown-address` already covers that case).
 }
 
 type EndpointType<T = unknown, TSet = T> = ReadingType<T> | ChannelType<T, TSet> | MethodType<T, TSet>;
@@ -89,7 +97,7 @@ A `channel`'s `SET` always returns exactly what it was given — `TSet` — neve
 // @evok-node/module-sdk
 function reading<T>(kind: string, codec: Codec<T>, opts?: { subscribe?: boolean; facets?: readonly (keyof T & string)[] }): ReadingType<T>;
 function channel<T, TSet = T>(kind: string, codec: Codec<T>, opts?: { subscribe?: boolean; setCodec?: Codec<TSet> }): ChannelType<T, TSet>;
-function method<R, A = void>(kind: string, effect: 'none' | 'mutates', resultCodec: Codec<R>, argsCodec?: Codec<A>): MethodType<R, A>;
+function method<R, A = void>(kind: string, effect: 'none' | 'mutates', resultCodec: Codec<R>, argsCodec?: Codec<A>, opts?: { resultOptional?: boolean }): MethodType<R, A>;
 ```
 
 `channel('RO', Codecs.bool)` infers `ChannelType<boolean, boolean>` entirely from the second argument; nobody writes `<boolean>` anywhere.
@@ -119,9 +127,9 @@ interface BoundEndpointInfo {
 }
 
 interface BindHandlers<T, TSet> {
-  onGet?(): T | Promise<T>;
-  onSet?(value: TSet): TSet | Promise<TSet>;
-  onCall?(payload: TSet): Promise<T>;
+  onGet?(req: Request): T | Promise<T>;
+  onSet?(value: TSet, req: Request): TSet | Promise<TSet>;
+  onCall?(payload: TSet, req: Request): Promise<T>;
 }
 
 interface DriverKit {
@@ -130,9 +138,9 @@ interface DriverKit {
   list(): readonly BoundEndpointInfo[];
   find<T = unknown>(tail: Tail): BoundEndpoint<T> | undefined;
   device(id: string, kind: string, prefix?: string): Tail;   // §6.6
-  onGet<T>(ep: BoundEndpoint<T>, fn: () => T | Promise<T>): void;
-  onSet<T, TSet>(ep: BoundEndpoint<T>, fn: (value: TSet) => TSet | Promise<TSet>): void;
-  onCall<R, A>(ep: BoundEndpoint<R>, fn: (payload: A) => Promise<R>): void;
+  onGet<T>(ep: BoundEndpoint<T>, fn: (req: Request) => T | Promise<T>): void;
+  onSet<T, TSet>(ep: BoundEndpoint<T>, fn: (value: TSet, req: Request) => TSet | Promise<TSet>): void;
+  onCall<R, A>(ep: BoundEndpoint<R>, fn: (payload: A, req: Request) => Promise<R>): void;
   attach(): void;                              // §6.7
 }
 ```
@@ -140,6 +148,8 @@ interface DriverKit {
 A duplicate `tail` at `bind()` is fatal — checked against the driver's own table only, never a global view, because addresses are driver-qualified and uniqueness is local by construction. This is the direct mitigation for the wrong-relay bug class research/04 documents: no purchasable Unipi device has enough channels of one type to reproduce the bank-stride half of that bug on hardware, so this assertion is the only thing that can still catch a wrong address table before it drives the wrong output. A driver assembling its own tails in a loop is exactly where this matters most — 07 has the concrete mitigation for Modbus's own register arithmetic.
 
 `unbind` tears down whatever the dispatcher was holding for that tail — active subscriptions included, the same discipline `$getCallProgress.<id>` already applies to itself the moment its own call resolves (03 §6.4) — and bumps the introspection generation (§6.7) the same way `bind` does.
+
+Every handler's final argument is the `Request` it's answering — `origin`, `deadline`, `id`, the lot — for a handler that genuinely needs more than its own payload; 06's `get`/`has`/`set`/`delete` are the first to use it, reading `origin` to resolve a caller's namespace. A handler that doesn't need it just doesn't declare the parameter; nothing about the type requires touching it.
 
 `handlers` on `bind()` is sugar for the three `on*` calls below it, nothing more — wiring at bind time is convenient when nothing else is going on, but `onGet`/`onSet`/`onCall` still exist on their own for a `CompositeEndpoint` (§6.3), whose `bind()` only ever returns handles and leaves wiring to the driver's own `configure()`. A handler that doesn't match the type's own shape — `onSet` against a `reading`, say — is a driver bug driver-kit rejects at `bind()` time, the same `reportFatal` path as a duplicate `tail`, not a silent no-op.
 
@@ -194,5 +204,3 @@ export const DI: CompositeEndpoint<{ reading: BoundEndpoint<...>; debounce: Boun
 What the owner exposes for this is, so far, one recurring shape: a raw pass-through endpoint — `CALL`, one variant with `effect: 'none'` for a query, one with `effect: 'mutates'` for a command — that lets a dependent speak the underlying protocol directly rather than the owner having to anticipate every device that might ever share it. Modbus's own version is a `MODBUS` endpoint type, 07's to define when 07 is next.
 
 ## 8. REMOVED
-
-Folded into §6.1/§6.4 — a `channel`'s `SET` always returns its own declared type (`TSet`), so no separate acknowledgement question remains.
