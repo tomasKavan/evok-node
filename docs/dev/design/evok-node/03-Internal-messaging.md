@@ -45,10 +45,13 @@ interface Request {
   readonly origin: Origin;
 }
 
+type ResponseError =
+  | { readonly kind: 'domain-error'; readonly domainErrorKind: string; readonly detail: string; readonly info?: unknown }
+  | { readonly kind: Exclude<ErrorKind, 'domain-error'>; readonly detail: string; readonly info?: unknown };   // §7
+
 type Response =
   | { readonly v: 1; readonly id: MessageId; readonly re: MessageId; readonly ok: true; readonly body: Value }
-  | { readonly v: 1; readonly id: MessageId; readonly re: MessageId; readonly ok: false;
-      readonly error: { readonly kind: ErrorKind; readonly detail: string } };   // §7
+  | { readonly v: 1; readonly id: MessageId; readonly re: MessageId; readonly ok: false; readonly error: ResponseError };
 
 interface Event {
   readonly v: 1;
@@ -125,7 +128,23 @@ Every endpoint declares `shape` (`reading` | `channel` | `method`) and `kind`; t
 
 `kind` is open, not the closed enum an earlier draft of 01 §6 called it: any driver, built-in or plugin, can declare one nobody else has (`'unipi:DI'`, `'dali:BRIGHTNESS'`), namespaced by convention — driver-family prefix, colon, name — so two plugins introducing the same concept under different names don't collide in whatever groups or labels by `kind` (12 has the concrete plugin-authoring guidance for this). Nothing generic ever switches on `kind` exhaustively; it exists for grouping and display, never for correctness.
 
-`returns` is the closed half, and correctness leans on it instead: a fixed vocabulary of value types — `bool`, `uint8`, `uint16`, `uint32`, `int8`, `int16`, `int32`, `float32`, `{ type: 'enum', values: readonly string[] }`, `{ type: 'struct', fields: Record<string, TypeDescriptor> }`, and `json` for data with no stable shape to declare (opaque past well-formedness — no generic validation, no generic rendering beyond a raw dump). Switching exhaustively on this vocabulary, rather than on `kind`, is what lets a brand-new plugin's endpoints render and validate correctly with zero code written for that plugin. Widening it later is additive and reviewed centrally — the same discipline research/12 already asked for when `returns` was scalars-plus-`struct` alone. In practice it comes from a `Codec`'s own `describe()` (05), never hand-typed by a driver author — one less place for the wire shape and the driver's own code to quietly disagree.
+`returns` is the closed half, and correctness leans on it instead — a fixed vocabulary of value types, generated from a `Codec`'s own `describe()` (05), never hand-typed by a driver author:
+
+```ts
+// @evok-node/module-sdk
+type TypeDescriptor =
+  | 'bool' | 'uint8' | 'uint16' | 'uint32' | 'int8' | 'int16' | 'int32' | 'float32'
+  | 'string' | 'bytes'
+  | { type: 'enum'; values: readonly string[] }
+  | { type: 'struct'; fields: Record<string, TypeDescriptor> }
+  | { type: 'array'; items: TypeDescriptor }
+  | 'void'
+  | 'json';
+```
+
+`bytes` is opaque binary, wire-encoded as base64 inside `Value` — a distinct type from `string`, which is text, even though both travel the wire as text. `Date` has no dedicated member: this vocabulary describes wire type, never semantics, so `nativeCodec`'s `Date` support (05 §6.1) describes itself as whichever scalar it's encoded to — `uint32` for epoch seconds, matching `readAt` (05 §6.8) — not a new kind of member.
+
+`array` and `void` are additive to what research/12 originally asked for (scalars-plus-`struct`): `array` describes a homogeneous list of any other member, recursively — the same composition `struct`'s own `fields` already uses; `void` is for a `method` whose success case has no value to return at all, so its `resultCodec` can say that honestly rather than inventing a placeholder. `json` stays the escape hatch for data with no stable shape to declare — opaque past well-formedness, no generic validation, no generic rendering beyond a raw dump. Switching exhaustively on this vocabulary, rather than on `kind`, is what lets a brand-new plugin's endpoints render and validate correctly with zero code written for that plugin. Widening it later is additive and reviewed centrally — the same discipline research/12 already asked for the first time.
 
 A driver's `capabilities` array (already sketched in research/12) gains `'dotted-addressing'` when it opted into that `tailMode` (§6). The dispatcher checks a request's method and payload against this before calling the handler (`bad-payload`/`unsupported-method`, §7), so no handler re-checks what introspection already promised.
 
@@ -178,20 +197,21 @@ Expected failure is always a `Response` value; nothing on this boundary throws (
 
 ```ts
 type ErrorKind =
-  | 'unknown-address' | 'unsupported-method' | 'bad-payload' | 'not-subscribed' | 'not-found'
-  | 'not-ready' | 'unreachable' | 'timeout' | 'deadline-exceeded' | 'link-down' | 'internal-error';
+  | 'unknown-address' | 'unsupported-method' | 'bad-payload' | 'not-subscribed'
+  | 'not-ready' | 'unreachable' | 'timeout' | 'deadline-exceeded' | 'link-down' | 'internal-error'
+  | 'domain-error';
 ```
 
 | Kind | Meaning | Whose problem |
 |---|---|---|
 | `unknown-address` | tail doesn't exist on this driver, doesn't resolve as a facet either (§6.1), or names a `$getCallProgress` id for a call that's already resolved (§6.4) | caller |
 | `unsupported-method` | endpoint doesn't support this method | caller |
-| `not-found` | the address resolved and the method is supported, but a `method`-shaped endpoint declaring `resultOptional` (05 §6.1) had nothing to answer for this particular input — the address exists, the *content* doesn't (06's `get` is the first user) | caller |
 | `bad-payload` | failed the endpoint's declared payload check | caller |
 | `not-subscribed` | `unsubscribe` on something never subscribed | caller |
+| `domain-error` | a `method`-shaped endpoint's own business logic produced a named failure outside this protocol vocabulary; `domainErrorKind` narrows it, drawn from the closed set the endpoint itself declares (05 §6.1/§6.4) — 06's `get` is the first user | depends on `domainErrorKind` |
 | `not-ready` | module hasn't called `onRequest` yet | timing |
-| `unreachable` | driver is up, its device/bus isn't answering (05's degradation state) | environment |
-| `timeout` | driver tried, no answer within its own budget | environment |
+| `unreachable` | driver is up, its device/bus isn't answering (05's degradation state); also directly returnable from a `CALL` handler for that one call (05 §6.4) | environment |
+| `timeout` | driver tried, no answer within its own budget; also directly returnable from a `CALL` handler for that one call (05 §6.4) | environment |
 | `deadline-exceeded` | caller's own deadline elapsed before any response arrived; manufactured locally, may never have reached the target | nobody, structurally |
 | `link-down` | the peer process/thread itself is gone | infrastructure |
 | `internal-error` | handler threw | our bug |

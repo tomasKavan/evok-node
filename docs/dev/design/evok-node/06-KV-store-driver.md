@@ -18,7 +18,7 @@ Five methods, all `CALL`-shaped (05 §6.1) — `get`, `has`, `set`, `delete`, `l
 
 | Method | Effect | Args | Result | Notes |
 |---|---|---|---|---|
-| `get` | `none` | `{ key: string }` | `json` | `resultOptional: true` (05 §6.1) — a missing key resolves `undefined`, answered as `not-found` (03 §7), never `internal-error` |
+| `get` | `none` | `{ key: string }` | `json` | `errorKinds: ['key-not-found']` (05 §6.1) — a missing key resolves `{ok:false, kind:'domain-error', domainErrorKind:'key-not-found'}` (03 §7, 05 §6.4), never `internal-error` |
 | `has` | `none` | `{ key: string }` | `bool` | never fails — presence is the whole answer, there is no separate error case |
 | `set` | `mutates` | `{ key: string, value: json }` | `json` | echoes exactly the `value` it was given |
 | `delete` | `mutates` | `{ key: string }` | `bool` | idempotent — always resolves `true`, whether or not the key existed |
@@ -26,7 +26,7 @@ Five methods, all `CALL`-shaped (05 §6.1) — `get`, `has`, `set`, `delete`, `l
 
 `value`'s codec is `json` — the closed vocabulary's own escape hatch for "no stable shape to declare" (03 §5) — because this driver stores exactly what it's given and never interprets it. Array data rides through this the same as anything else: `set('group-1', ['DI.01', 'DI.02'])` needs nothing special. `list`'s result is `json` too for the same reason: the closed `returns` vocabulary has no array-of-scalar member today, only scalars, `enum`, `struct` and `json` itself — widening it is a separate, general question for 05, not something to settle here for one method's sake.
 
-`get`'s `not-found` and `has`'s plain boolean look like they're solving the same problem twice, and they are, on purpose: `has` exists for a caller that only wants the question answered, without paying to move a value across the process boundary it doesn't want.
+`get`'s `key-not-found` domain error and `has`'s plain boolean look like they're solving the same problem twice, and they are, on purpose: `has` exists for a caller that only wants the question answered, without paying to move a value across the process boundary it doesn't want.
 
 ## 4. Dispatch
 
@@ -83,7 +83,7 @@ When it does: `prepareReload` closes the current db handle; `reload` reopens at 
 Tier 1 (unit; `basics/03-Testing.md`), scoped to `packages/driver-kv-store`, against a temp sqlite file — no simulator, no hardware:
 
 - Mirror hydration at `configure()` matches whatever the file already held, across a restart.
-- `get`/`has`/`set`/`delete`/`list`, including: `get` on a missing key answers `not-found`, never `internal-error`; `has` never errors; `delete` on a never-set key still resolves `true`; `set` echoes exactly what it was given, including array-shaped `value`.
+- `get`/`has`/`set`/`delete`/`list`, including: `get` on a missing key answers `domain-error`/`key-not-found`, never `internal-error`; `has` never errors; `delete` on a never-set key still resolves `true`; `set` echoes exactly what it was given, including array-shaped `value`.
 - Namespace isolation: two fixture origins (one `driver`, one `api`, same bare id) land in `driver.<id>` and `api.<id>` respectively, never collide, and neither can see the other's keys through any payload field — because there isn't one.
 - Write ordering: a forced write failure (a locked or unwritable file) leaves the mirror exactly as it was, and answers `internal-error`.
 - Reload: a `path` change closes the old handle, rehydrates from the new file, and a request arriving mid-swap resolves only after the swap completes rather than racing it; a config change that leaves `path` untouched never calls `prepareReload`/`reload` at all.

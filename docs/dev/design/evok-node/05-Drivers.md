@@ -9,7 +9,7 @@ What every driver must be, whatever it talks to — the obligations that hold re
 Three obligations, unconditional:
 
 - **Never blocks the caller past its own answer.** A slow driver is a wedged driver, never proof the bus was slow this once (01 §8) — every wait already races a `Deadline` (04 §6).
-- **Never throws across the boundary.** Expected failure is a `Response` value (03 §7); a throw that escapes a handler is a bug driver-kit's dispatcher catches and reports as `internal-error`, never something a caller has to guard against.
+- **Never throws across the boundary.** Expected failure is a `Response` value (03 §7) — for a `method` endpoint specifically, `onCall`'s own `CallOutcome` (§6.4) is how a handler produces one; a throw that escapes a handler is a bug driver-kit's dispatcher catches and reports as `internal-error`, never something a caller has to guard against.
 - **A `reading`'s `GET` answers from memory, never from a live bus read.** This is what makes a timeout honest — the driver is genuinely wedged, not the bus slow this once. `CALL` is the deliberate exception: a method is an action, not a snapshot of held state, so touching the live device is the entire point of one. (`SET`'s own answer is always its declared type — `T`, or the narrower `TSet` when one's declared — never ambiguous; §6.1/§6.4 have the mechanism.)
 
 **"No value yet" is not "value 0."** A reading carries `value`, `readAt`, and `stale` — an endpoint nothing has read yet must be representable as such, never defaulted quietly to zero or false. A client that can't tell "never read" from "read as zero" will eventually act on the wrong one; this is the failure mode research/04 documents repeatedly.
@@ -46,7 +46,7 @@ interface Codec<T> {
 }
 ```
 
-`module-sdk` ships the built-ins — `nativeCodec` for `boolean`/`number`/`string`/`Date`, `structCodec` for composing fields from other codecs. A driver with no codec for its own value genuinely cannot bind an endpoint for it — the closed half of 03 §5, enforced structurally rather than by convention.
+`module-sdk` ships the built-ins — `nativeCodec` for `boolean`/`number`/`string`/`Date`, `structCodec` for composing fields from other codecs, `arrayCodec` for a homogeneous list of any other codec, and `voidCodec` for a `method` with nothing meaningful to return on success. `nativeCodec`'s `Date` describes itself as `uint32` (epoch seconds, same convention as `readAt` in §6.8) — 03 §5's vocabulary is closed over wire type, never semantics, so `Date` gets no member of its own. A driver with no codec for its own value genuinely cannot bind an endpoint for it — the closed half of 03 §5, enforced structurally rather than by convention.
 
 Three shapes, discriminated, each with its methods and `effect` fully implied rather than declared:
 
@@ -68,23 +68,22 @@ interface ChannelType<T, TSet = T> {
   readonly setCodec?: Codec<TSet>; // only when SET's payload/echo genuinely differs from T
 }
 
-interface MethodType<R, A = void> {
+interface MethodType<R, A = void, E extends string = never> {
   readonly shape: 'method';        // CALL only
   readonly kind: string;
   readonly effect: 'none' | 'mutates';   // the one shape where this still varies
   readonly resultCodec: Codec<R>;
   readonly argsCodec?: Codec<A>;   // omitted ⇒ no payload
-  readonly resultOptional?: boolean;   // absent ⇒ false. When true, `onCall` (§6.4) may resolve
-                                        // `undefined` for an input that's honestly empty rather than
-                                        // wrong — driver-kit answers `not-found` (03 §7), never
-                                        // `internal-error`. `undefined` from a method that didn't
-                                        // declare this is still a bug, same as a throw. 06's `get` is
-                                        // the first user; not offered on `reading`/`channel` — those
-                                        // answer from held state, which either exists or the endpoint
-                                        // doesn't (03 §7's `unknown-address` already covers that case).
+  readonly errorKinds?: readonly E[];   // the closed, endpoint-owned vocabulary `onCall` (§6.4) may
+                                         // resolve as `domainErrorKind` — absent ⇒ `E` is `never`, so
+                                         // `CallOutcome`'s domain-error arm isn't constructible at all
+                                         // for this endpoint. Not offered on `reading`/`channel` —
+                                         // those answer from held state, which either exists or the
+                                         // endpoint doesn't (03 §7's `unknown-address` already covers
+                                         // that case); 06's `get` is the first user of this one.
 }
 
-type EndpointType<T = unknown, TSet = T> = ReadingType<T> | ChannelType<T, TSet> | MethodType<T, TSet>;
+type EndpointType<T = unknown, TSet = T, E extends string = never> = ReadingType<T> | ChannelType<T, TSet> | MethodType<T, TSet, E>;
 ```
 
 A `channel`'s `SET` always returns exactly what it was given — `TSet` — never something narrower or nothing at all. A bus that can't confirm a write still trivially has the value it was just asked to set; that's what retires the old open question about write acknowledgement.
@@ -97,7 +96,7 @@ A `channel`'s `SET` always returns exactly what it was given — `TSet` — neve
 // @evok-node/module-sdk
 function reading<T>(kind: string, codec: Codec<T>, opts?: { subscribe?: boolean; facets?: readonly (keyof T & string)[] }): ReadingType<T>;
 function channel<T, TSet = T>(kind: string, codec: Codec<T>, opts?: { subscribe?: boolean; setCodec?: Codec<TSet> }): ChannelType<T, TSet>;
-function method<R, A = void>(kind: string, effect: 'none' | 'mutates', resultCodec: Codec<R>, argsCodec?: Codec<A>, opts?: { resultOptional?: boolean }): MethodType<R, A>;
+function method<R, A = void, E extends string = never>(kind: string, effect: 'none' | 'mutates', resultCodec: Codec<R>, argsCodec?: Codec<A>, opts?: { errorKinds?: readonly E[] }): MethodType<R, A, E>;
 ```
 
 `channel('RO', Codecs.bool)` infers `ChannelType<boolean, boolean>` entirely from the second argument; nobody writes `<boolean>` anywhere.
@@ -116,7 +115,7 @@ interface CompositeEndpoint<Handles> {
 
 ```ts
 // @evok-node/driver-kit
-interface BoundEndpoint<T> {
+interface BoundEndpoint<T, E extends string = never> {
   readonly tail: Tail;
   emit(value: T): void;
 }
@@ -126,21 +125,30 @@ interface BoundEndpointInfo {
   readonly kind: string;
 }
 
-interface BindHandlers<T, TSet> {
+/** What `onCall` (only) resolves with — never the raw `Response` (03 §2), never a bare `T` either,
+ * since a bare value has no room to say "this failed, but not as a bug." One arm per expected
+ * outcome; `internal-error` is never constructed here — it's what driver-kit answers if the handler
+ * throws instead of resolving (§2, and the paragraph below). */
+type CallOutcome<R, E extends string = never> =
+  | { readonly ok: true; readonly result: R }
+  | { readonly ok: false; readonly kind: 'domain-error'; readonly domainErrorKind: E; readonly detail: string; readonly info?: unknown }
+  | { readonly ok: false; readonly kind: 'unreachable' | 'timeout'; readonly detail: string; readonly info?: unknown };
+
+interface BindHandlers<T, TSet, E extends string = never> {
   onGet?(req: Request): T | Promise<T>;
   onSet?(value: TSet, req: Request): TSet | Promise<TSet>;
-  onCall?(payload: TSet, req: Request): Promise<T>;
+  onCall?(payload: TSet, req: Request): Promise<CallOutcome<T, E>>;
 }
 
 interface DriverKit {
-  bind<T, TSet>(tail: Tail, type: EndpointType<T, TSet>, handlers?: BindHandlers<T, TSet>): BoundEndpoint<T>;
+  bind<T, TSet, E extends string = never>(tail: Tail, type: EndpointType<T, TSet, E>, handlers?: BindHandlers<T, TSet, E>): BoundEndpoint<T, E>;
   unbind(tail: Tail): void;
   list(): readonly BoundEndpointInfo[];
-  find<T = unknown>(tail: Tail): BoundEndpoint<T> | undefined;
+  find<T = unknown, E extends string = never>(tail: Tail): BoundEndpoint<T, E> | undefined;
   device(id: string, kind: string, prefix?: string): Tail;   // §6.6
   onGet<T>(ep: BoundEndpoint<T>, fn: (req: Request) => T | Promise<T>): void;
   onSet<T, TSet>(ep: BoundEndpoint<T>, fn: (value: TSet, req: Request) => TSet | Promise<TSet>): void;
-  onCall<R, A>(ep: BoundEndpoint<R>, fn: (payload: A, req: Request) => Promise<R>): void;
+  onCall<R, E extends string, A>(ep: BoundEndpoint<R, E>, fn: (payload: A, req: Request) => Promise<CallOutcome<R, E>>): void;
   attach(): void;                              // §6.7
 }
 ```
@@ -152,6 +160,8 @@ A duplicate `tail` at `bind()` is fatal — checked against the driver's own tab
 Every handler's final argument is the `Request` it's answering — `origin`, `deadline`, `id`, the lot — for a handler that genuinely needs more than its own payload; 06's `get`/`has`/`set`/`delete` are the first to use it, reading `origin` to resolve a caller's namespace. A handler that doesn't need it just doesn't declare the parameter; nothing about the type requires touching it.
 
 `handlers` on `bind()` is sugar for the three `on*` calls below it, nothing more — wiring at bind time is convenient when nothing else is going on, but `onGet`/`onSet`/`onCall` still exist on their own for a `CompositeEndpoint` (§6.3), whose `bind()` only ever returns handles and leaves wiring to the driver's own `configure()`. A handler that doesn't match the type's own shape — `onSet` against a `reading`, say — is a driver bug driver-kit rejects at `bind()` time, the same `reportFatal` path as a duplicate `tail`, not a silent no-op.
+
+`onCall`'s three `CallOutcome` shapes are the entire expected-failure channel for a `method` endpoint (§2's "never throws," restated at this layer): resolving `{ok:true, result}` answers a success `Response`; resolving `{ok:false, kind:'domain-error', domainErrorKind, ...}` answers `Response.ok:false, kind:'domain-error'` with that same `domainErrorKind` — driver-kit checks it against the endpoint's own declared `errorKinds` (§6.1) first, and a value outside that set is treated exactly like a handler-shape mismatch above: a driver bug, reported as `internal-error` rather than trusted, since it's data-dependent and can't be caught at `bind()` time the way a shape mismatch can; resolving `{ok:false, kind:'unreachable'|'timeout', ...}` answers that `Response` kind directly, with no `domainErrorKind` — the one place a handler picks a built-in, non-`domain-error` kind itself, because whether the device answered *this* call is exactly the handler's own, synchronous knowledge (03 §7). A handler that actually throws is unchanged from §2: driver-kit's dispatcher catches it, answers `internal-error`, and logs and counts it — nothing above is something the handler opts into, it's the only way any of these three outcomes reach the wire.
 
 `list`/`find` are driver-kit's own registry, already necessary internally for `$introspect` and for `unbind`'s teardown — exposed so a driver doesn't keep a second, parallel map of what it's already told `bind()` about. What `list`/`find` can't replace is a driver's own business data attached to a tail (a DALI ballast's label, say) that was never part of the endpoint table to begin with.
 
@@ -201,6 +211,6 @@ export const DI: CompositeEndpoint<{ reading: BoundEndpoint<...>; debounce: Boun
 
 01 §7's pattern, restated at the level a driver author actually acts on it: a resource one driver owns — a transport, a namespace — can be shared by other drivers that reach it through the owner's own request/response messaging, never by opening a second client on it themselves. The owning driver's own config says nothing about this on a dependent's behalf; the dependent declares the link itself (02 §4, 03 §8), and its own config carries whatever extra context the relationship needs — its address on that transport, say.
 
-What the owner exposes for this is, so far, one recurring shape: a raw pass-through endpoint — `CALL`, one variant with `effect: 'none'` for a query, one with `effect: 'mutates'` for a command — that lets a dependent speak the underlying protocol directly rather than the owner having to anticipate every device that might ever share it. Modbus's own version is a `MODBUS` endpoint type, 07's to define when 07 is next.
+What the owner exposes for this is, so far, one recurring shape: a set of `CALL` endpoints mirroring the underlying protocol's own operations one-to-one, each declared with whatever `effect` that operation actually has — so a dependent can speak the protocol directly rather than the owner having to anticipate every device that might ever share it. 07 has the concrete shape for Modbus: eight methods, one per function code, rather than a single generic query/command pair — precise enough that a caller picks the exact wire operation instead of the transport guessing.
 
 ## 8. REMOVED
