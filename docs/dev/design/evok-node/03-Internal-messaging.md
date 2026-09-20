@@ -64,7 +64,7 @@ interface Event {
 type Envelope = Request | Response | Event;
 ```
 
-`Tail`/`Address` are never built by a raw template literal outside the four functions above — RPG-DRV-1's "one audited address function" (05 §6.4), generalized past Modbus register arithmetic to addressing itself.
+`Tail`/`Address` are never built by a raw template literal outside the four functions above — RPG-DRV-1's "one audited address function" (05a §6.4), generalized past Modbus register arithmetic to addressing itself.
 
 `Request.deadline` is never the sender's raw value once a link is crossed — every link crosses one now (§10) — 04 §6.2a says how it's reconstructed fresh at each hop. The type above is what a module's own code always sees: already locally valid, nothing further to convert.
 
@@ -74,14 +74,14 @@ A batched, cross-driver read — an api asking for several qualified addresses i
 
 ## 3. Addressing
 
-`<driverId>:<tail>` (01 §6), case-sensitive, tail grammar owned entirely by the issuing driver. Four tails are reserved at the messaging layer, outside any driver's own grammar, and never reach a driver's `onRequest` handler:
+`<driverId>:<tail>` (01 §6), case-sensitive, tail grammar owned entirely by the issuing driver. Four tails are reserved at the messaging layer, outside any driver's own grammar:
 
-- `$introspect` — `GET` returns the driver's introspection payload (01 §6); also `SUBSCRIBE`-able — §5a.
+- `$introspect` — `GET` returns the driver's introspection payload (01 §6, §5); also `SUBSCRIBE`-able — §5a.
 - `$subscriptions` — `GET` returns the caller's own active subscriptions on that driver.
-- `$health` — a driver `emit`s here whenever its own reachability or degradation state changes (05's job to define the taxonomy); consumed like any other address, by `subscribe` (§4). `main` never inspects it — a driver's degradation is a business signal for whoever subscribes, not something `main` supervises (§11 covers what `main` actually reacts to).
+- `$health` — a driver `emit`s here whenever its own reachability or degradation state changes; its value's shape and meaning are that driver's own business, exactly like any other address — consumed like any other address, by `subscribe` (§4). `main` never inspects it — a driver's degradation is a business signal for whoever subscribes, not something `main` supervises (§11 covers what `main` actually reacts to).
 - `$getCallProgress.<id>` — parameterized by a `CALL` `Request`'s own `MessageId`, not a fixed string; exists only while that call is in flight. Both `GET`-able and `subscribe`-able — §6.4.
 
-All four are answered/fed generically (§5, §6), not hand-written per driver. There is no `$ping`: liveness is a property of the transport (§10), never a message a module sees.
+`$subscriptions` and `$getCallProgress.<id>` are handled by this layer alone, identically for every driver — no driver's own `onRequest` ever sees a request against either, and no driver code is involved in answering one. `$introspect`'s and `$health`'s own *address* is reserved the same way, but their *content* is the driver's: a driver answers `$introspect` and emits to `$health` exactly like any other address (§4, §5), by hand or through whatever library it leans on to do it for it — a library such as driver-kit (05) is one example, never a requirement this file imposes. There is no `$ping`: liveness is a property of the transport (§10), never a message a module sees.
 
 ## 4. Handling — `onRequest`
 
@@ -89,10 +89,6 @@ Nothing distinguishes a driver from an api at this layer; both get the same `Mes
 
 ```ts
 // @evok-node/module-sdk
-interface OnRequestOptions {
-  readonly tailMode?: 'opaque' | 'dottedAddressing';   // default 'opaque' — §6
-}
-
 interface CallHandle extends PromiseLike<Response> {
   // awaiting a CallHandle directly resolves with the final Response, exactly like get/set/introspect
   getProgress(): Promise<Response>;   // body: { progress: number; description?: string } — §6.4
@@ -106,7 +102,7 @@ interface MessagingHandle {
   subscribe(address: Address, onEvent: (event: Event) => void): void;   // upsert — subscribing an address already active replaces its handler
   unsubscribe(address: Address): void;
   listSubscriptions(): readonly Address[];   // this instance's own want-list — not the wire-level $subscriptions (§6.3)
-  onRequest(handler: (req: Request) => Promise<Response>, options?: OnRequestOptions): void;
+  onRequest(handler: (req: Request) => Promise<Response>): void;
   emit(tail: string, value: Value): void;   // push a fresh snapshot of one base endpoint — §6 handles delivery
   reportProgress(callId: MessageId, progress: number, description?: string): void;   // fire-and-forget, clamped to [0,1] — §6.4
 }
@@ -114,28 +110,28 @@ interface MessagingHandle {
 
 A handler's own `Response.id` and `re` are never load-bearing — the runtime mints the real `id` and sets `re: req.id` itself before anything reaches the wire, overwriting whatever the handler supplied. Keeping the full `Response` shape as the handler's return type, rather than a narrower success/failure pair, is deliberate: a handler that wants `id`/`re` for its own logging can still have them, even though nothing downstream trusts the values it chose.
 
-`onRequest`'s handler only ever sees `GET`/`SET`/`CALL` against the module's own real, base-address endpoints — `$introspect`, `$subscriptions`, `$getCallProgress.<id>` (§6.4), and any facet or wildcard resolution (§6) are all intercepted before this point. `SUBSCRIBE`/`UNSUBSCRIBE` still exist as wire methods (§2) — the dispatcher needs them to talk to a driver's own live bookkeeping (§6.3) — but a module reaches every method only through its own dedicated `get`/`set`/`call`/`introspect`/`subscribe`/`unsubscribe`, never by constructing a `Request` by hand, so the durable want-list §6.3 describes and the per-call progress state §6.4 describes can't be bypassed. `send` isn't part of this interface at all — `get`/`set`/`call`/`introspect` share one primitive underneath, but that's `main`'s own implementation, the same split 04 §2 draws for `Logger` (§2). The handler never sees its own driver id in `address` either — the dispatcher strips it, since a handler only ever serves its own tail grammar and would just have to discard the prefix.
+`onRequest`'s handler only ever sees `GET`/`SET`/`CALL` against the module's own real, base-address endpoints. `$subscriptions` and `$getCallProgress.<id>` (§6.4) are intercepted before this point — pure bookkeeping this layer owns outright, never reaching a handler. `$introspect` and `$health` are not intercepted: they reach the handler like any other address, because their content is inherently the driver's own (§3, §5). `SUBSCRIBE`/`UNSUBSCRIBE` still exist as wire methods (§2) — the dispatcher needs them to talk to a driver's own live bookkeeping (§6.3) — but a module reaches every method only through its own dedicated `get`/`set`/`call`/`introspect`/`subscribe`/`unsubscribe`, never by constructing a `Request` by hand, so the durable want-list §6.3 describes and the per-call progress state §6.4 describes can't be bypassed. `send` isn't part of this interface at all — `get`/`set`/`call`/`introspect` share one primitive underneath, but that's `main`'s own implementation, the same split 04 §2 draws for `Logger` (§2). The handler never sees its own driver id in `address` either — the dispatcher strips it, since a handler only ever serves its own tail grammar and would just have to discard the prefix.
 
-Until a module calls `onRequest`, *every* request — `GET`/`SET`/`CALL`, and any `SUBSCRIBE`/`UNSUBSCRIBE` a `subscribe`/`unsubscribe` call generates — answers `not-ready` (§7), never a hang, never a dropped connection. Nothing about subscriptions, facets or `tailMode` can be interpreted safely before this point either, since it's `onRequest`'s own call that supplies `tailMode` in the first place. This is a statement about the module's own startup (02 §5's two-phase `configure`/`start`, §9); `unreachable` (§7) is the separate, later signal for the device or bus that module owns.
+Until a module calls `onRequest`, *every* request — `GET`/`SET`/`CALL`, and any `SUBSCRIBE`/`UNSUBSCRIBE` a `subscribe`/`unsubscribe` call generates — answers `not-ready` (§7), never a hang, never a dropped connection. Nothing about subscriptions can be interpreted safely before this point either — resolving one depends on a registered endpoint table that doesn't exist yet. This is a statement about the module's own startup (02 §5's two-phase `configure`/`start`, §9); `unreachable` (§7) is the separate, later signal for the device or bus that module owns.
 
 Nothing here ever throws across the boundary. A handler that throws is a bug, not a business failure (`basics/02-Coding.md` §2.1); the dispatcher catches it, answers `internal-error`, and logs and counts it (§7) — the throw never reaches the caller, and never hangs one.
 
 ## 5. Introspection
 
-Answered generically at `$introspect`. The payload is a small, universal root, plus whatever the `type` discriminant says the rest is:
+`$introspect` is a `GET`/`SUBSCRIBE`-able address like any other (§3, §4) — a driver's own `onRequest` answers it, by hand or through a library that does it on the driver's behalf. All this file requires is a small, universal root every payload shares, plus an open discriminant that says which shape the rest of the payload takes:
 
 ```ts
 // @evok-node/module-sdk
 interface IntrospectionBase {
   readonly driverId: DriverId;
   readonly driverTypeName: string;   // the manifest's own typeName for this driver (02 §4) — display/attribution
-  readonly type: 'driver-kit';       // discriminant; the only value defined so far (05 §5a)
+  readonly type: string;             // open — this file defines only the root; whoever answers a given type owns its own payload shape
 }
 ```
 
-What an endpoint entry actually contains, and how facets/wildcards resolve on top of it, is `driver-kit`'s own to define, keyed off `type: 'driver-kit'` (05 §5a onward). A driver answering `$introspect` entirely by hand, outside `driver-kit`, is out of scope for now — nothing stops a future `type` covering that case, but nothing needs one yet.
+What a specific `type` value's own payload actually contains is entirely owned by whatever answers it — never this file's concern. A driver may build the rest of the payload by hand, or lean on a library that builds it instead: driver-kit (05a §5a onward) is one such library, registering `type: 'driver-kit'` and a device-table-shaped payload for it — an illustration of what's possible on top of this root, not something this section depends on.
 
-Correctness leans on mandatory endpoint-kind registration (02 §4, 05 §6.4) rather than on anything carried in this payload: every process in one running instance resolves a given `kind` to the identical registered `EndpointType`, so a consumer that already has — or lazily resolves — that same object locally needs nothing about its *behavior* repeated on the wire at all. `kind` is therefore load-bearing for correctness, not merely for grouping and display — it's the key into the one place a `Codec`'s actual `decode`/`encode`/`validate` live, the registered `EndpointType` itself, never the envelope. Its declarative half is different: `EndpointType.schema` (05 §6.1) is plain data, not a function, so `driver-kit` puts it on the wire, in a `DeviceEntry`'s `FieldEntry` (05 §5a — every bound tail, including a single-field device wrapping a lone endpoint, is reported this way) — alongside `shape`, `subscribe`, and `effect`, also plain data and also carried now, for exactly the consumer that has no local copy of a third-party plugin's package to resolve `kind` against in the first place. `Codec` itself — the actual `decode`/`encode`/`validate` — is what stays behind: a function genuinely cannot cross this boundary.
+Correctness leans on mandatory endpoint-kind registration (02 §4, 05a §6.4) rather than on anything carried in this payload: every process in one running instance resolves a given `kind` to the identical registered `EndpointType`, so a consumer that already has — or lazily resolves — that same object locally needs nothing about its *behavior* repeated on the wire at all. `kind` is therefore load-bearing for correctness, not merely for grouping and display — it's the key into the one place a `Codec`'s actual `decode`/`encode`/`validate` live, the registered `EndpointType` itself, never the envelope. Its declarative half is different: `EndpointType.schema` (05a §6.1) is plain data, not a function, so `driver-kit` puts it on the wire, in a `DeviceEntry`'s `FieldEntry` (05a §5a — every bound tail, including a single-field device wrapping a lone endpoint, is reported this way) — alongside `shape`, `subscribe`, and `effect`, also plain data and also carried now, for exactly the consumer that has no local copy of a third-party plugin's package to resolve `kind` against in the first place. `Codec` itself — the actual `decode`/`encode`/`validate` — is what stays behind: a function genuinely cannot cross this boundary.
 
 ## 5a. Introspection change notification
 
@@ -143,7 +139,7 @@ Correctness leans on mandatory endpoint-kind registration (02 §4, 05 §6.4) rat
 
 ## 6. Subscriptions and call progress
 
-What's actually addressable for `subscribe` — a struct endpoint's fields on their own, or a whole family of endpoints as one pattern — is `type`-specific: `driver-kit`'s own facet and wildcard resolution (05 §5b/§5c), since both lean on concepts (`EndpointType.facets`, `tailMode`) that are `driver-kit`'s to define, not the envelope's. What stays here is what every subscription gets once it's already resolved to a concrete address, regardless of how it got there — delivery semantics, coalescing, and reconnect-replay apply identically whether the concrete address came from a literal `subscribe` call, a resolved facet, or a wildcard's expansion.
+Resolving anything beyond a literal, concrete address — a whole family of endpoints matched as one pattern — is out of scope for this file entirely: it depends on a grammar (dot-segmented tails, wildcard matching) this layer never defines. A library a driver leans on may resolve this on top of what follows — driver-kit's own wildcard resolution (05a §5c) is one such mechanism — but it always hands this layer a literal address first; nothing below this line needs to know such a mechanism exists. What stays here is what every subscription gets once it's already resolved to a concrete address, regardless of how it got there — delivery semantics, coalescing, and reconnect-replay apply identically whether the concrete address came from a literal `subscribe` call or was resolved by something else first.
 
 ### 6.1. REMOVED
 
@@ -151,7 +147,7 @@ What's actually addressable for `subscribe` — a struct endpoint's fields on th
 
 ### 6.3. Delivery
 
-`subscribe`/`unsubscribe` (§4) are how a module asks for events; underneath, they still travel as ordinary `SUBSCRIBE`/`UNSUBSCRIBE` requests, resolved by the same generic dispatcher that answers `$introspect`, never by the driver author's own `onRequest` — facet and wildcard resolution included, whatever `type`-specific rules (05 §5b/§5c, for `driver-kit`) decide those mean. A driver's code only ever calls `emit(tail, value)` on its own base address when a value changes; the dispatcher fans that out to whoever is currently subscribed, at whatever address they actually asked for.
+`subscribe`/`unsubscribe` (§4) are how a module asks for events; underneath, they still travel as ordinary `SUBSCRIBE`/`UNSUBSCRIBE` requests. For a literal, concrete address, this layer resolves them completely on its own, never touching the driver author's own `onRequest` — the same bookkeeping split as `$subscriptions`/`$getCallProgress.<id>` (§3). Resolving anything else — a wildcard pattern — first is out of scope here; whatever the driver relies on for that (05a §5c is one mechanism) hands this layer a literal address before any of the below applies. A driver's code only ever calls `emit(tail, value)` on its own base address when a value changes; the dispatcher fans that out to whoever is currently subscribed, at whatever address they actually asked for.
 
 **Every event is a full snapshot, never a diff.** This one choice is what keeps the rest of subscription simple:
 
@@ -185,14 +181,14 @@ type ErrorKind =
 
 | Kind | Meaning | Whose problem |
 |---|---|---|
-| `unknown-address` | tail doesn't exist on this driver, doesn't resolve as a facet either (05 §5b), or names a `$getCallProgress` id for a call that's already resolved (§6.4) | caller |
+| `unknown-address` | tail doesn't exist on this driver, or names a `$getCallProgress` id for a call that's already resolved (§6.4) — a higher layer's own address resolution, e.g. driver-kit's wildcard matching (05a §5c), may also produce this same kind when its own resolution fails | caller |
 | `unsupported-method` | endpoint doesn't support this method | caller |
 | `bad-payload` | failed the endpoint's declared payload check | caller |
 | `not-subscribed` | `unsubscribe` on something never subscribed | caller |
-| `domain-error` | a `method`-shaped endpoint's own business logic produced a named failure outside this protocol vocabulary; `domainErrorKind` narrows it, drawn from the closed set the endpoint itself declares (05 §6.1/§6.4) — 06's `get` is the first user | depends on `domainErrorKind` |
+| `domain-error` | a `method`-shaped endpoint's own business logic produced a named failure outside this protocol vocabulary; `domainErrorKind` narrows it, drawn from the closed set the endpoint itself declares (05a §6.1/§6.4) — 06's `get` is the first user | depends on `domainErrorKind` |
 | `not-ready` | module hasn't called `onRequest` yet | timing |
-| `unreachable` | driver is up, its device/bus isn't answering (05's degradation state); also directly returnable from a `CALL` handler for that one call (05 §6.4) | environment |
-| `timeout` | driver tried, no answer within its own budget; also directly returnable from a `CALL` handler for that one call (05 §6.4) | environment |
+| `unreachable` | driver is up, its device/bus isn't answering (05's degradation state); also directly returnable from a `CALL` handler for that one call (05a §6.4) | environment |
+| `timeout` | driver tried, no answer within its own budget; also directly returnable from a `CALL` handler for that one call (05a §6.4) | environment |
 | `deadline-exceeded` | caller's own deadline elapsed before any response arrived; manufactured locally, may never have reached the target | nobody, structurally |
 | `link-down` | the peer process/thread itself is gone | infrastructure |
 | `internal-error` | handler threw | our bug |
@@ -366,14 +362,14 @@ Tier 1 (unit; `basics/03-Testing.md`), split by where the code actually lives.
 **`module-sdk`** — pure functions and data only, no runner, no socket:
 
 - Every `Envelope` variant round-trips through JSON unchanged (property test) — the discipline the old standalone `messaging` package's README asked for, now this package's own.
-- Address parsing: `driverId:tail` split — the one context-free string operation this package owns. Facet-suffix and wildcard matching are endpoint-table-based resolution, covered by 05's own testing (§5b/§5c) instead.
+- Address parsing: `driverId:tail` split — the one context-free string operation this package owns. Wildcard matching is endpoint-table-based resolution, covered by 05a's own testing (§5c) instead.
 - The fan-in helper: partial results merge correctly, keyed by address, when one driver's per-link deadline expires and another's doesn't.
 
 **`main`** — the dispatcher and transport, extending 02 §8's runner/reload fixtures rather than duplicating them:
 
 - `not-ready` before `onRequest`, for `GET`/`SET`/`CALL` and for any `subscribe`/`unsubscribe` call made before it.
 - `internal-error` on a handler that throws — logged and counted (`basics/02-Coding.md` §2.3), never propagated, never hanging the caller past its deadline.
-- `$introspect`/`$subscriptions`/`$health` answered, or fed, without reaching the fixture handler.
+- `$subscriptions`/`$getCallProgress` answered without reaching the fixture handler; `$introspect`/`$health` reach it like any other address, exercised through the fixture handler like any other `GET`/`SUBSCRIBE`.
 - Subscription bookkeeping (§6.3): the per-address coalescing buffer under backpressure — deliver-latest-only, never a superseded snapshot; `subscribe` on an already-active address replaces the handler rather than adding a second one; `listSubscriptions()` reflects the consumer's own want-list exactly, distinct from a provider's `$subscriptions`.
 - `get`/`set`/`call`/`introspect` (§4): each delegates to the same underlying request path as the others and to `subscribe`/`unsubscribe`/`onRequest` where relevant — no behavior difference from what the old single `send` produced for the same method, `introspect(driverId)` produces exactly the `Request` a hand-built `GET <driverId>:$introspect` would.
 - Call progress (§6.4): `getProgress()` reads back the default `{progress: 0}` before a fixture handler ever calls `reportProgress`; a `reportProgress` call updates both a subsequent `getProgress()` poll and fires an `Event` to an existing `subscribe`r on `$getCallProgress.<id>`, through the same coalescing buffer as §6.3; `getProgress()` (poll or subscribe) answers `unknown-address` once the matching `Response` has been sent; no subscription to `$getCallProgress.<id>` survives past that point — assert it's actually gone from the provider's bookkeeping, not just silent.
