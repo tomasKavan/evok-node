@@ -28,7 +28,7 @@ Where a scan loop does apply, cadence, prioritization between fast and slow chan
 
 ## 5. Using `driver-kit`, or building bare
 
-What it buys: `bind`/`unbind` and the `$introspect` table they maintain, generic payload validation against a bound endpoint's own `Codec`, facet and wildcard resolution (§5b, §5c), the scan-scheduling helper if §4 applies. 03 §5 already covers the fallback — a driver not built on `driver-kit` answers `$introspect` itself, by hand, as ordinary `onRequest` logic; nothing about the address is privileged at the protocol level, only the convenience is. That trade is worth taking deliberately rather than by default: a driver with one endpoint and no interest in facets or wildcards gains little from the machinery and can reasonably skip it.
+What it buys: `bindDevice`/`unbindDevice` and the `$introspect` table they maintain, generic payload validation against a bound endpoint's own `Codec`, facet and wildcard resolution (§5b, §5c), the scan-scheduling helper if §4 applies. 03 §5 already covers the fallback — a driver not built on `driver-kit` answers `$introspect` itself, by hand, as ordinary `onRequest` logic; nothing about the address is privileged at the protocol level, only the convenience is. That trade is worth taking deliberately rather than by default: a driver with one endpoint and no interest in facets or wildcards gains little from the machinery and can reasonably skip it.
 
 ## 5a. Introspection payload
 
@@ -39,20 +39,46 @@ What it buys: `bind`/`unbind` and the `$introspect` table they maintain, generic
 interface DriverKitIntrospection extends IntrospectionBase {
   readonly type: 'driver-kit';
   readonly tailMode: 'opaque' | 'dottedAddressing';   // whatever this driver passed to onRequest (03 §4) — a consumer needs this before attempting a wildcard subscribe (§5c)
-  readonly endpoints: readonly EndpointEntry[];
+  readonly devices: readonly DeviceEntry[];           // every bound tail — a device with a single '@' field is how a lone endpoint is bound (§6.3), not a special wire case
 }
 
-interface EndpointEntry {
+interface DeviceEntry {
   readonly tail: Tail;
-  readonly kind: string;                // resolves to the registered EndpointType (§6.4), which carries shape, subscribe and effect
+  readonly kind: string;    // the DeviceType's own kind (§6.3), resolved from its own manifest — every bound tail has one, even a single-field device
+  readonly fields: Readonly<Record<string, FieldEntry>>;   // '@' present whenever the tail itself answers GET/SET/CALL with no suffix; a sibling field is addressed at `<tail>.<key>`
+}
+
+interface FieldEntry {
+  readonly kind: string;                // resolves to the registered EndpointType (§6.4)
+  readonly shape: 'reading' | 'channel' | 'method';
+  readonly subscribe: boolean;
+  readonly effect?: 'none' | 'mutates';   // method only
   readonly schema: ValueSchema;         // duplicated from the registered EndpointType (§6.1) — see below for why
   readonly setSchema?: ValueSchema;     // channel only, present iff the registered type has one
   readonly argsSchema?: ValueSchema;    // method only, present iff the registered type has one
-  readonly device?: { readonly id: string; readonly kind: string };   // §6.6 — per-binding, never part of the registered kind itself
 }
 ```
 
-`shape`, `subscribe`, and `effect` stay off the wire, unchanged from before: they're properties of the registered `EndpointType` itself (§6.1, §6.4), and any consumer resolving `kind` already has, or can lazily get, that exact object (03 §5) — nothing about them needs repeating here. `schema` (and `setSchema`/`argsSchema`) is the one deliberate exception, for a reason the others don't share: it is data, not a function, so it is the one part of an `EndpointType` a consumer that has never imported this plugin's package can still render and validate correctly — the whole point of 01 §6's "kind is open" for a third-party `kind` an api's author never heard of. `Codec` itself — the actual `decode`/`encode`/`validate` — stays exactly as thin as before, resolved locally through `kind`, because a function genuinely cannot cross this boundary; only its declarative twin does (§6.1). `device` is unchanged: it varies per binding, not per kind, so no registered `EndpointType` could carry it on the endpoint's behalf.
+```json
+{
+  "tail": "DI.01", "kind": "DI",
+  "fields": {
+    "@":        { "kind": "DI",          "shape": "reading", "subscribe": true,  "schema": { "type": "struct", "fields": { "value": {"type":"primitive","format":"bool"}, "counter": {"type":"primitive","format":"uint32"}, "readAt": {"type":"primitive","format":"timestamp"}, "stale": {"type":"primitive","format":"bool"} } } },
+    "debounce": { "kind": "DI.debounce", "shape": "channel", "subscribe": false, "schema": { "type": "primitive", "format": "uint16", "unit": "ms" } }
+  }
+}
+```
+(`directSwitch` is absent above — an `optional()` field (§6.3) this particular binding didn't supply, same as a struct field simply not existing yet, §2's "no value yet" rule extended to a field that may never exist for this device at all.)
+
+A device with a single `'@'` field and no siblings — 06's `get`, say — takes the identical shape:
+
+```json
+{ "tail": "get", "kind": "method.get", "fields": { "@": { "kind": "method.get", "shape": "method", "subscribe": false, "effect": "none", "schema": {"type":"primitive","format":"json"}, "argsSchema": {"type":"primitive","format":"json"} } } }
+```
+
+`shape`, `subscribe`, and `effect` travel on the wire alongside `schema`, not just its declarative data — enough of an `EndpointType`'s own contract to route a request correctly without resolving `kind` locally at all. The earlier reasoning for keeping them off the wire — "any consumer resolving `kind` already has, or can lazily get, that exact object" — only holds for a peer in the same running instance with manifest access (02 §4); it doesn't hold for a browser UI or a third-party API client that's never imported this plugin's package, which is exactly the consumer `schema` was already carried for. `Codec` itself — the actual `decode`/`encode`/`validate` — stays exactly as thin as before, resolved locally through `kind`, because a function genuinely cannot cross this boundary; only its declarative twin does (§6.1).
+
+This isn't a wire-only normalization — `bindDevice()` (§6.4) is the only way to bind anything at all, so `$introspect`'s single `devices[]` list follows directly from what's actually bound, rather than needing to reconcile two binding primitives into one shape.
 
 ## 5b. Facets — an endpoint's own schema, addressed on its own
 
@@ -67,6 +93,8 @@ A facet `GET` calls the handler with the *base* address, gets the decoded value 
 A `subscribe` address may use `*` for exactly one dot-segment — `DI.*` matching `DI.01`, `DI.02`, … — allowed only for a driver that passed `tailMode: 'dottedAddressing'` to `onRequest` (03 §4), reported at `$introspect`'s own root (§5a) so a consumer knows before it tries. Nothing forces this grammar on a driver that hasn't opted in; an `opaque` driver's tails are exact-match-only for subscribe, same as always. On a wildcard `subscribe`, the dispatcher expands the pattern against the driver's *current* endpoint table, subscribes to each match, and remembers the pattern itself so a later topology-generation bump re-expands it — a newly matching endpoint joins automatically, a removed one drops, with no re-subscribe from the caller. `unsubscribe`/`listSubscriptions`/`$subscriptions` operate on the literal pattern the caller used, never the expansion. A facet suffix composes with a wildcard the same way it composes with any base address (`DI.*:value`) — expand the wildcard first, then resolve the facet on each match.
 
 An event delivered through a wildcard subscription always carries the concrete address that actually changed (`Event.address`, 03 §2) — never the pattern. Matching a wildcard is the subscriber's own bookkeeping; the event shape doesn't need to represent it.
+
+Subscribing to a `Device`'s own tail — the literal tail, or one reached through a wildcard match — subscribes to every subscribeable field of that device, not just `@`: `DI.*` matching `DI.01` picks up `DI.01`'s own `@` stream and its `debounce`-style siblings alike, each still delivered under its own concrete tail (`DI.01` for `@`, `DI.01.debounce` for a sibling) per this section's rule above — never the device's bare tail, never the pattern. Nothing new is needed for this: a device's fields are ordinary bound tails (§6.3), so it falls out of wildcard expansion exactly the way any other sibling tail already would.
 
 ## 6. Endpoint types and binding
 
@@ -113,7 +141,7 @@ interface UnionSchema                       { readonly type: 'union'; readonly t
 
 `Semantics` is advisory only — `min`/`max`/`step`/`enumValues` are for a generic consumer to render a control correctly (§6.3a's `AO`/`DO`), never a second validation layer a driver author has to keep in sync with limits the hardware already enforces itself. `int64`/`uint64` decode to `bigint`, never `number`: `Value` (03 §2) has no `bigint` arm, so their wire form is a decimal string, the same JSON-safe shape as everything else on this boundary — `BigInt(str)` is the whole decode, no big-number library needed. `timestamp` costs nothing new either: it reuses `readAt`'s own existing epoch-seconds convention, just typed as `Date` instead of a raw number callers had to interpret themselves.
 
-`Codecs` is the one place every leaf format and every combinator lives, so an endpoint author never hand-writes a `Codec` or a `ValueSchema` separately — illustrative only, the mechanical parts of the generics are elided the same way §6.3's `CompositeEndpoint` example elides them:
+`Codecs` is the one place every leaf format and every combinator lives, so an endpoint author never hand-writes a `Codec` or a `ValueSchema` separately — illustrative only, the mechanical parts of the generics are elided the same way §6.3's `DeviceType` example elides them:
 
 ```ts
 // @evok-node/module-sdk — illustrative only
@@ -141,7 +169,7 @@ const Codecs: {
 };
 ```
 
-`union`'s decoded value always carries the discriminant itself, merged in — `Codecs.union('mode', { voltage10: Codecs.struct({...}) })` decodes to `{mode: 'voltage10', ...}`, never a bare variant the caller has to re-tag by hand. §6.3a works through a full example. Every driver-declared value type comes from composing `Codecs`' members — never a bare object literal claiming a `schema` it doesn't back with a real `Codec`, and never a `Codec` written by hand without the matching `schema`. `bind()` (§6.4) has no way to check the two agree; keeping them paired through `TypedCodec` rather than authored separately is what actually prevents drift, same tier of concern as `basics/02-Coding.md` §1.1's branding rule.
+`union`'s decoded value always carries the discriminant itself, merged in — `Codecs.union('mode', { voltage10: Codecs.struct({...}) })` decodes to `{mode: 'voltage10', ...}`, never a bare variant the caller has to re-tag by hand. §6.3a works through a full example. Every driver-declared value type comes from composing `Codecs`' members — never a bare object literal claiming a `schema` it doesn't back with a real `Codec`, and never a `Codec` written by hand without the matching `schema`. `bindDevice()` (§6.4) has no way to check the two agree; keeping them paired through `TypedCodec` rather than authored separately is what actually prevents drift, same tier of concern as `basics/02-Coding.md` §1.1's branding rule.
 
 Three shapes, discriminated, each with its methods and `effect` fully implied rather than declared:
 
@@ -200,26 +228,38 @@ function method<R, A = void, E extends string = never>(kind: string, effect: 'no
 
 `channel('RO', Codecs.bool())` infers `ChannelType<boolean, boolean>` entirely from the second argument, `schema` included; nobody writes `<boolean>` or a schema literal anywhere.
 
-### 6.3. `CompositeEndpoint<Handles>` — composing more than one endpoint
+### 6.3. `DeviceType<Fields>` — one tail, several fields, one registered kind
 
-Some device concepts need more than one address to be themselves — a digital input reading paired with a wholly separate, writable debounce `channel` is the recurring example, and `SET` is never facet-resolved (§5b), so debounce can't just be a field of the reading. Most kinds don't need this; it exists only for the composite ones:
+Some device concepts need more than one address to be themselves — a digital input reading paired with a separately-writable debounce `channel` is the recurring example, and `SET` is never facet-resolved (§5b), so debounce can't just be a field of the reading. A `Device` groups them under one tail as a single registered kind — reusable across drivers and transports, the same way an `EndpointType`'s own `kind` already is (§6.4). Most kinds don't need this; it exists only for the composite ones:
 
 ```ts
-interface CompositeEndpoint<Handles> {
-  bind(kit: DriverKit, baseTail: Tail): Handles;
+// @evok-node/module-sdk
+interface DeviceType<Fields extends Record<string, EndpointType | OptionalEndpointType>> {
+  readonly kind: string;    // resolves in the device manifest (§6.4) — fatal at bindDevice() if it doesn't
+  readonly fields: Fields;  // '@' is the reserved root key, answering GET/SET/CALL on the device's own tail with no suffix; every other key is a sibling field, addressed at `<tail>.<key>`
 }
 
-// Illustrative only — an endpoint-kind package registers something shaped like this (§6.4).
-const DIReading  = reading('DI', Codecs.struct({ value: Codecs.bool(), counter: Codecs.uint32(), readAt: Codecs.timestamp(), stale: Codecs.bool() }));
-const DIDebounce = channel('DI.debounce', Codecs.uint16(), { subscribe: false });
-const DI: CompositeEndpoint<{ reading: BoundEndpoint<...>; debounce: BoundEndpoint<number> }> = {
-  bind(kit, baseTail) {
-    return { reading: kit.bind(baseTail, DIReading), debounce: kit.bind(extendTail(baseTail, 'debounce'), DIDebounce) };
-  },
-};
+function device<F extends Record<string, EndpointType | OptionalEndpointType>>(kind: string, fields: F): DeviceType<F>;
+function optional<T extends EndpointType>(type: T): OptionalEndpointType<T>;   // marks a field a driver may leave unbound — §6.4
 ```
 
-Its debounce is a real, separately-writable endpoint, bound alongside the reading under one call, never a facet. `DIReading`'s struct needs no `facets` opt-in any more (§5b) — `DI.01:value` and `DI.01:counter` resolve straight from its `schema`.
+```ts
+// di-device.ts — package.json-exposed, reusable by any driver that has this hardware shape
+const DIDevice = device('DI', {
+  '@':          reading('DI', Codecs.struct({ value: Codecs.bool(), counter: Codecs.uint32(), readAt: Codecs.timestamp(), stale: Codecs.bool() }), { subscribe: true }),
+  debounce:     channel('DI.debounce', Codecs.uint16({ unit: 'ms' })),
+  directSwitch: optional(channel('DI.directSwitch', Codecs.bool())),   // not every DI channel supports a forced override
+});
+```
+
+Two rules a `device()` builder checks when the `DeviceType` itself is built, not only once some driver binds it — a `DeviceType` failing either is a packaging mistake, same tier as a `Codec`/`ValueSchema` mismatch (§6.1):
+
+- `@`'s own `schema` is `struct`-shaped ⇒ none of its field names may collide with a sibling field's key. `DI.01:value` (a facet of `@`, §5b) and `DI.01.debounce` (a sibling field) are syntactically distinct addresses, but a `@` struct field and a sibling field sharing a name is confusing enough to reject outright.
+- `@`'s own `schema` is `primitive`/`array`-shaped ⇒ the device may declare no sibling fields at all. A bare scalar/array `@` has nothing to group; a device wanting siblings needs a `struct` `@` — or no `@` at all, since a `DeviceType` isn't required to declare one.
+
+`DI.01.debounce` addresses a sibling exactly like any other bound endpoint's tail — nothing new there; what's new is that it can no longer be bound loose, outside a `DeviceType`'s own declared fields, once something has claimed `DI.01` as a device (§6.4's fatal check).
+
+A `Device` is mandatory, not an opt-in convenience: there is no separate way to bind a single, sibling-less endpoint. `device('AO', { '@': AO })` — one field, no fatal checks even relevant since there's nothing for `@` to collide with — is the normal shape for that case, not a special case kept around for the ergonomics of skipping this section. A `DeviceType` also isn't required to declare `'@'` at all: a device that's purely a bundle of siblings, with no single field answering the bare tail, is equally legal (07's raw Modbus function codes are the example — eight sibling fields, no root).
 
 ### 6.3a. One endpoint, several mutually exclusive shapes — `union`
 
@@ -247,15 +287,18 @@ const DOValue = Codecs.union('mode', {
 const DO = channel('DO', DOValue, { subscribe: true });
 ```
 
-Binding is one `bind()` call, same as any other `channel` — no `unbind`/rebind dance when the mode changes, because it never stopped being the same endpoint:
+Binding is one `bindDevice()` call, same as any other `channel` wrapped as a single-field device (§6.3) — no `unbind`/rebind dance when the mode changes, because it never stopped being the same endpoint:
 
 ```ts
-kit.bind(tail, AO, {
-  onGet: () => this.readCurrentModeAndValue(),                 // { mode: 'voltage10', value: 3200 }
-  onSet: (v) => {
-    if (v.mode !== this.hwMode) throw new RejectedPayload(`AO is in ${this.hwMode} mode`);   // §6.4
-    this.writeHw(v.value);
-    return v;
+const AODevice = device('AO', { '@': AO });
+kit.bindDevice(tail, AODevice, {
+  '@': {
+    onGet: () => this.readCurrentModeAndValue(),                 // { mode: 'voltage10', value: 3200 }
+    onSet: (v) => {
+      if (v.mode !== this.hwMode) throw new RejectedPayload(`AO is in ${this.hwMode} mode`);   // §6.4
+      this.writeHw(v.value);
+      return v;
+    },
   },
 });
 ```
@@ -278,7 +321,7 @@ kit.bind(tail, AO, {
 
 A live `GET`/`subscribe` value tells a client which arm is populated right now; `ao1:mode` (§5b) answers just the tag, for a consumer that only cares which mode is active and not the value. Mode itself is never settable independently of a value in this shape — SET always names both `mode` and the fields that mode needs, atomically, the same discipline §6.1's `channel` SET always had (return exactly `TSet`, never something narrower). A device whose mode change needs its own action distinct from writing a value — one with real switching latency, say — exposes that as a `method` instead (§6.1), never by making `mode` its own facet-writable field; §5b's facet mechanism stays `GET`/`subscribe`-only on every shape, no exception here.
 
-### 6.4. `bind`, `unbind`, and the fatal duplicate
+### 6.4. `bindDevice`, `unbindDevice`, and the fatal duplicate
 
 ```ts
 // @evok-node/driver-kit
@@ -308,11 +351,14 @@ interface BindHandlers<T, TSet, E extends string = never> {
 }
 
 interface DriverKit {
-  bind<T, TSet, E extends string = never>(tail: Tail, type: EndpointType<T, TSet, E>, handlers?: BindHandlers<T, TSet, E>): BoundEndpoint<T, E>;
-  unbind(tail: Tail): void;
-  list(): readonly BoundEndpointInfo[];
+  bindDevice<F extends Record<string, EndpointType | OptionalEndpointType>>(
+    tail: Tail,
+    type: DeviceType<F>,
+    handlers: { readonly [K in keyof F]?: BindHandlers<...> }   // one entry per field actually being bound; omit an optional() field entirely to leave it unbound
+  ): { readonly [K in keyof F]?: BoundEndpoint<...> };
+  unbindDevice(tail: Tail): void;
+  list(): readonly BoundEndpointInfo[];          // every field of every bound device, flattened — '@' reported under the device's own tail, a sibling under `<tail>.<key>`
   find<T = unknown, E extends string = never>(tail: Tail): BoundEndpoint<T, E> | undefined;
-  device(id: string, kind: string, prefix?: string): Tail;   // §6.6
   onGet<T>(ep: BoundEndpoint<T>, fn: (req: Request) => T | Promise<T>): void;
   onSet<T, TSet>(ep: BoundEndpoint<T>, fn: (value: TSet, req: Request) => TSet | Promise<TSet>): void;
   onCall<R, E extends string, A>(ep: BoundEndpoint<R, E>, fn: (payload: A, req: Request) => Promise<CallOutcome<R, E>>): void;
@@ -320,33 +366,35 @@ interface DriverKit {
 }
 ```
 
-A duplicate `tail` at `bind()` is fatal — checked against the driver's own table only, never a global view, because addresses are driver-qualified and uniqueness is local by construction. This is the direct mitigation for the wrong-relay bug class research/04 documents: no purchasable Unipi device has enough channels of one type to reproduce the bank-stride half of that bug on hardware, so this assertion is the only thing that can still catch a wrong address table before it drives the wrong output. A driver assembling its own tails in a loop is exactly where this matters most — 07 has the concrete mitigation for Modbus's own register arithmetic.
+`bindDevice` is the only way to bind anything — there is no separate `bind()` for a lone endpoint (§6.3: a single-`'@'`-field `DeviceType` is that case, not a special one). It's fatal in any of the following, all the same tier — a packaging or driver-author mistake, never a business-logic case worth degrading gracefully for:
 
-**An `EndpointType`'s `kind` must resolve in the endpoint manifest (02 §4) or `bind()` is fatal — same tier as a duplicate `tail`.** Every process gets the whole manifest at spawn (02 §6), so this is a cheap, local table lookup, not a round trip: `bind()` checks `type.kind` against it before doing anything else, and a kind nobody registered is a packaging mistake, not a business-logic case worth degrading gracefully for. `channel`/`reading`/`method` (§6.2) produce an ordinary `EndpointType`, nothing more — the only way a driver author gets to bind one is if some package declared it as `kind: "endpoint"` in its own manifest entry, Unipi's own onboard I/O kinds included.
+- `type.kind` doesn't resolve in the device manifest.
+- Any field's own `EndpointType.kind` doesn't resolve in the endpoint manifest (02 §4) — a cheap, local table lookup against the manifest every process gets at spawn (02 §6), checked per field before anything else happens. `channel`/`reading`/`method` (§6.2) produce an ordinary `EndpointType`, nothing more — the only way a driver author gets to bind one is if some package declared it as `kind: "endpoint"` in its own manifest entry, Unipi's own onboard I/O kinds included.
+- A field declared without `optional()` (§6.3) is missing from `handlers`.
+- The device's own `tail`, or any field's derived tail, duplicates one already bound — checked against the driver's own table only, never a global view, because addresses are driver-qualified and uniqueness is local by construction. This is the direct mitigation for the wrong-relay bug class research/04 documents: no purchasable Unipi device has enough channels of one type to reproduce the bank-stride half of that bug on hardware, so this assertion is the only thing that can still catch a wrong address table before it drives the wrong output. A driver assembling its own tails in a loop is exactly where this matters most — 07 has the concrete mitigation for Modbus's own register arithmetic.
+- A second `bindDevice()` call whose tail falls inside an already-bound device's own tail — `DI.01.<anything>` once `DI.01` is a device — but isn't one of that device's declared field keys. A device's namespace is closed once bound; nothing else may graft onto it.
 
-`unbind` tears down whatever the dispatcher was holding for that tail — active subscriptions included, the same discipline `$getCallProgress.<id>` already applies to itself the moment its own call resolves (03 §6.4) — and bumps the introspection generation (§6.7) the same way `bind` does.
+A `DeviceType` gaining a new required field in a later package version is, by the third rule above, a breaking change for anything still calling `bindDevice` without it — there's no separate versioning mechanism; the same fatal check just starts firing for drivers that haven't caught up. Wrapping a newly-added field in `optional()` instead keeps old callers working unchanged.
+
+`unbindDevice` tears down whatever the dispatcher was holding for the device's own tail — every field, active subscriptions included, the same discipline `$getCallProgress.<id>` already applies to itself the moment its own call resolves (03 §6.4) — and bumps the introspection generation (§6.7) the same way `bindDevice` does.
 
 Every handler's final argument is the `Request` it's answering — `origin`, `deadline`, `id`, the lot — for a handler that genuinely needs more than its own payload; 06's `get`/`has`/`set`/`delete` are the first to use it, reading `origin` to resolve a caller's namespace. A handler that doesn't need it just doesn't declare the parameter; nothing about the type requires touching it.
 
-`handlers` on `bind()` is sugar for the three `on*` calls below it, nothing more — wiring at bind time is convenient when nothing else is going on, but `onGet`/`onSet`/`onCall` still exist on their own for a `CompositeEndpoint` (§6.3), whose `bind()` only ever returns handles and leaves wiring to the driver's own `configure()`. A handler that doesn't match the type's own shape — `onSet` against a `reading`, say — is a driver bug driver-kit rejects at `bind()` time, the same `reportFatal` path as a duplicate `tail`, not a silent no-op.
+`handlers` on `bindDevice()` is sugar for the three `on*` calls below it, per field, nothing more — wiring at bind time is convenient when nothing else is going on, but `onGet`/`onSet`/`onCall` still exist on their own for wiring a field after the fact, or from a driver's own `configure()` rather than at the `bindDevice()` call site itself. A handler that doesn't match its field's own shape — `onSet` against a `reading` field, say — is a driver bug driver-kit rejects at `bindDevice()` time, the same `reportFatal` path as a duplicate `tail`, not a silent no-op.
 
 One narrow exception to `onGet`/`onSet` never throwing (§2): a handler may throw `RejectedPayload(detail)` (from `driver-kit`) specifically to answer `bad-payload` for a structurally valid write its own business state can't accept right now. A `union`-shaped channel's SET naming a mode the device isn't currently in (§6.3a) is the motivating case — `Codec.validate` is stateless and can check the payload is *some* known variant but never which one this particular binding currently allows, so that check can only happen inside the handler. Driver-kit's dispatcher recognizes exactly this one thrown type and answers `bad-payload`, never `internal-error`; anything else thrown from `onGet`/`onSet` is still a bug, unchanged from §2.
 
-`onCall`'s three `CallOutcome` shapes are the entire expected-failure channel for a `method` endpoint (§2's "never throws," restated at this layer): resolving `{ok:true, result}` answers a success `Response`; resolving `{ok:false, kind:'domain-error', domainErrorKind, ...}` answers `Response.ok:false, kind:'domain-error'` with that same `domainErrorKind` — driver-kit checks it against the endpoint's own declared `errorKinds` (§6.1) first, and a value outside that set is treated exactly like a handler-shape mismatch above: a driver bug, reported as `internal-error` rather than trusted, since it's data-dependent and can't be caught at `bind()` time the way a shape mismatch can; resolving `{ok:false, kind:'unreachable'|'timeout', ...}` answers that `Response` kind directly, with no `domainErrorKind` — the one place a handler picks a built-in, non-`domain-error` kind itself, because whether the device answered *this* call is exactly the handler's own, synchronous knowledge (03 §7). A handler that actually throws is unchanged from §2: driver-kit's dispatcher catches it, answers `internal-error`, and logs and counts it — nothing above is something the handler opts into, it's the only way any of these three outcomes reach the wire.
+`onCall`'s three `CallOutcome` shapes are the entire expected-failure channel for a `method` endpoint (§2's "never throws," restated at this layer): resolving `{ok:true, result}` answers a success `Response`; resolving `{ok:false, kind:'domain-error', domainErrorKind, ...}` answers `Response.ok:false, kind:'domain-error'` with that same `domainErrorKind` — driver-kit checks it against the endpoint's own declared `errorKinds` (§6.1) first, and a value outside that set is treated exactly like a handler-shape mismatch above: a driver bug, reported as `internal-error` rather than trusted, since it's data-dependent and can't be caught at `bindDevice()` time the way a shape mismatch can; resolving `{ok:false, kind:'unreachable'|'timeout', ...}` answers that `Response` kind directly, with no `domainErrorKind` — the one place a handler picks a built-in, non-`domain-error` kind itself, because whether the device answered *this* call is exactly the handler's own, synchronous knowledge (03 §7). A handler that actually throws is unchanged from §2: driver-kit's dispatcher catches it, answers `internal-error`, and logs and counts it — nothing above is something the handler opts into, it's the only way any of these three outcomes reach the wire.
 
-`list`/`find` are driver-kit's own registry, already necessary internally for `$introspect` and for `unbind`'s teardown — exposed so a driver doesn't keep a second, parallel map of what it's already told `bind()` about. What `list`/`find` can't replace is a driver's own business data attached to a tail (a DALI ballast's label, say) that was never part of the endpoint table to begin with.
+`list`/`find` are driver-kit's own registry, already necessary internally for `$introspect` and for `unbindDevice`'s teardown — exposed so a driver doesn't keep a second, parallel map of what it's already told `bindDevice` about. What `list`/`find` can't replace is a driver's own business data attached to a tail (a DALI ballast's label, say) that was never part of the endpoint table to begin with.
 
 ### 6.5. Dynamic binding is user data, not config
 
 Binding or unbinding an endpoint at runtime — in response to a `CALL`, say, rather than at `configure` — means whatever drove that decision has to survive a restart on its own; the endpoint table itself is never persisted, it's rebuilt by replaying whatever caused it. That "whatever" is user data (01 §2), the same category as an alias or a group, and belongs in the KV-store driver's own namespace for this driver (06) — reloaded at `configure`, written back on every change. 06 has the mechanism; this is only the reminder that a driver doing this has somewhere to put it.
 
-### 6.6. `device()` — grouping, not a protocol addition
+### 6.6. REMOVED
 
-```ts
-device(id: string, kind: string, prefix?: string): Tail;   // prefix nests one device under another; omitted ⇒ rooted at the driver's own top level
-```
-
-Prefixes every tail bound under it and stamps a `device: { id, kind }` field onto each of those endpoints' introspection entries, purely so a UI or API can group and label without parsing a tail. `prefix` takes a plain string or another `device()` call's own return value interchangeably — a `Tail` is a `string`, nothing more is needed to nest one device under another. Addressing, facets, everything else are unaffected — this is `driver-kit` convenience, not a new concept 03 needs to know about.
+Superseded by `DeviceType`/`bindDevice` (§6.3/§6.4): grouping is no longer a cosmetic prefix stamped onto otherwise-ordinary endpoints, it's a registered kind with a closed field set. A driver builds a device's own tail the same way it builds any other tail — `tail(...)`/`extendTail(...)` (03 §2) — and passes it straight to `bindDevice`.
 
 ### 6.7. `attach()` — the one `onRequest`
 
@@ -354,7 +402,7 @@ Prefixes every tail bound under it and stamps a `device: { id, kind }` field ont
 attach(): void;
 ```
 
-No arguments — `createDriverKit(ctx)` already closed over `ctx` at construction. This is the one moment `ctx.messaging.onRequest(...)` is actually called, once, after every `bind()` a driver wants at startup; facet resolution (§5b) and wildcard resolution (§5c) both live inside this same dispatcher, never reimplemented per driver. It also raises the driver's own introspection `generation` on every `bind`/`unbind` and emits it on `$introspect` — `SUBSCRIBE`-able for exactly this, 03 §5a — so a client watching for new endpoints never has to poll.
+No arguments — `createDriverKit(ctx)` already closed over `ctx` at construction. This is the one moment `ctx.messaging.onRequest(...)` is actually called, once, after every `bindDevice()` a driver wants at startup; facet resolution (§5b) and wildcard resolution (§5c) both live inside this same dispatcher, never reimplemented per driver. It also raises the driver's own introspection `generation` on every `bindDevice`/`unbindDevice` and emits it on `$introspect` — `SUBSCRIBE`-able for exactly this, 03 §5a — so a client watching for new endpoints never has to poll.
 
 ### 6.8. REMOVED
 
@@ -372,7 +420,8 @@ Tier 1 (unit; `basics/03-Testing.md`), against `driver-kit`'s own fixtures — a
 
 - Facet resolution (§5b): `GET`/a `subscribe`d facet projects correctly, including a nested struct path and a union's `tag`; a literal address that collides with a real endpoint is never facet-resolved; a union facet path that doesn't match the endpoint's *current* variant answers `unknown-address`, not a stale or default value.
 - Wildcard resolution (§5c): a `DI.*` subscription picks up a fixture endpoint added after subscribing (a topology-generation bump) and drops one removed, with no re-subscribe from the caller; rejected outright against a fixture driver that never passed `tailMode: 'dottedAddressing'`.
-- `bind()`'s kind check (§6.4): a fixture `EndpointType` whose `kind` isn't in the endpoint manifest is fatal at `bind()`, before `attach()`; a duplicate `tail` is fatal independently of whether `kind` resolves.
-- Introspection payload (§5a): `$introspect` on a fixture driver returns `{driverId, driverTypeName, type: 'driver-kit', tailMode, endpoints}`, each entry exactly `tail`/`kind`/`schema`/`setSchema?`/`argsSchema?`/`device?` — assert `codec`/`setCodec`/`argsCodec`/`resultCodec` themselves never leak onto the wire, only their serializable `schema` counterparts do.
+- `bindDevice()`'s checks (§6.4): a fixture single-`'@'`-field `DeviceType` whose field `kind` isn't in the endpoint manifest is fatal at `bindDevice()`, before `attach()`, and independently a `DeviceType` whose own `kind` isn't in the device manifest is fatal; a duplicate `tail` is fatal independently of whether either `kind` resolves.
+- Introspection payload (§5a): `$introspect` on a fixture driver returns `{driverId, driverTypeName, type: 'driver-kit', tailMode, devices}`, each `DeviceEntry` exactly `tail`/`kind`/`fields`, each `FieldEntry` exactly `kind`/`shape`/`subscribe`/`effect?`/`schema`/`setSchema?`/`argsSchema?`; a fixture device with a single `'@'` field and no siblings still appears as an ordinary `DeviceEntry` — assert `codec`/`setCodec`/`argsCodec`/`resultCodec` themselves never leak onto the wire, only their serializable counterparts do.
 - `RejectedPayload` (§6.4): a fixture `onSet` throwing it answers `bad-payload`, never `internal-error`; any other thrown error from `onGet`/`onSet` still answers `internal-error`, unchanged.
-- `CompositeEndpoint` (§6.3): both handles from one `bind()` call are independently addressable, and `unbind`ing the composite's base tail doesn't silently leave its debounce-style sibling bound.
+- `DeviceType`/`bindDevice` (§6.3/§6.4): a `struct`-shaped `@` whose field name collides with a sibling field is rejected when the `DeviceType` is built, before any driver binds it; a `primitive`/`array`-shaped `@` declared alongside any sibling field is rejected the same way; a required field missing from `bindDevice`'s `handlers` is fatal, while the same `DeviceType` binds successfully with only some `optional()` fields supplied; a second `bindDevice()` whose tail falls inside an already-bound device's namespace, outside its declared fields, is fatal; both handles from one `bindDevice()` call are independently addressable, and `unbindDevice`ing the device's own tail doesn't silently leave a sibling field bound.
+- Wildcard over a device (§5c): a `DI.*` subscription against a fixture device with `@` plus one subscribeable sibling field delivers events for both, each carrying its own concrete tail, never the device's bare tail or the pattern.

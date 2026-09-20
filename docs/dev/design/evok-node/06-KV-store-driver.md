@@ -30,7 +30,7 @@ Five methods, all `CALL`-shaped (05 §6.1) — `get`, `has`, `set`, `delete`, `l
 
 ## 4. Dispatch
 
-Built on `driver-kit` exactly as any other driver would be — `bind()` these five at `attach()` (05 §6.7), once, and never again. There is no dynamic binding here: the endpoint table is these five methods, forever, so `$introspect`'s `generation` never bumps after startup and a client watching it sees a driver that simply never changes shape. This only works because `onGet`/`onSet`/`onCall` now receive the full `Request` as their last argument (05 §6.4) — this driver is the reason that exists: `get`/`has`/`set`/`delete` all read `req.origin` to resolve §2's namespace, something the payload-only handler shape from before couldn't do.
+Built on `driver-kit` exactly as any other driver would be — `bindDevice()` each of these five as its own single-`'@'`-field device (05 §6.3 — binding is mandatory through a `Device`, even for a lone endpoint) at `attach()` (05 §6.7), once, and never again. There is no dynamic binding here: the endpoint table is these five methods, forever, so `$introspect`'s `generation` never bumps after startup and a client watching it sees a driver that simply never changes shape. This only works because `onGet`/`onSet`/`onCall` now receive the full `Request` as their last argument (05 §6.4) — this driver is the reason that exists: `get`/`has`/`set`/`delete` all read `req.origin` to resolve §2's namespace, something the payload-only handler shape from before couldn't do.
 
 Generic payload validation against each method's `argsCodec` happens before a handler ever runs, same as any `driver-kit`-bound endpoint (03 §5) — this driver's own handlers never re-check that `key` is a string.
 

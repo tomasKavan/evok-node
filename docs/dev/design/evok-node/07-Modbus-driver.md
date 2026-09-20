@@ -126,6 +126,15 @@ export const WRITE_SINGLE_COIL        = method('writeSingleCoil', 'mutates', Cod
 export const WRITE_SINGLE_REGISTER    = method('writeSingleRegister', 'mutates', Codecs.uint16, ModbusSingleRegisterArgsCodec, { errorKinds: MODBUS_EXCEPTION_KINDS });
 export const WRITE_MULTIPLE_COILS     = method('writeMultipleCoils', 'mutates', Codecs.void, ModbusMultipleCoilsArgsCodec, { errorKinds: MODBUS_EXCEPTION_KINDS });
 export const WRITE_MULTIPLE_REGISTERS = method('writeMultipleRegisters', 'mutates', Codecs.void, ModbusMultipleRegistersArgsCodec, { errorKinds: MODBUS_EXCEPTION_KINDS });
+
+// One Device, eight sibling fields, no '@' — there's no single "primary" operation to root the tail on,
+// and binding is mandatory through a Device regardless (05 §6.3), even for a bundle with no root field.
+export const MODBUS_RAW = device('modbus-kit.raw', {
+  readCoils: READ_COILS, readDiscreteInputs: READ_DISCRETE_INPUTS,
+  readHoldingRegisters: READ_HOLDING_REGISTERS, readInputRegisters: READ_INPUT_REGISTERS,
+  writeSingleCoil: WRITE_SINGLE_COIL, writeSingleRegister: WRITE_SINGLE_REGISTER,
+  writeMultipleCoils: WRITE_MULTIPLE_COILS, writeMultipleRegisters: WRITE_MULTIPLE_REGISTERS,
+});
 ```
 
 Eight methods, one per function code, deliberately not collapsed into a query/command pair discriminated by an `op` field. Four are forced apart — coils, discrete inputs, holding and input registers are different address spaces with different access rights on the slave, not a style choice. The other four could have collapsed (`writeSingleCoil` into `writeMultipleCoils` with `count: 1`, and the register equivalent), but a raw driver's whole purpose is letting the caller pick the exact wire operation rather than have the transport guess — concretely relevant here, since it's still unverified whether Unipi's own atomic write semantics (`research/05` §7.4) are tied to the multi-register function code specifically, even for what looks like a single value.
@@ -148,14 +157,16 @@ class ModbusDriver implements ModuleInstance<ModbusDriverConfig> {
 
   async start(): Promise<void> {
     const t = this.transport!;
-    this.kit.bind('readCoils',              READ_COILS,               { onCall: (a, req) => t.readCoils({ ...a, deadline: req.deadline }) });
-    this.kit.bind('readDiscreteInputs',     READ_DISCRETE_INPUTS,     { onCall: (a, req) => t.readDiscreteInputs({ ...a, deadline: req.deadline }) });
-    this.kit.bind('readHoldingRegisters',   READ_HOLDING_REGISTERS,   { onCall: (a, req) => t.readHoldingRegisters({ ...a, deadline: req.deadline }) });
-    this.kit.bind('readInputRegisters',     READ_INPUT_REGISTERS,     { onCall: (a, req) => t.readInputRegisters({ ...a, deadline: req.deadline }) });
-    this.kit.bind('writeSingleCoil',        WRITE_SINGLE_COIL,        { onCall: (a, req) => t.writeSingleCoil({ ...a, deadline: req.deadline }) });
-    this.kit.bind('writeSingleRegister',    WRITE_SINGLE_REGISTER,    { onCall: (a, req) => t.writeSingleRegister({ ...a, deadline: req.deadline }) });
-    this.kit.bind('writeMultipleCoils',     WRITE_MULTIPLE_COILS,     { onCall: (a, req) => t.writeMultipleCoils({ ...a, deadline: req.deadline }) });
-    this.kit.bind('writeMultipleRegisters', WRITE_MULTIPLE_REGISTERS, { onCall: (a, req) => t.writeMultipleRegisters({ ...a, deadline: req.deadline }) });
+    this.kit.bindDevice('raw', MODBUS_RAW, {
+      readCoils:              { onCall: (a, req) => t.readCoils({ ...a, deadline: req.deadline }) },
+      readDiscreteInputs:     { onCall: (a, req) => t.readDiscreteInputs({ ...a, deadline: req.deadline }) },
+      readHoldingRegisters:   { onCall: (a, req) => t.readHoldingRegisters({ ...a, deadline: req.deadline }) },
+      readInputRegisters:     { onCall: (a, req) => t.readInputRegisters({ ...a, deadline: req.deadline }) },
+      writeSingleCoil:        { onCall: (a, req) => t.writeSingleCoil({ ...a, deadline: req.deadline }) },
+      writeSingleRegister:    { onCall: (a, req) => t.writeSingleRegister({ ...a, deadline: req.deadline }) },
+      writeMultipleCoils:     { onCall: (a, req) => t.writeMultipleCoils({ ...a, deadline: req.deadline }) },
+      writeMultipleRegisters: { onCall: (a, req) => t.writeMultipleRegisters({ ...a, deadline: req.deadline }) },
+    });
     this.kit.attach();
   }
 
@@ -176,7 +187,7 @@ Every `onCall` is a pure forward, nothing translated in between — the engine a
 
 A driver that owns a Modbus transport outright never subclasses anything from this file — it embeds the engine. It calls `createModbusTransport` once, from its own `configure()`, holds the result, calls the typed methods directly to implement whatever endpoints its own hardware definition calls for, and calls `close()` from its own `stop()`. It never touches `ModbusDriver` or the eight endpoint constants above, and its own callers never see a raw Modbus address at all — only whatever typed endpoints it chose to expose.
 
-The one reason it would reach for those constants anyway: if it owns a line another driver needs to share (01 §7), it binds the same `READ_COILS`/`WRITE_SINGLE_COIL`/etc. itself, on its own tails, so the dependent can speak raw Modbus to a device this file's own author never anticipated — the onboard and extension drivers are the current example, each owning one line or socket outright and free to make that call independently.
+The one reason it would reach for those constants anyway: if it owns a line another driver needs to share (01 §7), it `bindDevice`s the same `MODBUS_RAW` itself, on its own tail, so the dependent can speak raw Modbus to a device this file's own author never anticipated — the onboard and extension drivers are the current example, each owning one line or socket outright and free to make that call independently.
 
 ## 8. Placement: native code and process isolation
 
