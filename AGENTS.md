@@ -23,6 +23,8 @@ STOP and whine - path to be defined
 - You are not allowed to edit source code.
 - Allways ask user if you are in this role and before you edit, describe the substance of changes you plan to make.
 - Remeber: Owner of design documentation is human, not you.
+- Prefer interfaces and examples over long rich paragraphs of text.
+- Don't describe what changed if we decide to revisit something. Design docu is decription of current state. No need to describe genesis how we got to the current state. 
 
 **Reading path:**
 - Start with this file and root README.md
@@ -79,6 +81,7 @@ This role is special - you need to choose one or more roles above (based on ques
 5. This file says how to work here, and **carries no status of its own** — where we are lives in [`docs/plan/STATUS.md`](docs/plan/STATUS.md), where we are going in [`docs/plan/roadmap.md`](docs/plan/roadmap.md). 
 6. Follow all rules and try to follow all conventions you read in documentation files. If you see some contradictions, make human aware of it and request how to solve it.
 7. When responding, writing docu or commenting code, tone down jargon and very complex english. Developers are not native speakers. Be acurate, to the point, brief, but explanatory.
+8. Example is better than long paragraph. When we talking, I understand examples more naturally. Use them as much as possible.
 
 ### Temporary, but binding
 

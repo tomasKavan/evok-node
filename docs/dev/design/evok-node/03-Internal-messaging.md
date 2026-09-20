@@ -122,55 +122,36 @@ Nothing here ever throws across the boundary. A handler that throws is a bug, no
 
 ## 5. Introspection
 
-Answered generically at `$introspect` from a driver's own declared endpoint table — building that table is `driver-kit`'s job (01 §11, "introspection assembly"), reusable by any driver built on it. A driver not built on `driver-kit` answers `$introspect` itself, as ordinary `onRequest` logic — nothing about the address is privileged at the protocol level, only in the convenience `driver-kit` provides.
-
-Every endpoint declares `shape` (`reading` | `channel` | `method`) and `kind`; the rest follows from `shape` rather than being declared separately. A `reading` is `GET`-only, `effect: 'none'`, implied; a `channel` is `GET`+`SET`, `effect: 'mutates'`, implied — both add `subscribe: boolean` for whether `SUBSCRIBE` is available, and `returns` for the value's shape (05 has the `Codec`/`EndpointType` machinery `returns` comes from). A `channel` may also declare `setReturns`, only when `SET`'s echoed value is a narrower type than `GET`'s — defaults to `returns` when omitted. A `method` is `CALL`-only and, alone among the three, still declares its own `effect` (query versus command genuinely varies), plus `payload?` and `returns` for its own argument and result shapes. A `struct`-returning `reading`/`channel` may declare `facets: readonly string[]`, naming which fields are individually addressable (§6).
-
-`kind` is open, not the closed enum an earlier draft of 01 §6 called it: any driver, built-in or plugin, can declare one nobody else has (`'unipi:DI'`, `'dali:BRIGHTNESS'`), namespaced by convention — driver-family prefix, colon, name — so two plugins introducing the same concept under different names don't collide in whatever groups or labels by `kind` (12 has the concrete plugin-authoring guidance for this). Nothing generic ever switches on `kind` exhaustively; it exists for grouping and display, never for correctness.
-
-`returns` is the closed half, and correctness leans on it instead — a fixed vocabulary of value types, generated from a `Codec`'s own `describe()` (05), never hand-typed by a driver author:
+Answered generically at `$introspect`. The payload is a small, universal root, plus whatever the `type` discriminant says the rest is:
 
 ```ts
 // @evok-node/module-sdk
-type TypeDescriptor =
-  | 'bool' | 'uint8' | 'uint16' | 'uint32' | 'int8' | 'int16' | 'int32' | 'float32'
-  | 'string' | 'bytes'
-  | { type: 'enum'; values: readonly string[] }
-  | { type: 'struct'; fields: Record<string, TypeDescriptor> }
-  | { type: 'array'; items: TypeDescriptor }
-  | 'void'
-  | 'json';
+interface IntrospectionBase {
+  readonly driverId: DriverId;
+  readonly driverTypeName: string;   // the manifest's own typeName for this driver (02 §4) — display/attribution
+  readonly type: 'driver-kit';       // discriminant; the only value defined so far (05 §5a)
+}
 ```
 
-`bytes` is opaque binary, wire-encoded as base64 inside `Value` — a distinct type from `string`, which is text, even though both travel the wire as text. `Date` has no dedicated member: this vocabulary describes wire type, never semantics, so `nativeCodec`'s `Date` support (05 §6.1) describes itself as whichever scalar it's encoded to — `uint32` for epoch seconds, matching `readAt` (05 §6.8) — not a new kind of member.
+What an endpoint entry actually contains, and how facets/wildcards resolve on top of it, is `driver-kit`'s own to define, keyed off `type: 'driver-kit'` (05 §5a onward). A driver answering `$introspect` entirely by hand, outside `driver-kit`, is out of scope for now — nothing stops a future `type` covering that case, but nothing needs one yet.
 
-`array` and `void` are additive to what research/12 originally asked for (scalars-plus-`struct`): `array` describes a homogeneous list of any other member, recursively — the same composition `struct`'s own `fields` already uses; `void` is for a `method` whose success case has no value to return at all, so its `resultCodec` can say that honestly rather than inventing a placeholder. `json` stays the escape hatch for data with no stable shape to declare — opaque past well-formedness, no generic validation, no generic rendering beyond a raw dump. Switching exhaustively on this vocabulary, rather than on `kind`, is what lets a brand-new plugin's endpoints render and validate correctly with zero code written for that plugin. Widening it later is additive and reviewed centrally — the same discipline research/12 already asked for the first time.
-
-A driver's `capabilities` array (already sketched in research/12) gains `'dotted-addressing'` when it opted into that `tailMode` (§6). The dispatcher checks a request's method and payload against this before calling the handler (`bad-payload`/`unsupported-method`, §7), so no handler re-checks what introspection already promised.
+Correctness leans on mandatory endpoint-kind registration (02 §4, 05 §6.4) rather than on anything carried in this payload: every process in one running instance resolves a given `kind` to the identical registered `EndpointType`, so a consumer that already has — or lazily resolves — that same object locally needs nothing about its *behavior* repeated on the wire at all. `kind` is therefore load-bearing for correctness, not merely for grouping and display — it's the key into the one place a `Codec`'s actual `decode`/`encode`/`validate` live, the registered `EndpointType` itself, never the envelope. Its declarative half is different: `EndpointType.schema` (05 §6.1) is plain data, not a function, so `driver-kit` does put it on the wire, in `EndpointEntry` (05 §5a) — the one deliberate exception, for exactly the consumer that has no local copy of a third-party plugin's package to resolve `kind` against in the first place.
 
 ## 5a. Introspection change notification
 
 `$introspect` is also `SUBSCRIBE`-able, delivering `{ generation: Seq }` on every change to the driver's own endpoint table — a fresh bind, an unbind, never a change to an existing endpoint's own value, which is what its own address's events are for. Same precedent as `$health` (§3): a driver emits here itself, consumed like any other address, by `subscribe` (§4), through the exact same coalescing buffer and reconnect-replay §6.3 already describes — no new envelope kind, no new capability flag. The payload stays minimal on purpose: a client that sees the number change issues a fresh `introspect()` if it cares what changed, the same "a gap is harmless, re-`GET`" reasoning §6.3 already relies on everywhere else.
 
-## 6. Facets, wildcards and subscriptions
+## 6. Subscriptions and call progress
 
-Subscription follows the shape of what's actually addressable — one endpoint can be worth several addresses, and a driver may let a family of endpoints be addressed as a group. Both are resolved generically; a driver's own code never sees either.
+What's actually addressable for `subscribe` — a struct endpoint's fields on their own, or a whole family of endpoints as one pattern — is `type`-specific: `driver-kit`'s own facet and wildcard resolution (05 §5b/§5c), since both lean on concepts (`EndpointType.facets`, `tailMode`) that are `driver-kit`'s to define, not the envelope's. What stays here is what every subscription gets once it's already resolved to a concrete address, regardless of how it got there — delivery semantics, coalescing, and reconnect-replay apply identically whether the concrete address came from a literal `subscribe` call, a resolved facet, or a wildcard's expansion.
 
-### 6.1. Facets — a struct endpoint's fields, addressed on their own
+### 6.1. REMOVED
 
-An endpoint whose `returns` is `struct` and declares `facets` (§5) — say `DI.01` returning `{value, counter}` — is also reachable at `DI.01:value` and `DI.01:counter`, for `GET`/`subscribe` only. Resolution tries the literal address against the endpoint table first; only when nothing claims it exactly does the dispatcher split on the *last* colon and check whether the base names a real endpoint with that facet. This ordering means a driver whose own opaque tail happens to contain a colon for unrelated reasons is never misread as a facet address — a facet address exists only where no real endpoint already claims it outright.
-
-A facet `GET` calls the handler with the *base* address, gets the struct back, and projects the named field — the handler never sees the facet was requested. A facet `subscribe` subscribes to the base address's own `emit` stream and projects the field out of every snapshot delivered on it, so subscribing to `DI.01:value` alone still delivers an event whenever `DI.01` emits, whether or not `value` itself differs from the last snapshot — simple, and harmless given 6.3's coalescing buffer already treats a superseded snapshot as free. **An event delivered on any address — base, facet, or a wildcard-matched concrete one — always has the same value-shape a fresh `GET` on that same address would return.** `SET`/`CALL` are never facet-resolved: a driver wanting field-level write exposes it as its own endpoint or method.
-
-### 6.2. Wildcards — one family of endpoints, one subscription
-
-A `subscribe` address may use `*` for exactly one dot-segment — `DI.*` matching `DI.01`, `DI.02`, … — allowed only for a driver that passed `tailMode: 'dottedAddressing'` to `onRequest` (§4). Nothing forces this grammar on a driver that hasn't opted in; an `opaque` driver's tails are exact-match-only for subscribe, same as always. On a wildcard `subscribe`, the dispatcher expands the pattern against the driver's *current* endpoint table, subscribes to each match, and remembers the pattern itself so a later topology-generation bump re-expands it — a newly matching endpoint joins automatically, a removed one drops, with no re-subscribe from the caller. `unsubscribe`/`listSubscriptions`/`$subscriptions` operate on the literal pattern the caller used, never the expansion. A facet suffix composes with a wildcard the same way it composes with any base address (`DI.*:value`) — expand the wildcard first, then resolve the facet on each match.
-
-An event delivered through a wildcard subscription always carries the concrete address that actually changed (`Event.address`, §2) — never the pattern. Matching a wildcard is the subscriber's own bookkeeping; the event shape doesn't need to represent it.
+### 6.2. REMOVED
 
 ### 6.3. Delivery
 
-`subscribe`/`unsubscribe` (§4) are how a module asks for events; underneath, they still travel as ordinary `SUBSCRIBE`/`UNSUBSCRIBE` requests, and all of it — including facet and wildcard resolution — is handled by the same generic dispatcher that answers `$introspect`, never by the driver author's own `onRequest`. A driver's code only ever calls `emit(tail, value)` on its own base address when a value changes; the dispatcher fans that out to whoever is currently subscribed, at whatever address they actually asked for.
+`subscribe`/`unsubscribe` (§4) are how a module asks for events; underneath, they still travel as ordinary `SUBSCRIBE`/`UNSUBSCRIBE` requests, resolved by the same generic dispatcher that answers `$introspect`, never by the driver author's own `onRequest` — facet and wildcard resolution included, whatever `type`-specific rules (05 §5b/§5c, for `driver-kit`) decide those mean. A driver's code only ever calls `emit(tail, value)` on its own base address when a value changes; the dispatcher fans that out to whoever is currently subscribed, at whatever address they actually asked for.
 
 **Every event is a full snapshot, never a diff.** This one choice is what keeps the rest of subscription simple:
 
@@ -204,7 +185,7 @@ type ErrorKind =
 
 | Kind | Meaning | Whose problem |
 |---|---|---|
-| `unknown-address` | tail doesn't exist on this driver, doesn't resolve as a facet either (§6.1), or names a `$getCallProgress` id for a call that's already resolved (§6.4) | caller |
+| `unknown-address` | tail doesn't exist on this driver, doesn't resolve as a facet either (05 §5b), or names a `$getCallProgress` id for a call that's already resolved (§6.4) | caller |
 | `unsupported-method` | endpoint doesn't support this method | caller |
 | `bad-payload` | failed the endpoint's declared payload check | caller |
 | `not-subscribed` | `unsubscribe` on something never subscribed | caller |
@@ -385,7 +366,7 @@ Tier 1 (unit; `basics/03-Testing.md`), split by where the code actually lives.
 **`module-sdk`** — pure functions and data only, no runner, no socket:
 
 - Every `Envelope` variant round-trips through JSON unchanged (property test) — the discipline the old standalone `messaging` package's README asked for, now this package's own.
-- Address parsing: `driverId:tail` split, facet-suffix split (`<base>:<facet>`, exact-match-first per §6.1), single-segment wildcard matching (`DI.*` against a fixed address list, including a tail that itself contains a stray `:` or `*` for unrelated reasons — must not be misread).
+- Address parsing: `driverId:tail` split — the one context-free string operation this package owns. Facet-suffix and wildcard matching are endpoint-table-based resolution, covered by 05's own testing (§5b/§5c) instead.
 - The fan-in helper: partial results merge correctly, keyed by address, when one driver's per-link deadline expires and another's doesn't.
 
 **`main`** — the dispatcher and transport, extending 02 §8's runner/reload fixtures rather than duplicating them:
@@ -393,8 +374,6 @@ Tier 1 (unit; `basics/03-Testing.md`), split by where the code actually lives.
 - `not-ready` before `onRequest`, for `GET`/`SET`/`CALL` and for any `subscribe`/`unsubscribe` call made before it.
 - `internal-error` on a handler that throws — logged and counted (`basics/02-Coding.md` §2.3), never propagated, never hanging the caller past its deadline.
 - `$introspect`/`$subscriptions`/`$health` answered, or fed, without reaching the fixture handler.
-- Facet resolution (§6.1): `GET`/a `subscribe`d facet projects correctly; a literal address that collides with a real endpoint is never facet-resolved.
-- Wildcard resolution (§6.2): a `DI.*` subscription picks up a fixture endpoint added after subscribing (a topology-generation bump) and drops one removed, with no re-subscribe from the caller.
 - Subscription bookkeeping (§6.3): the per-address coalescing buffer under backpressure — deliver-latest-only, never a superseded snapshot; `subscribe` on an already-active address replaces the handler rather than adding a second one; `listSubscriptions()` reflects the consumer's own want-list exactly, distinct from a provider's `$subscriptions`.
 - `get`/`set`/`call`/`introspect` (§4): each delegates to the same underlying request path as the others and to `subscribe`/`unsubscribe`/`onRequest` where relevant — no behavior difference from what the old single `send` produced for the same method, `introspect(driverId)` produces exactly the `Request` a hand-built `GET <driverId>:$introspect` would.
 - Call progress (§6.4): `getProgress()` reads back the default `{progress: 0}` before a fixture handler ever calls `reportProgress`; a `reportProgress` call updates both a subsequent `getProgress()` poll and fires an `Event` to an existing `subscribe`r on `$getCallProgress.<id>`, through the same coalescing buffer as §6.3; `getProgress()` (poll or subscribe) answers `unknown-address` once the matching `Response` has been sent; no subscription to `$getCallProgress.<id>` survives past that point — assert it's actually gone from the provider's bookkeeping, not just silent.

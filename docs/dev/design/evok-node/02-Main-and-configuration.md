@@ -94,21 +94,39 @@ interface ModuleInstance<Config> {
   "evokNodePlugin": {
     "manifestVersion": "1",
     "plugins": [
-      { "kind": "driver", "typeName": "onboard", "descriptor": "./dist/index.js" }
+      { "kind": "driver", "typeName": "onboard", "path": "./dist/index.js" }
     ]
   }
 }
 ```
 
-`manifestVersion` is the manifest *format's* version, not the package's own — so `main` can tell old- and new-shaped declarations apart later without touching the package's release version. `descriptor` is always a compiled `.js` file, authored in TypeScript and built exactly like every package in this repo (`npm run build`), exporting the `ModuleDescriptor` as its **default export** — never loaded as raw source, and never a named export, so resolving one is always the same one line regardless of which module it is. `kind` is `driver` or `api` today; other kinds will exist later — a data-type definition for 07, an inspector panel for 17 — and `main` reads every entry but acts only on `driver` and `api`. Anything else it does not recognise, it leaves alone; that is what makes a new kind addable later without a change to `main`.
+An `endpoint` kind declares itself the same way, resolving to a plain `EndpointType` (05 §6.2) instead of a `ModuleDescriptor`. A package bundling a whole driver family's kinds behind one entry point names each one with `export`:
 
-At startup, `main` assembles its manifest — `typeName → descriptor`, still just the string from each package's own declaration, nothing imported yet — by:
+```json
+{
+  "name": "@evok-node/core-endpoints",
+  "version": "0.1.0",
+  "evokNodePlugin": {
+    "manifestVersion": "1",
+    "plugins": [
+      { "kind": "endpoint", "typeName": "RO", "path": "./dist/index.js", "export": "RO" },
+      { "kind": "endpoint", "typeName": "DO", "path": "./dist/index.js", "export": "DO" }
+    ]
+  }
+}
+```
+
+`manifestVersion` is the manifest *format's* version, not the package's own — so `main` can tell old- and new-shaped declarations apart later without touching the package's release version. `path` always names a compiled `.js` file, authored in TypeScript and built exactly like every package in this repo (`npm run build`) — never loaded as raw source. `export` names which export of that file to take; omitted, it defaults to the module's own default export, so a package with one thing per file needs nothing beyond `path`. A `driver`/`api` entry's `path` resolves exclusively to a default-exported `ModuleDescriptor`.
+
+`kind` is `driver`, `api`, or `endpoint` today; other kinds will exist later — an inspector panel for 17 — and `main` reads every entry, acting on all three, leaving anything it doesn't recognise alone; that is what makes a new kind addable later without a change to `main`. `driver` and `api` resolve to a `ModuleDescriptor` (below); `endpoint` resolves to a registered `EndpointType` — an ordinary object a `channel`/`reading`/`method` call already produced (05 §6.2), never a second kind of descriptor `main` has to know the shape of. `main` never imports an `endpoint` entry to check anything about that shape — same "nothing imported yet" discipline driver/api assembly already follows below — it only needs the entry's `typeName` for conflict-checking here, and its `path`/`export` for whichever process resolves it later, lazily, on first use (05 §6.4).
+
+At startup, `main` assembles its manifest — `typeName → {path, export}`, still just strings from each package's own declaration, nothing imported yet — by:
 
 1. Listing `node_modules`'s top-level entries (one extra level down for `@scope/` directories). This is what discovers a built-in exactly the same way as a plugin: a workspace package is already a `node_modules` entry, via npm workspaces.
 2. Reading each entry's `package.json` and checking for `evokNodePlugin`. No such key, no interest — skip it.
-3. Recording `typeName → descriptor` for every `kind: "driver"` and `kind: "api"` plugin found.
+3. Recording `typeName → {path, export}` for every `kind: "driver"`, `kind: "api"`, and `kind: "endpoint"` plugin found — three separate namespaces, one per `kind`, so a driver named `RO` and an endpoint kind named `RO` are not a conflict; only two entries of the *same* `kind` claiming the same `typeName` are.
 
-Two entries claiming the same `typeName` — anywhere, built-in or plugin — is fatal at startup, the same class of error as a resource conflict (§7): not a precedence rule, a configuration error. So is a `package.json` whose `evokNodePlugin` field does not match its own shape. Both are checked here, unconditionally, because both are just reading JSON — nothing is imported yet, so nothing here can fail because of a plugin's own code being broken.
+Two entries of the same `kind` claiming the same `typeName` — anywhere, built-in or plugin — is fatal at startup, the same class of error as a resource conflict (§7): not a precedence rule, a configuration error. So is a `package.json` whose `evokNodePlugin` field does not match its own shape. Both are checked here, unconditionally, because both are just reading JSON — nothing is imported yet, so nothing here can fail because of a plugin's own code being broken.
 
 **Actually loading a `descriptor` is a different matter, and it is lazy: assembly never calls `import()`.** A `typeName` no instance's config names is never resolved, so a broken plugin sitting unused in `node_modules` does not stop the daemon from starting. Resolution happens per `typeName`, the first time some instance's config needs it (§5), and is memoized from then on — not because calling it twice would be wrong (Node's own module cache would hand back the same export either way), but because the shape-check and error attribution below are ours to do once, not once per instance sharing that type:
 
@@ -134,23 +152,23 @@ function isModuleDescriptor(x: unknown): x is ModuleDescriptor<unknown> {
 // bootstrap. Memoizes by typeName so N instances sharing a type resolve it once.
 class ModuleRegistry {
   private readonly resolved = new Map<string, Promise<ModuleDefinition<unknown>>>();
-  constructor(private readonly manifest: ReadonlyMap<string, string>) {}
+  constructor(private readonly manifest: ReadonlyMap<string, { path: string; export?: string }>) {}
 
   resolve<Config>(typeName: string): Promise<ModuleDefinition<Config>> {
-    const descriptor = this.manifest.get(typeName);
-    if (!descriptor) return Promise.reject(new Error(`no manifest entry for type "${typeName}"`));
+    const entry = this.manifest.get(typeName);
+    if (!entry) return Promise.reject(new Error(`no manifest entry for type "${typeName}"`));
 
     let pending = this.resolved.get(typeName);
     if (!pending) {
       pending = (async () => {
         let mod: unknown;
         try {
-          mod = (await import(descriptor)).default;   // plugins export their descriptor as default
+          mod = (await import(entry.path))[entry.export ?? 'default'];
         } catch (cause) {
-          throw new Error(`type "${typeName}": descriptor "${descriptor}" failed to load`, { cause });
+          throw new Error(`type "${typeName}": "${entry.path}" failed to load`, { cause });
         }
         if (!isModuleDescriptor(mod)) {
-          throw new Error(`type "${typeName}": descriptor "${descriptor}" is not a valid ModuleDescriptor`);
+          throw new Error(`type "${typeName}": "${entry.path}" is not a valid ModuleDescriptor`);
         }
         return { descriptor: mod };
       })();
@@ -161,7 +179,9 @@ class ModuleRegistry {
 }
 ```
 
-A rejection from `resolve` is fatal exactly because of *where* it is called from (§5, validating one instance's config) — never because a plugin merely exists and is broken. This is also why the manifest's unresolved form — `typeName → descriptor`, plain strings — rather than a resolved `ModuleDefinition`, is what has to reach a `worker_thread` or `child_process` bootstrap: a resolved `ModuleDefinition` holds functions, and functions do not survive serialisation any more than `Config` could hold one. Every placement runs its own `ModuleRegistry`, resolving `typeName → descriptor → ModuleDefinition` independently on its own side, rather than `main` resolving it once and handing the result across.
+A rejection from `resolve` is fatal exactly because of *where* it is called from (§5, validating one instance's config) — never because a plugin merely exists and is broken. This is also why the manifest's unresolved form — `typeName → {path, export}`, plain strings — rather than a resolved `ModuleDefinition`, is what has to reach a `worker_thread` or `child_process` bootstrap: a resolved `ModuleDefinition` holds functions, and functions do not survive serialisation any more than `Config` could hold one. Every placement runs its own `ModuleRegistry`, resolving `typeName → {path, export} → ModuleDefinition` independently on its own side, rather than `main` resolving it once and handing the result across.
+
+**The `endpoint` table travels differently, because any instance may need any of it, not just its own.** A `driver`/`api` instance only ever needs *its own* `type` resolved — that's why the unresolved manifest form above is enough, looked up once per instance, the first time that instance's own config needs it. An endpoint kind has no such single owner: a driver binds whatever kinds its own code names, and a consumer may meet any kind any driver on the running instance happens to expose, so there is no one instance's-own-type to hand out in advance. `main` therefore hands every spawned instance the *whole* `typeName → {path, export}` endpoint table, unfiltered, alongside `links` in the same bootstrap message (§6) — still just strings, still nothing imported. What each process does with its own copy — lazy, memoized resolution per kind, the same shape as `ModuleRegistry` above but without a `ModuleDescriptor`'s shape check, since an `endpoint` entry's export is an ordinary object `channel`/`reading`/`method` already produced, not a second protocol `main` has to validate — is 05's and consumer-kit's own concern, not this file's.
 
 ## 5. `main`: startup, config and reload
 
@@ -201,7 +221,7 @@ Startup is one sequence, run once, in order:
    Two schemas, run in sequence, each owning exactly its own keys — never one merged schema. `main` never sees what is inside `body` beyond whether it parses. For a driver, its declared links come from that parsed `config` itself — `module.descriptor.declaredLinks?.(config)` (03 §8) — never from a key `main` reads directly, the way an api's `drivers` list already was.
 
 5. **Resolve cross-instance concerns** no single module can see on its own (§7) — including assembling the full `instanceId → DriverId[]` link topology from every api's `drivers` and every driver's `declaredLinks`, and validating it (03 §8): every referenced id exists in `drivers:`, and a cycle is fatal.
-6. **Spawn, configure, start — three passes, not one.** For every instance: `runnerFactory.spawn(module.descriptor, id, run, links)`. Once every instance is spawned: `runner.configure(config)` for every instance, awaiting all of them. Only once every instance is configured: `runner.start()` for every instance (§6, 03 §9).
+6. **Spawn, configure, start — three passes, not one.** For every instance: `runnerFactory.spawn(module.descriptor, id, type, run, links, endpointManifest)` — `endpointManifest` is the whole table from step 1, identical for every instance (§4, §6). Once every instance is spawned: `runner.configure(config)` for every instance, awaiting all of them. Only once every instance is configured: `runner.start()` for every instance (§6, 03 §9).
 
 Every failure from step 1 through 4 is fatal at startup — a bad manifest, a config file that does not parse, a `type` with no manifest entry, an instance body that fails its own module's schema. None of these degrade; the daemon does not start on any of them. This is deliberately one failure class, whether the mistake is in the manifest or in the config: both mean "this cannot possibly run," never "this runs in a reduced way."
 
@@ -255,15 +275,17 @@ interface RunnerFactory {
   spawn<Config>(
     descriptor: ModuleDescriptor<Config>,
     id: string,
+    typeName: string,        // the manifest's own key for this instance — 03 §9's InstanceContext surfaces it as driverTypeName
     placement: Placement,
-    links: readonly DriverId[],   // 03 §8 — resolved before spawn, never after
+    links: readonly DriverId[],                                   // 03 §8 — resolved before spawn, never after
+    endpointManifest: ReadonlyMap<string, { path: string; export?: string }>,   // the whole table, §4 — every instance gets it, not just what its own type needs
   ): Runner<Config>;
 }
 ```
 
-What `spawn` actually does is the one place placement matters — and now that only two placements exist, both share one description with a single difference at the bottom. `config` reaches an instance only through `configure`, never through `spawn` — `createInstance` takes just `ctx` (02 §4), so `ctx` (including its messaging handle, wired from `links`) has to exist before construction, not after.
+What `spawn` actually does is the one place placement matters — and now that only two placements exist, both share one description with a single difference at the bottom. `config` reaches an instance only through `configure`, never through `spawn` — `createInstance` takes just `ctx` (02 §4), so `ctx` (including its messaging handle, wired from `links`, and the endpoint table above) has to exist before construction, not after.
 
-`spawn` starts the hosting environment — a `worker_threads.Worker` for `worker_thread`, a forked process for `child_process` — running a small bootstrap, code living in `main`'s own package, never the module's, and attaches an `'error'`/`'exit'` listener to it (03 §11 — this is how `main` finds out about a crash it didn't ask for). The bootstrap receives `{ descriptor, id, links }` over `postMessage` (worker) or the fork's IPC channel (child process) — `descriptor` still the manifest's string, not yet resolved — resolves it to a `ModuleDefinition` through its own `ModuleRegistry` (§4, the same mechanism, running inside the worker/child), wires its own `ctx` from `links` (binding whatever socket 03 §10 says it needs), and constructs the `ModuleInstance` there. Every subsequent `Runner` method sends a message and awaits the matching reply; `Config` and the lifecycle results cross as structured-clone-safe data (§4), first at `configure`, never at `spawn`. Only the underlying transport differs between the two — `postMessage` versus the fork's IPC — the bootstrap and resolution step are otherwise identical.
+`spawn` starts the hosting environment — a `worker_threads.Worker` for `worker_thread`, a forked process for `child_process` — running a small bootstrap, code living in `main`'s own package, never the module's, and attaches an `'error'`/`'exit'` listener to it (03 §11 — this is how `main` finds out about a crash it didn't ask for). The bootstrap receives `{ descriptor, id, typeName, links, endpointManifest }` over `postMessage` (worker) or the fork's IPC channel (child process) — `descriptor` still the manifest's string, not yet resolved — resolves it to a `ModuleDefinition` through its own `ModuleRegistry` (§4, the same mechanism, running inside the worker/child), wires its own `ctx` from `links` and `endpointManifest` (binding whatever socket 03 §10 says it needs), and constructs the `ModuleInstance` there. Every subsequent `Runner` method sends a message and awaits the matching reply; `Config` and the lifecycle results cross as structured-clone-safe data (§4), first at `configure`, never at `spawn`. Only the underlying transport differs between the two — `postMessage` versus the fork's IPC — the bootstrap and resolution step are otherwise identical.
 
 `main` sequences every instance's `configure` before any instance's `start` (§5, 03 §9) — the runner itself no longer chains the two, that ordering is main's own barrier now. `stop()` sequences `instance.drain()` → `instance.stop()`: drain tells the instance to stop taking on new work so anything in flight can finish, then stop releases the underlying resources. This sequencing happens inside the bootstrap, not as separate round-trips.
 

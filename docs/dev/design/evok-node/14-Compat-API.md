@@ -27,6 +27,11 @@ compatibility shim bolted to the side.
 **Open:** **blocked on golden-transcript capture** for the Gate's empty-surface shape and the
 split-definition baseline. Time-sensitive and unrecoverable — see [`STATUS.md`](../plan/STATUS.md).
 
+**Also open:** alias data is shared with `api-nextgen`, and apis can't reach each other or own
+anything addressable (01 §6/§9) — needs a small owning driver exposing `CALL` endpoints
+(`setAlias`/`resolveAlias`/...) backed by its own KV-store namespace, not raw shared KV access.
+Design when writing 14/15.
+
 
 -- From former ADRs
 
