@@ -2,11 +2,11 @@
 
 ## 1. Scope
 
-`driver-kit` — the package most drivers build on top of the contract 05 states: `bindDevice`/`unbindDevice` and the `$introspect` table they maintain, generic payload validation against a bound endpoint's own `Codec`, wildcard resolution, the scan-scheduling helper, and `attach()`, the one `onRequest` a driver built on it ever calls. It assumes 05's driver contract, 03's envelope/addressing/introspection schema, and 04's common services; it does not restate them.
+`driver-kit` — the package most drivers build on top of the contract 05 states: `bindDevice`/`unbindDevice` and the `$introspect` table they maintain, generic payload validation against a bound endpoint's own `Codec`, wildcard resolution, and `attach()`, the one `onRequest` a driver built on it ever calls. No generic scan-scheduling helper — see §5. It assumes 05's driver contract, 03's envelope/addressing/introspection schema, and 04's common services; it does not restate them.
 
 ## 5. Using `driver-kit`, or building bare
 
-What it buys: `bindDevice`/`unbindDevice` and the `$introspect` table they maintain, generic payload validation against a bound endpoint's own `Codec`, wildcard resolution (§5c), the scan-scheduling helper if 05 §4 applies. 03 §5 already covers the fallback — a driver not built on `driver-kit` answers `$introspect` itself, by hand, as ordinary `onRequest` logic; nothing about the address is privileged at the protocol level, only the convenience is. That trade is worth taking deliberately rather than by default: a driver with one endpoint and no interest in wildcards gains little from the machinery and can reasonably skip it.
+What it buys: `bindDevice`/`unbindDevice` and the `$introspect` table they maintain, generic payload validation against a bound endpoint's own `Codec`, wildcard resolution (§5c). No generic scan-scheduling helper yet — that turned out to be transport-specific enough that `hw-modbus-kit` (design/07a) owns its own rather than this file guessing at a shared shape before a second scan-based driver exists to correct it against; revisit once one does. 03 §5 already covers the fallback — a driver not built on `driver-kit` answers `$introspect` itself, by hand, as ordinary `onRequest` logic; nothing about the address is privileged at the protocol level, only the convenience is. That trade is worth taking deliberately rather than by default: a driver with one endpoint and no interest in wildcards gains little from the machinery and can reasonably skip it.
 
 ## 5a. Introspection payload
 

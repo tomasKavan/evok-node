@@ -82,8 +82,8 @@ evok-node can be extended without changing its own code, at two different levels
 | Package | Role |
 |---|---|
 | `module-sdk` | The module contract and the wire contract in one place: `ModuleDescriptor`, `ModuleInstance`, `InstanceContext` and the runtime guard a loaded module is checked against (02 §4); the envelope, addressing, methods and error kinds a module speaks through it (03); the common services every instance receives through `InstanceContext` — `Logger`, `Clock`, `Deadline`, the scheduler (04); and the endpoint-type vocabulary a driver and an api both need — `Codec`, the three `EndpointType` shapes, and the built-in catalog (05). Depends on nothing of ours — root of the DAG. Published to npm, like `client`, for third-party plugin authors. |
-| `hw-definitions` | Platform facts — device/model definitions, generated inventory. |
-| `modbus-kit` | The Modbus transport. |
+| `hw-definitions` | Platform facts — device/model definitions, generated inventory, address resolution. Depends on nothing but the module contract; never resolves a `kind` against a real `DeviceType` (07a §2). |
+| `modbus-kit` | The Modbus transport (07), *and* `hw-modbus-kit` (07a) — the binder that turns a `hw-definitions`-resolved definition into bound `driver-kit` devices for `driver-onboard`/`driver-extension`. The two stay in separate source subpaths; the package boundary no longer separates them. |
 | `main` | Orchestration: config, the runner, spawn, supervise, reload. |
 | `driver-kit` | Shared driver machinery: scan scheduling, the endpoint dispatcher (`bind`/`unbind`/`attach`), handshake. |
 | `driver-onboard` | The transport driver for the controller's own onboard I/O. |

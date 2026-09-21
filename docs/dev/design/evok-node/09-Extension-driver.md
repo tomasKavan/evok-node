@@ -18,7 +18,11 @@
 - **Failure isolation:** one dead unit must not stall the line, and must not look like a healthy unit
   reading zero.
 
-**Inputs:** research/02 · research/06 · research/08 · to_revision/0010 ·
+Binding itself is not this file's job: this driver owns transport lifecycle and line/unit-id topology
+only, and calls `hw-modbus-kit`'s `handshake()` then `bindDefinition()` (07a) once per unit — never
+`driver-kit` or a register address directly.
+
+**Inputs:** research/02 · research/06 · research/08 · to_revision/0010 · 07a ·
 `docs/modbus-reg-map/extensions/`, `docs/modbus-reg-map/accessories/`
 
 **Open:** AI/AO over RTU — float32 AI, raw-count AO, the six-mode enum on an extension — cannot be

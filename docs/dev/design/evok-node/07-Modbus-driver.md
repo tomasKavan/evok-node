@@ -6,6 +6,8 @@ The shared ancestor of the onboard and extension drivers (08, 09): everything Mo
 
 Two ways this file gets used. Standalone, configured directly (`type: modbus-kit`), it's a real driver: it owns one transport and exposes it raw, function-code by function-code, for a device or a third-party plugin that speaks Modbus directly — 01 §7's shared-resource pattern, and the only place this file's own endpoints get bound. Embedded, it's not a driver at all — just the engine, constructed and held directly by whatever driver owns the transport, which builds its own typed endpoints on top and never exposes a raw endpoint unless it chooses to (§7).
 
+This package also hosts `hw-modbus-kit` (07a) — the binder that turns a `hw-definitions`-resolved definition into bound `driver-kit` devices, for `driver-onboard` and `driver-extension` alike. It's a distinct concern from everything else in this file, kept in its own `src/hw-modbus-kit/` subpath rather than blended in: this file stays "everything Modbus, nothing hardware-specific," 07a is "everything hardware-specific, on top of this file's own transport."
+
 ## 2. Modbus library: wrap, don't reinvent
 
 `modbus-serial`, behind this file's own `ModbusTransport` — never used raw, and never reimplemented from scratch. No current JS library has the one bug that would justify writing a framer from nothing (pymodbus's transaction-id correlation overflow), and Modbus's own framing looks simpler than it is: two of the largest JS industrial consumers (`node-red-contrib-modbus`, an ioBroker adapter) each got burned by the same shared libraries and ended up forking or rewriting rather than patching around it. `modbus-serial` is the still-maintained option with the best post-match validation (unit id, function code, length and CRC, all checked after a match), and it already sits on `serialport`, so RTU's own serial-port handling is inherited, not a separate decision (§3).
@@ -127,17 +129,23 @@ export const WRITE_SINGLE_REGISTER    = method('writeSingleRegister', 'mutates',
 export const WRITE_MULTIPLE_COILS     = method('writeMultipleCoils', 'mutates', Codecs.void, ModbusMultipleCoilsArgsCodec, { errorKinds: MODBUS_EXCEPTION_KINDS });
 export const WRITE_MULTIPLE_REGISTERS = method('writeMultipleRegisters', 'mutates', Codecs.void, ModbusMultipleRegistersArgsCodec, { errorKinds: MODBUS_EXCEPTION_KINDS });
 
-// One Device, eight sibling fields, no '@' — there's no single "primary" operation to root the tail on,
+const ModbusHealthArgsCodec = Codecs.struct({ unitId: Codecs.uint16() });   // omitted ⇒ whole-line health, same as ModbusTransport.health() itself
+export const HEALTH = method('health', 'none', ModbusHealthCodec, ModbusHealthArgsCodec);   // not a function code — see below
+
+// One Device, nine sibling fields, no '@' — there's no single "primary" operation to root the tail on,
 // and binding is mandatory through a Device regardless (05a §6.3), even for a bundle with no root field.
 export const MODBUS_RAW = device('modbus-kit.raw', {
   readCoils: READ_COILS, readDiscreteInputs: READ_DISCRETE_INPUTS,
   readHoldingRegisters: READ_HOLDING_REGISTERS, readInputRegisters: READ_INPUT_REGISTERS,
   writeSingleCoil: WRITE_SINGLE_COIL, writeSingleRegister: WRITE_SINGLE_REGISTER,
   writeMultipleCoils: WRITE_MULTIPLE_COILS, writeMultipleRegisters: WRITE_MULTIPLE_REGISTERS,
+  health: HEALTH,
 });
 ```
 
 Eight methods, one per function code, deliberately not collapsed into a query/command pair discriminated by an `op` field. Four are forced apart — coils, discrete inputs, holding and input registers are different address spaces with different access rights on the slave, not a style choice. The other four could have collapsed (`writeSingleCoil` into `writeMultipleCoils` with `count: 1`, and the register equivalent), but a raw driver's whole purpose is letting the caller pick the exact wire operation rather than have the transport guess — concretely relevant here, since it's still unverified whether Unipi's own atomic write semantics (`research/05` §7.4) are tied to the multi-register function code specifically, even for what looks like a single value.
+
+`health` is the ninth field and not a function code at all — it's the one way a caller relaying through this device (§7) learns the owning line's breaker state without a local `ModbusTransport` object of its own to call `health()` on directly. `onCall` for it is a pure forward to `t.health(a?.unitId)`, always `{ok: true, ...}`, since a local, synchronous state read never fails the way a wire call can.
 
 ```ts
 interface ModbusDriverConfig {
@@ -166,6 +174,7 @@ class ModbusDriver implements ModuleInstance<ModbusDriverConfig> {
       writeSingleRegister:    { onCall: (a, req) => t.writeSingleRegister({ ...a, deadline: req.deadline }) },
       writeMultipleCoils:     { onCall: (a, req) => t.writeMultipleCoils({ ...a, deadline: req.deadline }) },
       writeMultipleRegisters: { onCall: (a, req) => t.writeMultipleRegisters({ ...a, deadline: req.deadline }) },
+      health:                 { onCall: (a) => ({ ok: true, result: t.health(a?.unitId) }) },
     });
     this.kit.attach();
   }
@@ -185,9 +194,18 @@ Every `onCall` is a pure forward, nothing translated in between — the engine a
 
 ## 7. Composing, not subclassing
 
-A driver that owns a Modbus transport outright never subclasses anything from this file — it embeds the engine. It calls `createModbusTransport` once, from its own `configure()`, holds the result, calls the typed methods directly to implement whatever endpoints its own hardware definition calls for, and calls `close()` from its own `stop()`. It never touches `ModbusDriver` or the eight endpoint constants above, and its own callers never see a raw Modbus address at all — only whatever typed endpoints it chose to expose.
+A driver that owns a Modbus transport outright never subclasses anything from this file — it embeds the engine. It calls `createModbusTransport` once, from its own `configure()`, holds the result, calls the typed methods directly to implement whatever endpoints its own hardware definition calls for, and calls `close()` from its own `stop()`. It never touches `ModbusDriver` or the nine endpoint constants above, and its own callers never see a raw Modbus address at all — only whatever typed endpoints it chose to expose.
 
 The one reason it would reach for those constants anyway: if it owns a line another driver needs to share (01 §7), it `bindDevice`s the same `MODBUS_RAW` itself, on its own tail, so the dependent can speak raw Modbus to a device this file's own author never anticipated — the onboard and extension drivers are the current example, each owning one line or socket outright and free to make that call independently.
+
+There are, correspondingly, two ways to obtain a `ModbusTransport` at all — both produce the identical interface, so nothing above this line, including 07a's `hw-modbus-kit`, ever needs to know which one it got:
+
+```ts
+// @evok-node/modbus
+function createModbusTransport(config: ModbusTransportConfig, deps: { clock: Clock; log: Logger }): ModbusTransport;      // §4 — owns the line outright
+function createRelayModbusTransport(ctx: InstanceContext, remoteTail: Tail): ModbusTransport;                             // relays through another instance's MODBUS_RAW
+```
+`createRelayModbusTransport` needs `ctx.messaging`, not `{clock, log}` — it's forwarding `CALL`s to `remoteTail`'s own `MODBUS_RAW` device rather than touching a wire, and that forwarding is trivial precisely because `MODBUS_RAW`'s bound methods (§6) share the exact same `CallOutcome` shape `ModbusTransport`'s own methods return: no translation layer, every method a 1:1 forward. `health()` relays the same way, through `MODBUS_RAW`'s ninth field (§6) — the one method on this device that isn't a function code, added for exactly this case, since a relay has no local breaker state of its own to read.
 
 ## 8. Placement: native code and process isolation
 

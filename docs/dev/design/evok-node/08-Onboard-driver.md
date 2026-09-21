@@ -18,7 +18,11 @@
 - **Autogen:** deriving the instance's endpoint set from model plus definition, EVOK-style — and
   where we deliberately diverge from `autogen.yaml`.
 
-**Inputs:** research/02 · research/03 · research/06 · `GOALS §Hardware scope` · to_revision/0014
+Binding itself is not this file's job: this driver owns transport lifecycle and section topology only,
+and calls `hw-modbus-kit`'s `handshake()` then `bindDefinition()` (07a) once per unit — never `driver-kit`
+or a register address directly.
+
+**Inputs:** research/02 · research/03 · research/06 · `GOALS §Hardware scope` · to_revision/0014 · 07a
 
 **Open:** partly **blocked on the capture trip** — AI/AO mode enumerations and which `run.d` exists.
 [`STATUS.md`](../plan/STATUS.md) is authoritative on what is still missing and why; do not restate it

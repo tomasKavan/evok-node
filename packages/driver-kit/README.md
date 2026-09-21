@@ -1,11 +1,15 @@
 # `@evok-node/driver-kit`
 
-How to be a driver: the scan loop, readings with `readAt` and `stale` (RPG-DRV-2), the handshake, deadline
+How to be a driver: the endpoint dispatcher (`bind`/`unbind`/`attach`), the handshake, deadline
 enforcement, and assembling the introspection catalogue.
 
-Enforces the two properties that make a stateless API safe: a driver's query path never blocks on I/O
-— a query reads state the scan loop already collected — and an endpoint's `effect` is mandatory with no
-default.
+Does **not** own a generic scan loop or `readAt`/`stale` — that turned out to be transport-specific
+enough that `hw-modbus-kit` (`@evok-node/modbus`, design/07a) owns its own, rather than this package
+guessing at a shared shape before a second scan-based driver exists to correct it against. Revisit once
+one does.
+
+Enforces the property that makes a stateless API safe regardless: an endpoint's `effect` is mandatory
+with no default.
 
 **Must not depend on:** any api, `main`, `modbus`, `hw-definitions` — transport and hardware knowledge
 belong to the concrete drivers.
