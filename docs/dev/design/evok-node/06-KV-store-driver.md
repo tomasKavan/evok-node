@@ -2,7 +2,7 @@
 
 ## 1. Scope
 
-`driver-kv-store` — a namespaced key-value store, reachable from other drivers and apis the same way any driver is (01 §5–§7), so no module has to invent its own file handling. It is 01 §7's worked example of a driver-owned resource that needs no arbitration, only separation. Its job is user data (02 §2) — aliases, groups, labels, plugin settings, a driver's own dynamically-bound endpoints (05a §6.5) — never readings, never platform facts, never config; those already have their own place.
+`driver-kv-store` — a namespaced key-value store, reachable from other drivers and apis the same way any driver is (01 §5–§7), so no module has to invent its own file handling. It is 01 §7's worked example of a driver-owned resource that needs no arbitration, only separation. Its job is user data (02 §2) — aliases, groups, labels, plugin settings, a driver's own dynamically-bound endpoints (05a §3.6) — never readings, never platform facts, never config; those already have their own place.
 
 ## 2. Namespacing
 
@@ -14,11 +14,11 @@ A **key** is a plain string, entirely the calling module's own business past tha
 
 ## 3. Operations
 
-Five methods, all `CALL`-shaped (05a §6.1) — `get`, `has`, `set`, `delete`, `list` — because a value has no fixed shape to hang a `reading`/`channel` off of, and `CALL` is exactly the shape for "an addressable thing with an effect and no stable value type of its own." There is nothing richer: no ranges, no transactions across keys, no query. A caller that needs more than this is asking for a different kind of storage, not a bigger version of this one.
+Five methods, all `CALL`-shaped (05a §3.1) — `get`, `has`, `set`, `delete`, `list` — because a value has no fixed shape to hang a `reading`/`channel` off of, and `CALL` is exactly the shape for "an addressable thing with an effect and no stable value type of its own." There is nothing richer: no ranges, no transactions across keys, no query. A caller that needs more than this is asking for a different kind of storage, not a bigger version of this one.
 
 | Method | Effect | Args | Result | Notes |
 |---|---|---|---|---|
-| `get` | `none` | `{ key: string }` | `json` | `errorKinds: ['key-not-found']` (05a §6.1) — a missing key resolves `{ok:false, kind:'domain-error', domainErrorKind:'key-not-found'}` (03 §7, 05a §6.4), never `internal-error` |
+| `get` | `none` | `{ key: string }` | `json` | `errorKinds: ['key-not-found']` (05a §3.1) — a missing key resolves `{ok:false, kind:'domain-error', domainErrorKind:'key-not-found'}` (03 §7, 05a §3.5), never `internal-error` |
 | `has` | `none` | `{ key: string }` | `bool` | never fails — presence is the whole answer, there is no separate error case |
 | `set` | `mutates` | `{ key: string, value: json }` | `json` | echoes exactly the `value` it was given |
 | `delete` | `mutates` | `{ key: string }` | `bool` | idempotent — always resolves `true`, whether or not the key existed |
@@ -30,7 +30,7 @@ Five methods, all `CALL`-shaped (05a §6.1) — `get`, `has`, `set`, `delete`, `
 
 ## 4. Dispatch
 
-Built on `driver-kit` exactly as any other driver would be — `bindDevice()` each of these five as its own single-`'@'`-field device (05a §6.3 — binding is mandatory through a `Device`, even for a lone endpoint) at `attach()` (05a §6.7), once, and never again. There is no dynamic binding here: the endpoint table is these five methods, forever, so `$introspect`'s `generation` never bumps after startup and a client watching it sees a driver that simply never changes shape. This only works because `onGet`/`onSet`/`onCall` now receive the full `Request` as their last argument (05a §6.4) — this driver is the reason that exists: `get`/`has`/`set`/`delete` all read `req.origin` to resolve §2's namespace, something the payload-only handler shape from before couldn't do.
+Built on `driver-kit` exactly as any other driver would be — `bindDevice()` each of these five as its own single-`'@'`-field device (05a §3.3 — binding is mandatory through a `Device`, even for a lone endpoint) at `attach()` (05a §3.8), once, and never again. There is no dynamic binding here: the endpoint table is these five methods, forever, so `$introspect`'s `generation` never bumps after startup and a client watching it sees a driver that simply never changes shape. This only works because `onGet`/`onSet`/`onCall` now receive the full `Request` as their last argument (05a §3.5) — this driver is the reason that exists: `get`/`has`/`set`/`delete` all read `req.origin` to resolve §2's namespace, something the payload-only handler shape from before couldn't do.
 
 Generic payload validation against each method's `argsCodec` happens before a handler ever runs, same as any `driver-kit`-bound endpoint (03 §5) — this driver's own handlers never re-check that `key` is a string.
 
@@ -72,7 +72,7 @@ This does briefly block the driver's own event loop, which sounds like it collid
 
 This driver's own `isConfigEqual` is just `path` equality — its only config key — so 02 §5.1's "present in both, `isConfigEqual` true ⇒ untouched" already covers every reload that doesn't touch storage location: this driver isn't part of them at all. Only an actual `path` change reaches `prepareReload`/`reload`.
 
-When it does: `prepareReload` closes the current db handle; `reload` reopens at the new path and rehydrates the mirror fully before returning. `onRequest` is registered once at startup (05a §6.7) and is never re-registered on reload, so requests keep arriving through the same handler during that gap — this driver gates them itself with an internal readiness promise, replaced (pending) by `prepareReload` and resolved by `reload` once the new mirror is live. Same shape 03 §9 already uses for `not-ready` before the first `onRequest` call, just re-armed for a swap instead of only used once at cold start — no new framework machinery, this driver's own bookkeeping.
+When it does: `prepareReload` closes the current db handle; `reload` reopens at the new path and rehydrates the mirror fully before returning. `onRequest` is registered once at startup (05a §3.8) and is never re-registered on reload, so requests keep arriving through the same handler during that gap — this driver gates them itself with an internal readiness promise, replaced (pending) by `prepareReload` and resolved by `reload` once the new mirror is live. Same shape 03 §9 already uses for `not-ready` before the first `onRequest` call, just re-armed for a swap instead of only used once at cold start — no new framework machinery, this driver's own bookkeeping.
 
 ## 9. Placement
 

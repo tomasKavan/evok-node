@@ -64,7 +64,7 @@ interface Event {
 type Envelope = Request | Response | Event;
 ```
 
-`Tail`/`Address` are never built by a raw template literal outside the four functions above — RPG-DRV-1's "one audited address function" (05a §6.4), generalized past Modbus register arithmetic to addressing itself.
+`Tail`/`Address` are never built by a raw template literal outside the four functions above — RPG-DRV-1's "one audited address function" (05a §3.5), generalized past Modbus register arithmetic to addressing itself.
 
 `Request.deadline` is never the sender's raw value once a link is crossed — every link crosses one now (§10) — 04 §6.2a says how it's reconstructed fresh at each hop. The type above is what a module's own code always sees: already locally valid, nothing further to convert.
 
@@ -129,9 +129,9 @@ interface IntrospectionBase {
 }
 ```
 
-What a specific `type` value's own payload actually contains is entirely owned by whatever answers it — never this file's concern. A driver may build the rest of the payload by hand, or lean on a library that builds it instead: driver-kit (05a §5a onward) is one such library, registering `type: 'driver-kit'` and a device-table-shaped payload for it — an illustration of what's possible on top of this root, not something this section depends on.
+What a specific `type` value's own payload actually contains is entirely owned by whatever answers it — never this file's concern. A driver may build the rest of the payload by hand, or lean on a library that builds it instead: driver-kit (05a §4 onward) is one such library, registering `type: 'driver-kit'` and a device-table-shaped payload for it — an illustration of what's possible on top of this root, not something this section depends on.
 
-Correctness leans on mandatory endpoint-kind registration (02 §4, 05a §6.4) rather than on anything carried in this payload: every process in one running instance resolves a given `kind` to the identical registered `EndpointType`, so a consumer that already has — or lazily resolves — that same object locally needs nothing about its *behavior* repeated on the wire at all. `kind` is therefore load-bearing for correctness, not merely for grouping and display — it's the key into the one place a `Codec`'s actual `decode`/`encode`/`validate` live, the registered `EndpointType` itself, never the envelope. Its declarative half is different: `EndpointType.schema` (05a §6.1) is plain data, not a function, so `driver-kit` puts it on the wire, in a `DeviceEntry`'s `FieldEntry` (05a §5a — every bound tail, including a single-field device wrapping a lone endpoint, is reported this way) — alongside `shape`, `subscribe`, and `effect`, also plain data and also carried now, for exactly the consumer that has no local copy of a third-party plugin's package to resolve `kind` against in the first place. `Codec` itself — the actual `decode`/`encode`/`validate` — is what stays behind: a function genuinely cannot cross this boundary.
+Correctness leans on mandatory endpoint-kind registration (02 §4, 05a §3.5) rather than on anything carried in this payload: every process in one running instance resolves a given `kind` to the identical registered `EndpointType`, so a consumer that already has — or lazily resolves — that same object locally needs nothing about its *behavior* repeated on the wire at all. `kind` is therefore load-bearing for correctness, not merely for grouping and display — it's the key into the one place a `Codec`'s actual `decode`/`encode`/`validate` live, the registered `EndpointType` itself, never the envelope. Its declarative half is different: `EndpointType.schema` (05a §3.1) is plain data, not a function, so `driver-kit` puts it on the wire, in a `DeviceEntry`'s `FieldEntry` (05a §4 — every bound tail, including a single-field device wrapping a lone endpoint, is reported this way) — alongside `shape`, `subscribe`, and `effect`, also plain data and also carried now, for exactly the consumer that has no local copy of a third-party plugin's package to resolve `kind` against in the first place. `Codec` itself — the actual `decode`/`encode`/`validate` — is what stays behind: a function genuinely cannot cross this boundary.
 
 ## 5a. Introspection change notification
 
@@ -139,7 +139,7 @@ Correctness leans on mandatory endpoint-kind registration (02 §4, 05a §6.4) ra
 
 ## 6. Subscriptions and call progress
 
-Resolving anything beyond a literal, concrete address — a whole family of endpoints matched as one pattern — is out of scope for this file entirely: it depends on a grammar (dot-segmented tails, wildcard matching) this layer never defines. A library a driver leans on may resolve this on top of what follows — driver-kit's own wildcard resolution (05a §5c) is one such mechanism — but it always hands this layer a literal address first; nothing below this line needs to know such a mechanism exists. What stays here is what every subscription gets once it's already resolved to a concrete address, regardless of how it got there — delivery semantics, coalescing, and reconnect-replay apply identically whether the concrete address came from a literal `subscribe` call or was resolved by something else first.
+Resolving anything beyond a literal, concrete address — a whole family of endpoints matched as one pattern — is out of scope for this file entirely: it depends on a grammar (dot-segmented tails, wildcard matching) this layer never defines. A library a driver leans on may resolve this on top of what follows — driver-kit's own wildcard resolution (05a §6) is one such mechanism — but it always hands this layer a literal address first; nothing below this line needs to know such a mechanism exists. What stays here is what every subscription gets once it's already resolved to a concrete address, regardless of how it got there — delivery semantics, coalescing, and reconnect-replay apply identically whether the concrete address came from a literal `subscribe` call or was resolved by something else first.
 
 ### 6.1. REMOVED
 
@@ -147,7 +147,7 @@ Resolving anything beyond a literal, concrete address — a whole family of endp
 
 ### 6.3. Delivery
 
-`subscribe`/`unsubscribe` (§4) are how a module asks for events; underneath, they still travel as ordinary `SUBSCRIBE`/`UNSUBSCRIBE` requests. For a literal, concrete address, this layer resolves them completely on its own, never touching the driver author's own `onRequest` — the same bookkeeping split as `$subscriptions`/`$getCallProgress.<id>` (§3). Resolving anything else — a wildcard pattern — first is out of scope here; whatever the driver relies on for that (05a §5c is one mechanism) hands this layer a literal address before any of the below applies. A driver's code only ever calls `emit(tail, value)` on its own base address when a value changes; the dispatcher fans that out to whoever is currently subscribed, at whatever address they actually asked for.
+`subscribe`/`unsubscribe` (§4) are how a module asks for events; underneath, they still travel as ordinary `SUBSCRIBE`/`UNSUBSCRIBE` requests. For a literal, concrete address, this layer resolves them completely on its own, never touching the driver author's own `onRequest` — the same bookkeeping split as `$subscriptions`/`$getCallProgress.<id>` (§3). Resolving anything else — a wildcard pattern — first is out of scope here; whatever the driver relies on for that (05a §6 is one mechanism) hands this layer a literal address before any of the below applies. A driver's code only ever calls `emit(tail, value)` on its own base address when a value changes; the dispatcher fans that out to whoever is currently subscribed, at whatever address they actually asked for.
 
 **Every event is a full snapshot, never a diff.** This one choice is what keeps the rest of subscription simple:
 
@@ -181,14 +181,14 @@ type ErrorKind =
 
 | Kind | Meaning | Whose problem |
 |---|---|---|
-| `unknown-address` | tail doesn't exist on this driver, or names a `$getCallProgress` id for a call that's already resolved (§6.4) — a higher layer's own address resolution, e.g. driver-kit's wildcard matching (05a §5c), may also produce this same kind when its own resolution fails | caller |
+| `unknown-address` | tail doesn't exist on this driver, or names a `$getCallProgress` id for a call that's already resolved (§6.4) — a higher layer's own address resolution, e.g. driver-kit's wildcard matching (05a §6), may also produce this same kind when its own resolution fails | caller |
 | `unsupported-method` | endpoint doesn't support this method | caller |
 | `bad-payload` | failed the endpoint's declared payload check | caller |
 | `not-subscribed` | `unsubscribe` on something never subscribed | caller |
-| `domain-error` | a `method`-shaped endpoint's own business logic produced a named failure outside this protocol vocabulary; `domainErrorKind` narrows it, drawn from the closed set the endpoint itself declares (05a §6.1/§6.4) — 06's `get` is the first user | depends on `domainErrorKind` |
+| `domain-error` | a `method`-shaped endpoint's own business logic produced a named failure outside this protocol vocabulary; `domainErrorKind` narrows it, drawn from the closed set the endpoint itself declares (05a §3.1/§3.5) — 06's `get` is the first user | depends on `domainErrorKind` |
 | `not-ready` | module hasn't called `onRequest` yet | timing |
-| `unreachable` | driver is up, its device/bus isn't answering (05's degradation state); also directly returnable from a `CALL` handler for that one call (05a §6.4) | environment |
-| `timeout` | driver tried, no answer within its own budget; also directly returnable from a `CALL` handler for that one call (05a §6.4) | environment |
+| `unreachable` | driver is up, its device/bus isn't answering (05's degradation state); also directly returnable from a `CALL` handler for that one call (05a §3.5) | environment |
+| `timeout` | driver tried, no answer within its own budget; also directly returnable from a `CALL` handler for that one call (05a §3.5) | environment |
 | `deadline-exceeded` | caller's own deadline elapsed before any response arrived; manufactured locally, may never have reached the target | nobody, structurally |
 | `link-down` | the peer process/thread itself is gone | infrastructure |
 | `internal-error` | handler threw | our bug |

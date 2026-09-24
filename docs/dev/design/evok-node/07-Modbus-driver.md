@@ -99,7 +99,7 @@ const MODBUS_EXCEPTION_KINDS: readonly ModbusExceptionKind[] = [
 ];
 ```
 
-These are the standard Modbus exception codes (1–8, 10, 11), named rather than left as bare numbers, with `unknown-exception` as the fallback for a vendor-specific code outside that set — `info: { code: number }` on the `CallOutcome` carries the raw value either way, so nothing is lost even in the fallback case. `notConnected`, `io`, `framing` and an open breaker all surface as the generic `unreachable`; a timeout surfaces as the generic `timeout` — both directly returnable from a handler per `05a §6.4`, needing no domain vocabulary of their own.
+These are the standard Modbus exception codes (1–8, 10, 11), named rather than left as bare numbers, with `unknown-exception` as the fallback for a vendor-specific code outside that set — `info: { code: number }` on the `CallOutcome` carries the raw value either way, so nothing is lost even in the fallback case. `notConnected`, `io`, `framing` and an open breaker all surface as the generic `unreachable`; a timeout surfaces as the generic `timeout` — both directly returnable from a handler per `05a §3.5`, needing no domain vocabulary of their own.
 
 ## 6. The raw endpoints
 
@@ -133,7 +133,7 @@ const ModbusHealthArgsCodec = Codecs.struct({ unitId: Codecs.uint16() });   // o
 export const HEALTH = method('health', 'none', ModbusHealthCodec, ModbusHealthArgsCodec);   // not a function code — see below
 
 // One Device, nine sibling fields, no '@' — there's no single "primary" operation to root the tail on,
-// and binding is mandatory through a Device regardless (05a §6.3), even for a bundle with no root field.
+// and binding is mandatory through a Device regardless (05a §3.3), even for a bundle with no root field.
 export const MODBUS_RAW = device('modbus-kit.raw', {
   readCoils: READ_COILS, readDiscreteInputs: READ_DISCRETE_INPUTS,
   readHoldingRegisters: READ_HOLDING_REGISTERS, readInputRegisters: READ_INPUT_REGISTERS,
@@ -190,7 +190,7 @@ const modbusDriverDescriptor: ModuleDescriptor<ModbusDriverConfig> = {
 };
 ```
 
-Every `onCall` is a pure forward, nothing translated in between — the engine and the endpoint speak the same `CallOutcome` shape (05a §6.4), so there is no separate mapping layer for this file to get wrong.
+Every `onCall` is a pure forward, nothing translated in between — the engine and the endpoint speak the same `CallOutcome` shape (05a §3.5), so there is no separate mapping layer for this file to get wrong.
 
 ## 7. Composing, not subclassing
 
