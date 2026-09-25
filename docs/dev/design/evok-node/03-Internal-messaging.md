@@ -219,11 +219,12 @@ interface InstanceContext {
   readonly log: Logger;                 // 04 §3
   readonly clock: Clock;                // 04 §4
   readonly messaging: MessagingHandle;  // §4
+  readonly plugins: PluginRegistry;     // 02 §4 — this placement's own; built once from pluginManifest, at spawn
   reportFatal(detail: string): void;    // fire-and-forget — never awaited, never throws — §11
 }
 ```
 
-`ctx.messaging` is the same object, same shape, for the life of the instance — never replaced, only mutated underneath by the runner as links come and go. This follows straight from 02 §4: `createInstance(ctx)` receives `ctx` exactly once, synchronously, and no later call receives it again, so whatever `ctx.messaging` is has to survive every reload without changing identity.
+`ctx.messaging` is the same object, same shape, for the life of the instance — never replaced, only mutated underneath by the runner as links come and go. This follows straight from 02 §4: `createInstance(ctx)` receives `ctx` exactly once, synchronously, and no later call receives it again, so whatever `ctx.messaging` is has to survive every reload without changing identity. `ctx.plugins` is the same object for the same reason, though for a different one underneath: it isn't mutated across a reload at all — the `pluginManifest` it was built from (02 §5, §6) is assembled once, at startup, and never changes, so there is nothing for a reload to update. A driver rarely calls it directly; a driver built on `driver-kit` or `hw-modbus-kit` uses that kit's own encapsulation instead (`resolveDeviceKind`, `resolveKindBinder`, `resolveHandshake` — 05a §3.5, 07a §7/§9), each a thin wrapper over `ctx.plugins.resolve(kind, id)`.
 
 **Startup** is two barriers, reusing the shape reload already has rather than inventing a second one (02 §5, §6; pseudocode in §11):
 

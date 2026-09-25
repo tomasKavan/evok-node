@@ -9,7 +9,7 @@ API (15) and the inspector (16).
 **Covers**
 
 - **What good introspection alone buys you** — and that it costs nothing extra. If the common case
-  needs more than 12's introspection, that is a defect in 15, not a gap here.
+  needs more than 01 §6 / 03's introspection, that is a defect in 15, not a gap here.
 - **What needs explicit contribution:** display metadata, units, grouping, visual layout, custom
   controls.
 - **The inspector plugin seam:** how a driver ships UI without `ui` depending on the driver. Nothing
@@ -19,7 +19,7 @@ API (15) and the inspector (16).
 - **Versioning across three moving parts** (driver, API schema, UI), and what breaks when they
   disagree.
 
-**Inputs:** 12 · 15 · 16 · to_revision/0003
+**Inputs:** 01 · 03 · 15 · 16 · to_revision/0003
 
 **Open:** whether the inspector plugin seam exists at 1.0, or generic introspection-driven rendering
 is enough to defer it.

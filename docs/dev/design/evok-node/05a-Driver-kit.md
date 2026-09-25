@@ -268,6 +268,7 @@ interface DriverKit {
     handlers: { readonly [K in keyof F]?: BindHandlers<...> }   // one entry per field actually being bound; omit an optional() field entirely to leave it unbound
   ): { readonly [K in keyof F]?: BoundEndpoint<...> };
   unbindDevice(tail: Tail): void;
+  resolveDeviceKind(kind: string): Promise<DeviceType>;    // for a driver that only has a string, e.g. a definition-declared kind it never imported directly — see below
   list(): readonly BoundEndpointInfo[];          // every field of every bound device, flattened — '@' reported under the device's own tail, a sibling under `<tail>.<key>`
   find<T = unknown, E extends string = never>(tail: Tail): BoundEndpoint<T, E> | undefined;
   onGet<T>(ep: BoundEndpoint<T>, fn: (req: Request) => T | Promise<T>): void;
@@ -277,13 +278,32 @@ interface DriverKit {
 }
 ```
 
+`bindDevice` itself stays synchronous, and still takes an already-resolved `DeviceType` — resolving one from a bare `kind` string is always a separate, earlier step, never something `bindDevice` does on a caller's behalf. Most drivers never need that step: `07a`'s own built-in kinds (`unipi.di`, `unipi.ao`, …) are `import`ed directly, the same way `DIDevice` above is, and go straight into `bindDevice` with no resolution at all. `resolveDeviceKind(kind)` exists for the other case — a `kind` string with no compile-time import behind it, known only from a definition or a plugin's own runtime data (`07a`'s generic walk, resolving a YAML feature's `kind`, is the concrete caller). It's a thin wrapper over `ctx.plugins.resolve('device', kind)` (02 §4, 03 §9), and this is where `isDeviceType` actually lives — registered once, against `PluginRegistry`'s `'device'` kind, at `driver-kit`'s own module-load time, before any instance built on it can call either method:
+
+```ts
+// @evok-node/driver-kit, module-load time, once
+// Duck-typed, same reasoning as isModuleDescriptor (02 §4): a plugin may bundle its own
+// copy of module-sdk's types, and there's no `instanceof` to rely on across that boundary.
+function isDeviceType(mod: unknown, deviceKind: string): DeviceType {
+  if (typeof mod !== 'object' || mod === null
+      || typeof (mod as DeviceType).kind !== 'string'
+      || typeof (mod as DeviceType).fields !== 'object' || (mod as DeviceType).fields === null) {
+    throw new Error(`type "${deviceKind}": not a valid DeviceType`);
+  }
+  if ((mod as DeviceType).kind !== deviceKind) {
+    throw new Error(`type "${deviceKind}": exported DeviceType.kind is "${(mod as DeviceType).kind}"`);
+  }
+  return mod as DeviceType;
+}
+pluginRegistry.registerKindGuard('device', isDeviceType);
+```
+
 `bindDevice` is the only way to bind anything — there is no separate `bind()` for a lone endpoint (§3.3: a single-`'@'`-field `DeviceType` is that case, not a special one). It's fatal in any of the following, all the same tier — a packaging or driver-author mistake, never a business-logic case worth degrading gracefully for:
 
-- `type.kind` doesn't resolve in the device manifest — a cheap, local table lookup against the `deviceKind → {path, export}` table every process gets at spawn (02 §6) — or the resolved module fails `isDeviceType`, or its own `.kind` disagrees with the manifest entry's `deviceKind`:
+- `type.kind` doesn't resolve in the device manifest — a cheap, local table lookup against the `deviceKind → {path, export}` table every process gets at spawn (02 §6) — or the object `bindDevice` was actually handed fails the same `isDeviceType` check above. This is `bindDevice`'s own, independent re-check — it runs unconditionally, whether `type` arrived by direct import or by an earlier `resolveDeviceKind` call, because a direct import never goes through `resolveDeviceKind` at all and still needs catching if it's wrong. It's the same `isDeviceType` function above, called directly rather than through `PluginRegistry` — `bindDevice` already has the object in hand, so there's nothing to `import()`, only the guard's own shape/`kind`-agreement check left to run:
 
   ```ts
-  if (!isDeviceType(mod)) throw new Error(`type "${deviceKind}": not a valid DeviceType`);
-  if (mod.kind !== deviceKind) throw new Error(`type "${deviceKind}": exported DeviceType.kind is "${mod.kind}"`);
+  isDeviceType(type, type.kind);   // throws synchronously on shape mismatch — bindDevice lets it propagate, unchanged
   ```
 
   This is the only registration check at this tier — a field's own `EndpointType` needs no separate declaration; it arrives already resolved as part of the `DeviceType` that owns it.
@@ -412,6 +432,7 @@ Tier 1 (unit; `basics/03-Testing.md`), against `driver-kit`'s own fixtures — a
 
 - Wildcard resolution (§6): a `DI.*` subscription picks up a fixture endpoint added after subscribing (a topology-generation bump) and drops one removed, with no re-subscribe from the caller.
 - `bindDevice()`'s checks (§3.5): a fixture `DeviceType` whose own `kind` isn't in the device manifest is fatal at `bindDevice()`, before `attach()`; independently, a fixture `DeviceType` whose exported `kind` disagrees with its manifest entry's `deviceKind` is fatal; a duplicate `tail` is fatal independently of either.
+- `resolveDeviceKind()` (§3.5): resolves a fixture `deviceKind` string to the same `DeviceType` a direct import of that fixture would give, and the result binds identically either way; a second call for the same `deviceKind` returns the memoized value, asserted by the fixture's own load-side-effect counter staying at 1; an unregistered `deviceKind` rejects, naming it, before `bindDevice()` ever runs.
 - Introspection payload (§4): `$introspect` on a fixture driver returns `{driverId, driverTypeName, type: 'driver-kit', devices}`, each `DeviceEntry` exactly `tail`/`kind`/`fields`, each `FieldEntry` exactly `kind`/`shape`/`subscribe`/`effect?`/`schema`/`setSchema?`/`argsSchema?`; a fixture device with a single `'@'` field and no siblings still appears as an ordinary `DeviceEntry` — assert `codec`/`setCodec`/`argsCodec`/`resultCodec` themselves never leak onto the wire, only their serializable counterparts do.
 - `RejectedPayload` (§3.5): a fixture `onSet` throwing it answers `bad-payload`, never `internal-error`; any other thrown error from `onGet`/`onSet` still answers `internal-error`, unchanged.
 - `DeviceType`/`bindDevice` (§3.3/§3.5): a `primitive`/`array`-shaped `@` declared alongside any sibling field is rejected when the `DeviceType` is built, before any driver binds it; a required field missing from `bindDevice`'s `handlers` is fatal, while the same `DeviceType` binds successfully with only some `optional()` fields supplied; a second `bindDevice()` whose tail falls inside an already-bound device's namespace, outside its declared fields, is fatal; both handles from one `bindDevice()` call are independently addressable, and `unbindDevice`ing the device's own tail doesn't silently leave a sibling field bound.

@@ -4,13 +4,13 @@
 
 The shared binder 08 and 09 both call: turns a `hw-definitions`-resolved definition into bound `driver-kit` devices, over this same package's own `ModbusTransport`, without either onboard or extension driver touching register arithmetic or `bindDevice` directly. It lives inside `packages/modbus` — the `hw-modbus-kit` subpath of what 01 §11 calls `modbus-kit` — not a separate npm package; §9 states what that costs and buys.
 
-For the common case — every per-channel Unipi kind (`unipi.di`, `unipi.do`, `unipi.ro`, `unipi.led`, `unipi.ai`, `unipi.ao`) and every plain sensor kind (`unipi.temp`, `unipi.humidity`, …) — this file needs zero kind-specific code: a single schema-walking algorithm (§5) binds any `reading`/`channel`-shaped `DeviceType` from its own `ValueSchema` plus the YAML's own field addresses. The registry (§7) is for what that walk genuinely cannot do: `unipi.sectionWatchdog`'s `saveConfig`/`reset` are `method`-shaped, and a `CALL` isn't a value with an address, so it needs its own binder — the worked example in §7 — same as any future hardware quirk too irregular to express as a schema path.
+For the common case — every per-channel Unipi kind (`unipi.di`, `unipi.do`, `unipi.ro`, `unipi.led`, `unipi.ai`, `unipi.ao`) and every plain sensor kind (`unipi.temp`, `unipi.humidity`, …) — this file needs zero kind-specific code: a single schema-walking algorithm (§5) binds any `reading`/`channel`-shaped `DeviceType` from its own `ValueSchema` plus the YAML's own field addresses. The registry (§7) is for what that walk genuinely cannot do, and it's never about building a new `DeviceType` — every `DeviceType` this file ever binds against already exists and is independently resolvable (05a §3.5); a registered binder only ever supplies *how* to talk to one. Two distinct reasons a `kind` needs one: `unipi.sectionWatchdog`'s `saveConfig`/`reset` are `method`-shaped, and a `CALL` isn't a value with an address, so the real `unipi.sectionWatchdog` `DeviceType` needs its own `bind()` instead of the generic walk; or a YAML `kind` is a stand-in for a different, already-real kind entirely — a device with a register layout the generic walk can't express, bound as an ordinary `unipi.di` underneath once its own binder translates for it. Both are the worked examples in §7.
 
 ## 2. The kind↔`DeviceType` boundary
 
 `hw-definitions` (07's sibling package) parses, structurally validates, and resolves addresses; it never resolves a `kind` string against a real `DeviceType` — it has no `ctx`, and no legitimate reason to want one. Everything it hands this file is data: a `ResolvedDefinition` whose `features[].kind` is still just a string.
 
-This file is where that string becomes a bound device. `bindDefinition()` (§9) looks up `kind` against the registry (§7) if an entry exists there, and otherwise builds the device generically (§5) from whatever `DeviceType` the running instance's own manifest (05a §3.5, 02 §4) already has registered under that `kind` — the same manifest `driver-kit`'s `bindDevice()` checks against, so a `kind` this file can't resolve fails exactly where an ordinary driver-authoring mistake already fails, not somewhere new.
+This file is where that string becomes a bound device. `bindDefinition()` (§9) looks up `kind` against the registry (§7) first — a local `registerKind()` table, then, if absent there, `resolveKindBinder(kind)` (§7, §12) against the ambient manifest. If a binder is found, its `targetKind` (defaulting to `kind` itself) is what actually gets resolved to a real `DeviceType`, via `resolveDeviceKind` (05a §3.5); if no binder is found at all, `kind` itself is resolved the same way, and the device is built generically (§5) from whatever `ValueSchema` that `DeviceType` carries. Either path ends at the same `resolveDeviceKind` call, so a `kind` — or a binder's `targetKind` — that this file can't resolve fails exactly where an ordinary driver-authoring mistake already fails (05a §3.5), not somewhere new.
 
 ## 3. The YAML↔schema contract
 
@@ -130,30 +130,86 @@ A worked trace against §3's `unipi.do` feature, `onSet({ mode: 'pwm', value: { 
 ```ts
 // @evok-node/modbus — hw-modbus-kit
 interface ModbusKindBinder<F extends Record<string, EndpointType | OptionalEndpointType> = any> {
-  readonly kind: string;                                           // matches ResolvedFeature.kind
-  buildDeviceType(feature: ResolvedFeature): DeviceType<F>;
-  bind(ctx: WireBindCtx, feature: ResolvedFeature): { [K in keyof F]?: BindHandlers<any, any, any> };
+  readonly kind: string;          // matches ResolvedFeature.kind
+  readonly targetKind?: string;   // the real, resolvable DeviceType.kind to bind against — defaults to `kind` itself
+  bind(ctx: WireBindCtx, feature: ResolvedFeature, deviceType: DeviceType<F>): { [K in keyof F]?: BindHandlers<any, any, any> };
 }
 ```
-Registered via `HwModbusKit.registerKind()` (§9), checked before falling back to §6's generic walk. Two reasons to need one: a `method`-shaped endpoint, since a `CALL` isn't a value with an address and there's nothing for a schema-walker to walk; or a hardware quirk too irregular to express as a schema path at all. `unipi.sectionWatchdog` is the built-in example of the first case — its `saveConfig`/`reset` fields are actions, not addressable values:
+
+A binder never builds a `DeviceType` — the type itself always already exists and is independently resolvable (05a §3.5); a binder only ever supplies *how* to talk to one over the wire. `targetKind` is what makes that distinction concrete, and it covers two genuinely different reasons a `kind` needs a binder at all, both resolved to a real `DeviceType` (via `resolveDeviceKind`, §12) before `bind()` ever runs:
+
+- **Same kind, custom bind.** `targetKind` omitted (defaults to `kind`). The walk itself can't handle this kind — not an aliasing problem. `unipi.sectionWatchdog` is the built-in example: its `saveConfig`/`reset` fields are `method`-shaped, and a `CALL` isn't a value with an address, so there's nothing for §6's schema-walker to walk.
+
+  ```ts
+  // @evok-node/modbus — hw-modbus-kit
+  async function forceCoil(ctx: WireBindCtx, address: number): Promise<CallOutcome<void>> {
+    const r = await ctx.tx.writeSingleCoil({ unitId: ctx.unitId, address, value: true });
+    return r.ok ? { ok: true, result: undefined } : r;
+  }
+
+  const sectionWatchdogBinder: ModbusKindBinder<SectionWatchdogFields> = {
+    kind: 'unipi.sectionWatchdog',              // targetKind omitted — SectionWatchdogDevice.kind is this same string
+    bind: (ctx, feature, deviceType) => ({
+      saveConfig: { onCall: () => forceCoil(ctx, feature.coils.saveConfig) },
+      reset:      { onCall: () => forceCoil(ctx, feature.coils.reset) },
+    }),
+  };
+  ```
+
+  `SectionWatchdogDevice` is a same-package built-in — `hw-modbus-kit` imports it directly, so resolving `targetKind` here is trivially cheap (05a §3.5's direct-import path), never a `PluginRegistry` round-trip.
+
+- **Alias — a different, already-real kind underneath.** `targetKind` names a kind genuinely different from `kind`. This is the shape a 09-style bring-your-own definition needs: a physical device with a register layout the generic walk can't express, whose channels are otherwise ordinary. A fictitious `acme.wm-relay` with a queer bit-packed coil layout, bound as nothing more exotic than `unipi.ro` underneath:
+
+  ```ts
+  const wmRelayBinder: ModbusKindBinder<RoFields> = {
+    kind: 'acme.wm-relay',
+    targetKind: 'unipi.ro',
+    bind: (ctx, feature, deviceType) => ({
+      '@': {
+        onGet: () => readWmPackedCoil(ctx, feature),      // acme's own translation, not §6's generic walk
+        onSet: (v) => writeWmPackedCoil(ctx, feature, v),
+      },
+    }),
+  };
+  ```
+
+  Every client still sees an ordinary `unipi.ro` — `deviceType` here is the real, resolved `RoDevice`, identical to what any other `unipi.ro` binds against; only the wire translation inside `bind()` is acme's own.
+
+Registered one of two ways, same duality as every other kind `PluginRegistry` owns (02 §4): **direct**, a build-time-known binder — `registerKind(binder)` (§12), what `unipi.sectionWatchdog` itself uses, called once at this package's own load; or **manifest**, a binder whose identity is only a string in someone else's config — a `kind: "modbus-kind-binder"` `package.json` entry, resolved lazily via `resolveKindBinder(kind)` (§12):
+
+```json
+// @acme/evok-node-wm3f — package.json
+{
+  "evokNodePlugin": {
+    "manifestVersion": "1",
+    "plugins": [
+      { "kind": "modbus-kind-binder", "deviceKind": "acme.wm-relay", "path": "./dist/index.js", "export": "wmRelayBinder" }
+    ]
+  }
+}
+```
+
+`deviceKind` — same field name a plain `device` entry uses, since both answer "what does this string resolve to," but a separate namespace (02 §4): `device` and `modbus-kind-binder` never collide on the same string, because a `ResolvedFeature.kind` is looked up against exactly one of them (§2), never both. `bindDefinition()` checks the local `registerKind()` table first, and only calls `resolveKindBinder` if nothing is found there — a plugin package pays the `PluginRegistry` round-trip once, memoized after (02 §4); a build-time-known binder, direct or third-party, never pays it at all.
+
+Registering `isModbusKindBinder` itself as `'modbus-kind-binder'`'s own guard is this package's job, at its own module-load time — same tier as `driver-kit` registering `isDeviceType` for `'device'` (05a §3.5):
 
 ```ts
-// @evok-node/modbus — hw-modbus-kit
-async function forceCoil(ctx: WireBindCtx, address: number): Promise<CallOutcome<void>> {
-  const r = await ctx.tx.writeSingleCoil({ unitId: ctx.unitId, address, value: true });
-  return r.ok ? { ok: true, result: undefined } : r;
+// @evok-node/modbus — hw-modbus-kit, module-load time, once
+function isModbusKindBinder(mod: unknown, deviceKind: string): ModbusKindBinder {
+  if (typeof mod !== 'object' || mod === null
+      || typeof (mod as ModbusKindBinder).kind !== 'string'
+      || typeof (mod as ModbusKindBinder).bind !== 'function') {
+    throw new Error(`modbus-kind-binder "${deviceKind}": not a valid ModbusKindBinder`);
+  }
+  if ((mod as ModbusKindBinder).kind !== deviceKind) {
+    throw new Error(`modbus-kind-binder "${deviceKind}": exported .kind is "${(mod as ModbusKindBinder).kind}"`);
+  }
+  return mod as ModbusKindBinder;
 }
-
-const sectionWatchdogBinder: ModbusKindBinder<SectionWatchdogFields> = {
-  kind: 'unipi.sectionWatchdog',
-  buildDeviceType: () => SectionWatchdogDevice,
-  bind: (ctx, feature) => ({
-    saveConfig: { onCall: () => forceCoil(ctx, feature.coils.saveConfig) },
-    reset:      { onCall: () => forceCoil(ctx, feature.coils.reset) },
-  }),
-};
+pluginRegistry.registerKindGuard('modbus-kind-binder', isModbusKindBinder);
 ```
-Every other built-in kind (§10) resolves through the generic walk alone.
+
+Every other built-in kind (§10) resolves through the generic walk alone, no binder at all.
 
 ## 8. Scan cache and block-scan loop
 
@@ -210,10 +266,19 @@ interface HandshakeResult {
   detail?: string;
   variant?: string;   // which firmware-variant file was selected (research/13 §2.2) — diagnostic only
 }
-```
-Runs the identity check (research/13 §2.1 — `hardwareId` where known, `census` otherwise) and firmware-variant selection (§2.2) against a live unit, using this same package's `ModbusTransport`. A non-`ok` result is `08`/`09`'s own cue to refuse the unit outright — "refusal to run, not a warning," per research/13 §2.1 — never something this file downgrades to a log line. Always called before `bindDefinition()`, never after: `bindDefinition()` assumes the `ResolvedDefinition` it's given already came from the variant `handshake()` selected, and does not re-check either census or firmware itself.
 
-`handshake()` reads the identification block (holding 1000–1009) directly, through raw transport calls, before anything is bound. Once `bindDefinition()` runs, `unipi.info` (§10) exposes the same registers to ordinary clients through the generic scan-cache path — two different read paths over the same physical registers, never in conflict, since `handshake()` never runs again after bind.
+type HandshakeFn = (tx: ModbusTransport, unitId: number, def: UnresolvedDefinition) => Promise<HandshakeResult>;
+```
+
+`handshake(def)` (§12) looks up `def.handshake` — a name, defaulting to `'unipi.handshake'` when the YAML key is absent, which is every definition in the shipped catalog today; no existing definition needs editing — and dispatches to whichever `HandshakeFn` is registered under that name. The caller-facing contract, `handshake(def): Promise<HandshakeResult>`, doesn't change regardless of which `HandshakeFn` actually runs: `08`/`09` still call it exactly once, before `bindDefinition()`, and still treat a non-`ok` result as their own cue to refuse the unit outright — "refusal to run, not a warning," per research/13 §2.1 — never something this file downgrades to a log line. So `08 §5` needs no edit for any of this.
+
+**`'unipi.handshake'`** is the built-in, registered directly at this package's own load — the algorithm this section always described: runs the identity check (research/13 §2.1 — `hardwareId` where known, `census` otherwise) and firmware-variant selection (§2.2) against a live unit, reading the identification block (holding 1000–1009) directly, through raw transport calls, before anything is bound. Once `bindDefinition()` runs, `unipi.info` (§10) exposes the same registers to ordinary clients through the generic scan-cache path — two different read paths over the same physical registers, never in conflict, since a `HandshakeFn` never runs again after bind.
+
+**`handshake: none`** short-circuits to `{ok: true}` before any wire call at all — no identity check, no firmware-variant selection, neither partially. For a bring-your-own definition with no known identity block (09 §7), this is the honest choice over pretending census-checking degrades gracefully; a definition that wants partial checking registers its own `HandshakeFn` instead and does exactly as much as it chooses to inside it.
+
+**A third-party `HandshakeFn`** registers the same two ways every other pluggable kind in this file does (§7, 02 §4): direct, `registerHandshake(name, fn)` (§12), for one known at build time; or manifest, a `kind: "modbus-handshake"` `package.json` entry (`handshakeName` the identifying field), resolved lazily via `resolveHandshake(name)` (§12). `handshake(def)` checks the local `registerHandshake()` table first, falling back to `resolveHandshake` only if nothing is found there — same order §7's binder lookup already follows. An unregistered name — not found locally, and not resolvable through the manifest either — is fatal before any wire traffic, the same tier as an unresolvable `kind` (§2).
+
+Registering `isHandshakeFn` as `'modbus-handshake'`'s own guard, at this package's own load, mirrors `'modbus-kind-binder'`'s (§7) exactly, just checking `typeof mod === 'function'` in place of a shape object — a bare function has no fields to duck-type against.
 
 ## 10. The built-in kind catalogue
 
@@ -278,15 +343,18 @@ interface BoundDefinition {
 }
 
 interface HwModbusKit {
-  registerKind(binder: ModbusKindBinder): void;                                   // §7 — `unipi.sectionWatchdog` is built-in; the rest need none
-  handshake(def: UnresolvedDefinition): Promise<HandshakeResult>;                  // §9 — always before bindDefinition
+  registerKind(binder: ModbusKindBinder): void;                                   // §7 — direct, build-time-known; `unipi.sectionWatchdog` is built-in
+  registerHandshake(name: string, fn: HandshakeFn): void;                         // §9 — direct; `'unipi.handshake'` is built-in
+  resolveKindBinder(kind: string): Promise<ModbusKindBinder>;                     // §7 — manifest-declared, lazy: ctx.plugins.resolve('modbus-kind-binder', kind)
+  resolveHandshake(name: string): Promise<HandshakeFn>;                           // §9 — manifest-declared, lazy: ctx.plugins.resolve('modbus-handshake', name)
+  handshake(def: UnresolvedDefinition): Promise<HandshakeResult>;                  // §9 — always before bindDefinition; checks registerHandshake's table, then resolveHandshake
   bindDefinition(def: ResolvedDefinition, rates: RateTable): BoundDefinition;      // §6/§7/§8 combined — the one call 08 and 09 share
 }
 
 function createHwModbusKit(
   kit: DriverKit,
   tx: ModbusTransport,                       // one per owning driver instance — embedded, 07 §7
-  deps: { clock: Clock; log: Logger; scheduler: Scheduler },
+  deps: { clock: Clock; log: Logger; scheduler: Scheduler; plugins: PluginRegistry },   // `plugins` is `ctx.plugins` (03 §9) — what resolveKindBinder/resolveHandshake reach through
 ): HwModbusKit;
 ```
 
@@ -301,6 +369,8 @@ Tier 1, against a fixture `ResolvedDefinition` and the simulator (`design/simula
 - Encoding/schema match: a fixture feature whose `encoding.format` disagrees with its resolved schema leaf's `ValueSchema.format` is rejected at load time.
 - Write-prefers-coil: a fixture value declaring both `holdingReg` and `coil` writes only through the coil on `SET`, asserted against the fixture transport's own call log — the register is never touched.
 - Channel restriction: a mode `onSet` naming a variant excluded by that channel's own `options[].channels` answers `bad-payload` via `RejectedPayload`, never reaches the transport.
+- Handshake dispatch: `handshake: none` never issues a wire call, asserted against the fixture transport's own call log, and skips firmware-variant selection along with identity; an unregistered `handshake` name is fatal before any wire traffic; a fixture manifest-declared `HandshakeFn` (`kind: "modbus-handshake"`) resolves and runs identically to a directly-`registerHandshake`d one.
+- Kind-binder resolution: a fixture alias binder (`targetKind` naming a different, real fixture `DeviceType`) binds through to that real type correctly — introspection reports the real kind, not the alias; a binder whose `targetKind` resolves to a `DeviceType` whose own `.kind` disagrees is fatal, before any wire traffic; a fixture manifest-declared binder (`kind: "modbus-kind-binder"`) resolves and binds identically to a directly-`registerKind`d one.
 - Contiguous-struct batching: a struct value backed by contiguous registers writes as exactly one `writeMultipleRegisters` call — never split into per-field writes.
 - `unipi.pwmOpt` binds exactly once regardless of how many `unipi.do` channels the fixture definition declares.
 - Handshake refusal: a `census` mismatch, a `hardwareId` mismatch, and a board below every variant's `minFirmware` floor each answer a non-`ok` `HandshakeResult` naming the right `reason`, and `bindDefinition()` is never reached in any of the three.
