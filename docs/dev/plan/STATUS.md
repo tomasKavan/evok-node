@@ -22,6 +22,7 @@
 - 02 §4 designed `plugin-sdk` — published types (`ModuleDescriptor`, `ModuleInstance`, `InstanceContext`) and the runtime guard (`isModuleDescriptor`) a plugin author builds against, and that `main` checks a loaded module with. **Not yet scaffolded** — `packages/plugin-sdk` does not exist, and `.dependency-cruiser.cjs` does not yet carry its edges: `main`, `driver-onboard`, `driver-extension`, `api-nextgen`, `api-compat` and `driver-kit` all depend on it. Coder work, not started; this is a note so it isn't lost before then.
 - 07 designed the Modbus transport engine (`ModbusTransport`), its eight raw pass-through endpoints, and the standalone driver wrapping them. **Package rename pending** — `01 §11`'s table now names it `modbus-kit`, but `packages/modbus` still exists on disk under the old name; the rename needs to land in the same change as `.dependency-cruiser.cjs`. That same file also needs a new edge, `modbus-kit` → `driver-kit`, for `CallOutcome` (05a §3.5) — not yet in `WORKSPACE_DEPS`. Coder work, not started; this is a note so it isn't lost before then.
 - 05 split into `05-Drivers` (the generic driver contract) and `05a-Driver-kit` (the `driver-kit` package) — cross-references in 02/03/06/07 updated to point at 05a where the content moved.
+- 11 designed the system driver (`driver-system`) — host/version facts, loads, network, a process snapshot, and additive log reads. Read-only in v1; no write endpoint exists on any driver yet, so a settable label and any restart/reboot method are left open.
 
 ## Next
 
