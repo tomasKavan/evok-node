@@ -1,6 +1,6 @@
 # Status
 
-**Updated:** 2026-08-23 · **Milestone:** [M3 — development documentation](roadmap.md) ·
+**Updated:** 2026-09-26 · **Milestone:** [M3 — development documentation](roadmap.md) ·
 **Version:** unreleased
 
 !! Present state only. What changed and when is what git is for; milestone sequence is in [`roadmap.md`](roadmap.md).
@@ -23,6 +23,7 @@
 - 07 designed the Modbus transport engine (`ModbusTransport`), its eight raw pass-through endpoints, and the standalone driver wrapping them. **Package rename pending** — `01 §11`'s table now names it `modbus-kit`, but `packages/modbus` still exists on disk under the old name; the rename needs to land in the same change as `.dependency-cruiser.cjs`. That same file also needs a new edge, `modbus-kit` → `driver-kit`, for `CallOutcome` (05a §3.5) — not yet in `WORKSPACE_DEPS`. Coder work, not started; this is a note so it isn't lost before then.
 - 05 split into `05-Drivers` (the generic driver contract) and `05a-Driver-kit` (the `driver-kit` package) — cross-references in 02/03/06/07 updated to point at 05a where the content moved.
 - 11 designed the system driver (`driver-system`) — host/version facts, loads, network, a process snapshot, and additive log reads. Read-only in v1; no write endpoint exists on any driver yet, so a settable label and any restart/reboot method are left open.
+- 10 designed the 1-Wire driver (`driver-onewire`) — `owserver` only, no `/sys/bus/w1`; xG18 excluded as a plain RTU extension. No `devices:` in config: sensors are discovered (`discover`), then explicitly adopted (`store`/`remove`) into `driver-kv-store`'s namespace for this instance, per 05a §3.6. Chip identification reuses research/13's definition envelope with `identifies.familyCode`; features resolve to existing generic kinds (`unipi.temp`, `unipi.humidity`, `unipi.ai`) rather than new ones. `autogen.py` now emits two files, `autogen-onboard.yaml` and `autogen-onewire.yaml` — 08 §3 amended accordingly (not yet edited into 08 itself). Scan loop reuses 04 §5.2's `scheduleRepeating` and 07a's cache/`readAt`/`stale` pattern; auto-throttles and rate-limit-logs rather than overrunning. **Not yet scaffolded** — `packages/driver-onewire` does not exist, nor does the `onewire/` subtree under `packages/hw-definitions/definitions/`. Coder work, not started; this is a note so it isn't lost before then.
 
 ## Next
 
