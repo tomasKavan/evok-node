@@ -10,7 +10,7 @@ This package also hosts `hw-modbus-kit` (07a) — the binder that turns a `hw-de
 
 ## 2. Modbus library: wrap, don't reinvent
 
-`modbus-serial`, behind this file's own `ModbusTransport` — never used raw, and never reimplemented from scratch. No current JS library has the one bug that would justify writing a framer from nothing (pymodbus's transaction-id correlation overflow), and Modbus's own framing looks simpler than it is: two of the largest JS industrial consumers (`node-red-contrib-modbus`, an ioBroker adapter) each got burned by the same shared libraries and ended up forking or rewriting rather than patching around it. `modbus-serial` is the still-maintained option with the best post-match validation (unit id, function code, length and CRC, all checked after a match), and it already sits on `serialport`, so RTU's own serial-port handling is inherited, not a separate decision (§3).
+`modbus-serial`, behind this file's own `ModbusTransport` — never used raw, and never reimplemented from scratch. No current JS library has the one bug that would justify writing a framer from nothing (pymodbus's transaction-id correlation overflow), and Modbus's own framing looks simpler than it is: two of the largest JS industrial consumers (`node-red-contrib-modbus`, an ioBroker adapter) each got burned by the same shared libraries and ended up forking or rewriting rather than patching around it. `modbus-serial` is the still-maintained option with the best post-match validation (unit id, function code, length and CRC, all checked after a match), and it already sits on `serialport`; this package's own serial handling is `line-kit`'s (§3), not a separate decision.
 
 What it doesn't do safely, and what this file's own wrapper supplies:
 
@@ -27,7 +27,7 @@ TCP needs almost none of this on top: MBAP framing is length-prefixed and unambi
 
 ## 3. Serial ports are not a separate decision
 
-RTU's serial-port handling comes from `serialport`, underneath `modbus-serial`'s own port abstraction — this file never opens a serial port itself. The one thing it does add is a subclass of that port, for the RX-flush behaviour §2 already requires; nothing else about serial I/O is this file's to reimplement.
+RTU's serial-port handling comes from `line-kit` (`@evok-node/line-kit`, 12 §4.1) — a small, protocol-agnostic serial/TCP byte transport this package shares with `driver-dali` rather than wrapping `serialport` a second, independent time. This file never opens a serial port itself. The one thing it does add is a subclass layered on `line-kit`'s own serial implementation, for the RX-flush behaviour §2 already requires; nothing else about serial I/O is this file's to reimplement.
 
 ## 4. The engine
 

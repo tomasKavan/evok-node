@@ -23,11 +23,13 @@ To organize source code and logic modules npm workspaces are used. All source co
 Relevant to the tool:
 - **[`main`](/packages/main/)** - the daemon: config, validation, spawn, supervise, reload. Documented in this file, in [01-Achitecture](/docs/dev/design/evok-node/01-System-architecture.md) and in [02-Main-and-configuration.md](/docs/dev/design/evok-node/02-Main-and-configuration.md).
 - **[`messaging`](/packages/messaging)** - the internal driver↔API contract: envelopes, introspection. Documented in [03-Internal-messaging](/docs/dev/design/evok-node/03-Internal-messaging.md).
+- **[`line-kit`](/packages/line-kit)** - protocol-agnostic serial/TCP byte transport, shared by `modbus-kit` and `driver-dali`. See [12-DALI-driver.md §4.1](/docs/dev/design/evok-node/12-DALI-driver.md#41-line-kit--a-new-protocol-agnostic-package).
 - **[`modbus`](/packages/modbus)** - modbus transport layer: framing, correlation, timing, circuit breakers.
 - **[`hw-definitions`](/packages/hw-definitions)** - unipi hardware definitions. Relevant mostly for `driver-onboard` and `driver-extension`.
 - **[`driver-kit`](/packages/driver-kit)** - shared driver runtime: scan loop, reading state, handshake, introspection. See [05-Drivers.md](/docs/dev/design/evok-node/05-Drivers.md).
 - **[`driver-onboard`](packages/driver-onboard)** - the controller's own I/O sections, over Modbus TCP. Documented in [08-Onboard-driver.md](/docs/dev/design/evok-node/08-Onboard-driver.md).
 - **[`driver-extension`](packages/driver-extension)** - Unipi RTU extensions, one instance per RS-485 line. For docu see [09-Extension-driver.md](/docs/dev/design/evok-node/09-Extension-driver.md).
+- **[`driver-dali`](packages/driver-dali)** - pluggable DALI controllers (Foxtron ASCII built in), raw bus access, stored gears/groups, commissioning. See [12-DALI-driver.md](/docs/dev/design/evok-node/12-DALI-driver.md).
 - **[`api-nextgen`](packages/api-nextgen)** - Our new WebSocket + HTTP API/surface. Owns its public schema. Documented in [15-Nextgen-API.md](/docs/dev/design/evok-node/15-Nextgen-API.md).
 - **[`api-compat`](packages/api-compat)** - the EVOK 3.x surface. See in [14-Compat-API.md](/docs/dev/design/evok-node/14-Compat-API.md).
 - **[`ui`](packages/ui)** - the web SPA, over the nextgen API. Described in [16-Inspector-UI.md](/docs/dev/design/evok-node/16-Inspector-UI.md).
