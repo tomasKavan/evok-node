@@ -23,7 +23,7 @@ To organize source code and logic modules npm workspaces are used. All source co
 Relevant to the tool:
 - **[`main`](/packages/main/)** - the daemon: config, validation, spawn, supervise, reload. Documented in this file, in [01-Achitecture](/docs/dev/design/evok-node/01-System-architecture.md) and in [02-Main-and-configuration.md](/docs/dev/design/evok-node/02-Main-and-configuration.md).
 - **[`messaging`](/packages/messaging)** - the internal driver↔API contract: envelopes, introspection. Documented in [03-Internal-messaging](/docs/dev/design/evok-node/03-Internal-messaging.md).
-- **[`line-kit`](/packages/line-kit)** - protocol-agnostic serial/TCP byte transport, shared by `modbus-kit` and `driver-dali`. See [12-DALI-driver.md §4.1](/docs/dev/design/evok-node/12-DALI-driver.md#41-line-kit--a-new-protocol-agnostic-package).
+- **[`line-kit`](/packages/line-kit)** - protocol-agnostic serial/TCP byte transport, shared by `modbus-kit` and `driver-dali`. See [07b-Line-kit.md](/docs/dev/design/evok-node/07b-Line-kit.md).
 - **[`modbus`](/packages/modbus)** - modbus transport layer: framing, correlation, timing, circuit breakers.
 - **[`hw-definitions`](/packages/hw-definitions)** - unipi hardware definitions. Relevant mostly for `driver-onboard` and `driver-extension`.
 - **[`driver-kit`](/packages/driver-kit)** - shared driver runtime: scan loop, reading state, handshake, introspection. See [05-Drivers.md](/docs/dev/design/evok-node/05-Drivers.md).

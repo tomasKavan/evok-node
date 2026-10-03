@@ -27,7 +27,7 @@ TCP needs almost none of this on top: MBAP framing is length-prefixed and unambi
 
 ## 3. Serial ports are not a separate decision
 
-RTU's serial-port handling comes from `line-kit` (`@evok-node/line-kit`, 12 §4.1) — a small, protocol-agnostic serial/TCP byte transport this package shares with `driver-dali` rather than wrapping `serialport` a second, independent time. This file never opens a serial port itself. The one thing it does add is a subclass layered on `line-kit`'s own serial implementation, for the RX-flush behaviour §2 already requires; nothing else about serial I/O is this file's to reimplement.
+RTU's serial-port handling comes from `line-kit` (`@evok-node/line-kit`, 07b) — a small, protocol-agnostic serial/TCP byte transport this package shares with `driver-dali` rather than wrapping `serialport` a second, independent time. This file never opens a serial port itself. The one thing it does add is a subclass layered on `line-kit`'s own serial implementation, for the RX-flush behaviour §2 already requires; nothing else about serial I/O is this file's to reimplement.
 
 ## 4. The engine
 

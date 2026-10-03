@@ -79,30 +79,9 @@ Registered one of two ways, same duality as `modbus-kind-binder` (07a §7): dire
 
 ## 4. Transport
 
-### 4.1. `line-kit` — a new, protocol-agnostic package
+### 4.1. `line-kit`
 
-`@evok-node/line-kit`. One small interface, two implementations, no framing of its own — framing is every consumer's own job (Foxtron's SOH/checksum/ETB here, Modbus's own framing in `modbus-kit`):
-
-```ts
-// @evok-node/line-kit
-type LineTransportConfig =
-  | { kind: 'serial'; path: string; baudRate: number; dataBits?: 7|8; stopBits?: 1|2; parity?: 'none'|'even'|'odd' }
-  | { kind: 'tcp'; host: string; port: number };
-
-interface LineTransport {
-  open(): Promise<void>;
-  close(): Promise<void>;
-  write(bytes: Uint8Array): Promise<void>;
-  onData(cb: (bytes: Uint8Array) => void): void;
-  health(): LineHealth;   // connected/reconnecting/closed — never protocol-aware
-}
-
-function createLineTransport(config: LineTransportConfig, deps: { clock: Clock; log: Logger }): LineTransport;
-```
-
-Serial is `serialport`, wrapped, never raw (07 §2's "wrap, don't reinvent" reasoning, generalized past Modbus); TCP is a plain `net.Socket`. A reconnect supervisor with backoff is this package's own job for both — the one piece of behaviour every consumer would otherwise reimplement identically.
-
-This is also where `modbus-kit`'s own RTU transport (07 §3) now gets its serial port from, landing in the same change as this document: `modbus-kit` depends on `line-kit` for the raw byte pipe and keeps only what's genuinely Modbus-specific on top — the RX-flush subclassing (07 §2) moves to wrap `line-kit`'s own serial implementation rather than `serialport` a second, independent time, and t3.5 pacing/the per-line mutex/deadline enforcement stay exactly where 07 §2 already puts them. 07 §2/§3 are amended accordingly; nothing about `ModbusTransport`'s own public interface (07 §4) changes.
+The serial/TCP byte transport itself — `LineTransport`/`LineTransportConfig`, its reconnect policy, and its testing — is 07b's own doc, not restated here. This driver's `transport.kind: 'serial'|'tcp'` (§2) map directly onto `LineTransportConfig`'s two variants; `dali-foxtron-ASCII` (§6) is what actually frames Foxtron's SOH/checksum/ETB protocol on top of the raw byte stream 07b hands it. `modbus-kit`'s own RTU transport (07 §3) builds on the same package, for the same reason.
 
 ### 4.2. Modbus-backed controllers
 
@@ -187,9 +166,9 @@ Framing: `SOH (0x01) | data (ASCII hex pairs) | checksum (ASCII hex pair) | ETB 
 ## 7. Raw bus access
 
 ```ts
-export const DALI_RAW = device('dali-kit.raw', {
-  send: method('send', 'mutates', DaliBusTransactionCodec, DaliFrameCodec, { errorKinds: DALI_BUS_EXCEPTION_KINDS }),
-  traffic: reading('dali-kit.traffic', DaliBusTransactionCodec, { subscribe: true }),   // GET = last observed transaction (memory, legal per 05 §2); subscribe = every one since
+export const DALI_RAW = device('dali.raw', {
+  send: method('dali.send', 'mutates', DaliBusTransactionCodec, DaliFrameCodec, { errorKinds: DALI_BUS_EXCEPTION_KINDS }),
+  traffic: reading('dali.traffic', DaliBusTransactionCodec, { subscribe: true }),   // GET = last observed transaction (memory, legal per 05 §2); subscribe = every one since
 });
 ```
 
@@ -202,17 +181,17 @@ No `health` field here (unlike `MODBUS_RAW`'s ninth field, 07 §6) — DALI is o
 `@`'s own schema can't be primitive once siblings exist (05a §3.3) — so intensity lives inside a one-field struct, not bare:
 
 ```ts
-const DaliGear = device('DALI.gear', {
-  '@':            channel('DALI.gear.level', Codecs.struct({ intensity: Codecs.uint8({ min: 0, max: 254 }) }), { subscribe: true, set: DaliLevelSetCodec }),
-  fadeTime:       channel('DALI.gear.fadeTime', Codecs.uint8({ min: 0, max: 15 })),
-  fadeRate:       channel('DALI.gear.fadeRate', Codecs.uint8({ min: 0, max: 15 })),
-  minLevel:       channel('DALI.gear.minLevel', Codecs.uint8()),
-  maxLevel:       channel('DALI.gear.maxLevel', Codecs.uint8()),
-  powerOnLevel:       channel('DALI.gear.powerOnLevel', Codecs.uint8()),
-  systemFailureLevel: channel('DALI.gear.systemFailureLevel', Codecs.uint8()),
-  groups:         channel('DALI.gear.groups', Codecs.array(Codecs.uint8({ min: 0, max: 15 }))),   // array of group numbers, never a bitmask — SET diffs old vs new into ADD/REMOVE-GROUP
-  status:         reading('DALI.gear.status', DaliStatusBitsCodec, { subscribe: true }),           // lamp/ballast failure — the one field the sparse poll exists for, §9
-  dimming:        reading('DALI.gear.dimming', Codecs.enum(['up', 'down', 'none']), { subscribe: true }),
+const DaliGear = device('dali.gear', {
+  '@':            channel('dali.gear.level', Codecs.struct({ intensity: Codecs.uint8({ min: 0, max: 254 }) }), { subscribe: true, set: DaliLevelSetCodec }),
+  fadeTime:       channel('dali.gear.fadeTime', Codecs.uint8({ min: 0, max: 15 })),
+  fadeRate:       channel('dali.gear.fadeRate', Codecs.uint8({ min: 0, max: 15 })),
+  minLevel:       channel('dali.gear.minLevel', Codecs.uint8()),
+  maxLevel:       channel('dali.gear.maxLevel', Codecs.uint8()),
+  powerOnLevel:       channel('dali.gear.powerOnLevel', Codecs.uint8()),
+  systemFailureLevel: channel('dali.gear.systemFailureLevel', Codecs.uint8()),
+  groups:         channel('dali.gear.groups', Codecs.array(Codecs.uint8({ min: 0, max: 15 }))),   // array of group numbers, never a bitmask — SET diffs old vs new into ADD/REMOVE-GROUP
+  status:         reading('dali.gear.status', DaliStatusBitsCodec, { subscribe: true }),           // lamp/ballast failure — the one field the sparse poll exists for, §9
+  dimming:        reading('dali.gear.dimming', Codecs.enum(['up', 'down', 'none']), { subscribe: true }),
 });
 // same tail, method fields:
 //   up()/down(): starts a repeating command — §8.3
@@ -266,7 +245,7 @@ interface CommissioningSession { readonly initialisedAt: Date; /* + resumable se
 
 ## 11. Testing
 
-Tier 1, against a fixture `LineTransport`/`DaliController` (no hardware, no real serial port — `line-kit`'s own fixture, shared with `modbus-kit`'s tests once §4.1's migration lands):
+Tier 1, against a fixture `LineTransport`/`DaliController` (no hardware, no real serial port — 07b's own fixture, shared with `modbus-kit`'s tests):
 
 - Frame constructors: every `sendTwice: true` constructor in §5.1's table sends exactly twice, gap-free, on the fixture transport's own call log; every other constructor sends exactly once.
 - `off(t, {fade:false})` issues opcode `0x00` in command form, never a DAPC value-`0x00` frame; `off(t, {fade:true})` is the reverse.
