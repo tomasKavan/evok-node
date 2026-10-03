@@ -4,7 +4,7 @@
 
 The shared ancestor of the onboard and extension drivers (08, 09): everything Modbus, nothing Unipi-model-specific. Transport, framing, correlation, timing, batching and breakers live here; a hardware definition — what a register means, which model has which sections, how multi-register values group — never does. That split is what stops 08 and 09 from drifting into two independent implementations of the same wire protocol.
 
-Two ways this file gets used. Standalone, configured directly (`type: modbus-kit`), it's a real driver: it owns one transport and exposes it raw, function-code by function-code, for a device or a third-party plugin that speaks Modbus directly — 01 §7's shared-resource pattern, and the only place this file's own endpoints get bound. Embedded, it's not a driver at all — just the engine, constructed and held directly by whatever driver owns the transport, which builds its own typed endpoints on top and never exposes a raw endpoint unless it chooses to (§7).
+Two ways this file gets used. Standalone, configured directly (`type: modbus-kit`), it's the Raw Relay Driver (§6): it owns one transport and exposes it raw, function-code by function-code — the only place this file's own endpoints get bound, and the only kind of instance a `modbus-relay` transport config (§4) can ever name. Embedded, it's not a driver at all — just the engine, constructed and held directly by whatever driver owns or relays a transport, which builds its own typed endpoints on top and never touches a raw endpoint (§7).
 
 This package also hosts `hw-modbus-kit` (07a) — the binder that turns a `hw-definitions`-resolved definition into bound `driver-kit` devices, for `driver-onboard` and `driver-extension` alike. It's a distinct concern from everything else in this file, kept in its own `src/hw-modbus-kit/` subpath rather than blended in: this file stays "everything Modbus, nothing hardware-specific," 07a is "everything hardware-specific, on top of this file's own transport."
 
@@ -51,8 +51,9 @@ interface ModbusHealth {
 type ModbusTransportConfig =
   | { kind: 'modbus-tcp'; host: string; port: number; timeoutMs?: number }
   | { kind: 'modbus-rtu'; path: string; baudRate: number;
-      dataBits?: 7 | 8; stopBits?: 1 | 2; parity?: 'none' | 'even' | 'odd'; timeoutMs?: number };
+      dataBits?: 7 | 8; stopBits?: 1 | 2; parity?: 'none' | 'even' | 'odd'; timeoutMs?: number }
       // t3.5 pacing is derived from baudRate, never a separate config key
+  | { kind: 'modbus-relay'; driverId: string };   // §6 — that instance's own MODBUS_RAW; always at its static `raw` tail, so a driver id alone is enough
 
 interface ModbusTransport {
   open(): Promise<void>;
@@ -71,12 +72,14 @@ interface ModbusTransport {
   health(unitId?: number): ModbusHealth;   // whole line if omitted, one slave's breaker state if given
 }
 
-function createModbusTransport(config: ModbusTransportConfig, deps: { clock: Clock; log: Logger }): ModbusTransport;
+function createModbusTransport(config: ModbusTransportConfig, ctx: InstanceContext): ModbusTransport;
 ```
 
 Every register is a `number` — a 16-bit unsigned value, exactly what Modbus itself defines it as — and every coil a `boolean`, never a `Buffer`. What a register's bytes *mean* — signed or not, which two registers form a wider value, word order — is never decided here; that's a hardware definition's job (08, 09), and this file stops exactly at the wire's own unit of transfer.
 
-`deps` is `{ clock, log }`, not the whole `InstanceContext` (03 §9) — the engine has no legitimate use for `messaging` or `reportFatal`. `clock` is load-bearing: every default timeout, `lastSuccessAt`, and t3.5's own pacing read it, and it has to be the same clock the rest of the owning instance uses, so a `FakeClock` swap in a test reaches this file too (04 §4).
+`createModbusTransport` takes the owning instance's whole `ctx` (03 §9), not just `{clock, log}` — `kind: 'modbus-relay'` needs `ctx.messaging` to forward calls; `reportFatal` still has no legitimate use here. `clock` stays load-bearing for both direct kinds: every default timeout, `lastSuccessAt`, and t3.5's own pacing read it, and it has to be the same clock the rest of the owning instance uses, so a `FakeClock` swap in a test reaches this file too (04 §4).
+
+For `kind: 'modbus-relay'`, the `ModbusTransport` returned is a facade, not a wire: every method forwards as a `CALL` to `driverId`'s own `MODBUS_RAW` device (§6) at its static `raw` tail, trivial precisely because that device's bound methods already share the exact same `CallOutcome` shape these methods return — no translation layer, every method a 1:1 forward. `health()` relays the same way, through `MODBUS_RAW`'s ninth field (§6), the one method on that device that isn't a function code, added for exactly this case, since a relay has no local breaker state of its own to read. `open()`/`close()` on this facade only flip a local ready flag; the wire's actual lifecycle belongs to the Raw Relay Driver instance `driverId` names, shared across however many facades point at it, and is never itself opened or closed by any one of them. A `driverId` that doesn't resolve to a Raw Relay Driver instance is fatal at `configure()`, same tier as any other unresolvable reference.
 
 `writeSingleCoil`/`writeSingleRegister` return the value the slave actually echoed — FC5/FC6's own response carries it. `writeMultipleCoils`/`writeMultipleRegisters` return nothing on success — FC15/FC16's response is only an address-and-count echo of what the caller already sent, so there's genuinely nothing new to hand back; `CallOutcome<void, ...>` says that honestly rather than repeating the caller's own input.
 
@@ -101,9 +104,9 @@ const MODBUS_EXCEPTION_KINDS: readonly ModbusExceptionKind[] = [
 
 These are the standard Modbus exception codes (1–8, 10, 11), named rather than left as bare numbers, with `unknown-exception` as the fallback for a vendor-specific code outside that set — `info: { code: number }` on the `CallOutcome` carries the raw value either way, so nothing is lost even in the fallback case. `notConnected`, `io`, `framing` and an open breaker all surface as the generic `unreachable`; a timeout surfaces as the generic `timeout` — both directly returnable from a handler per `05a §3.5`, needing no domain vocabulary of their own.
 
-## 6. The raw endpoints
+## 6. The Raw Relay Driver
 
-Bound only by the standalone driver below — an embedding driver (§7) calls the engine's own typed methods directly and has no reason to touch these unless it's deliberately re-exposing them itself.
+`type: modbus-kit`, configured standalone. Bound only here — an embedding driver (§7) calls the engine's own typed methods directly and never touches these. This is also the one and only kind of instance a `modbus-relay` transport config (§4) can name: when a line needs to be shared across driver instances, it's owned outright by one of these, never by whichever driver happens to need it first, and everyone else — including a driver that could just as easily have owned the line itself — points `transport: { kind: 'modbus-relay', driverId: ... }` at it instead.
 
 ```ts
 interface ModbusReadArgs { unitId: number; address: number; count: number }
@@ -145,7 +148,7 @@ export const MODBUS_RAW = device('modbus-kit.raw', {
 
 Eight methods, one per function code, deliberately not collapsed into a query/command pair discriminated by an `op` field. Four are forced apart — coils, discrete inputs, holding and input registers are different address spaces with different access rights on the slave, not a style choice. The other four could have collapsed (`writeSingleCoil` into `writeMultipleCoils` with `count: 1`, and the register equivalent), but a raw driver's whole purpose is letting the caller pick the exact wire operation rather than have the transport guess — concretely relevant here, since it's still unverified whether Unipi's own atomic write semantics (`research/05` §7.4) are tied to the multi-register function code specifically, even for what looks like a single value.
 
-`health` is the ninth field and not a function code at all — it's the one way a caller relaying through this device (§7) learns the owning line's breaker state without a local `ModbusTransport` object of its own to call `health()` on directly. `onCall` for it is a pure forward to `t.health(a?.unitId)`, always `{ok: true, ...}`, since a local, synchronous state read never fails the way a wire call can.
+`health` is the ninth field and not a function code at all — it's the one way a `kind: 'modbus-relay'` facade (§4) learns the owning line's breaker state without a local `ModbusTransport` object of its own to call `health()` on directly. `onCall` for it is a pure forward to `t.health(a?.unitId)`, always `{ok: true, ...}`, since a local, synchronous state read never fails the way a wire call can.
 
 ```ts
 interface ModbusDriverConfig {
@@ -159,7 +162,7 @@ class ModbusDriver implements ModuleInstance<ModbusDriverConfig> {
   constructor(private ctx: InstanceContext) { this.kit = createDriverKit(ctx); }
 
   async configure(config: ModbusDriverConfig): Promise<void> {
-    this.transport = createModbusTransport(config.transport, { clock: this.ctx.clock, log: this.ctx.log });
+    this.transport = createModbusTransport(config.transport, this.ctx);
     await this.transport.open();
   }
 
@@ -192,20 +195,13 @@ const modbusDriverDescriptor: ModuleDescriptor<ModbusDriverConfig> = {
 
 Every `onCall` is a pure forward, nothing translated in between — the engine and the endpoint speak the same `CallOutcome` shape (05a §3.5), so there is no separate mapping layer for this file to get wrong.
 
-## 7. Composing, not subclassing
+Nothing stops this driver's own `transport` (`ModbusDriverConfig.transport`, above) from itself being `kind: 'modbus-relay'` — a relay pointed at another relay. It's never useful, so nothing here special-cases or forbids it.
 
-A driver that owns a Modbus transport outright never subclasses anything from this file — it embeds the engine. It calls `createModbusTransport` once, from its own `configure()`, holds the result, calls the typed methods directly to implement whatever endpoints its own hardware definition calls for, and calls `close()` from its own `stop()`. It never touches `ModbusDriver` or the nine endpoint constants above, and its own callers never see a raw Modbus address at all — only whatever typed endpoints it chose to expose.
+## 7. Embedding the engine
 
-The one reason it would reach for those constants anyway: if it owns a line another driver needs to share (01 §7), it `bindDevice`s the same `MODBUS_RAW` itself, on its own tail, so the dependent can speak raw Modbus to a device this file's own author never anticipated — the onboard and extension drivers are the current example, each owning one line or socket outright and free to make that call independently.
+A driver that owns or relays a Modbus transport never subclasses anything from this file — it embeds the engine. It calls `createModbusTransport` once, from its own `configure()`, holds the result, calls the typed methods directly to implement whatever endpoints its own hardware definition calls for, and calls `close()` from its own `stop()`. Direct or relay is entirely `transport.kind`'s own answer (§4); the embedding driver's code is identical either way, and it never touches `ModbusDriver` or the nine endpoint constants above (§6) — those are bound only by the Raw Relay Driver itself. Its own callers never see a raw Modbus address at all, only whatever typed endpoints it chose to expose.
 
-There are, correspondingly, two ways to obtain a `ModbusTransport` at all — both produce the identical interface, so nothing above this line, including 07a's `hw-modbus-kit`, ever needs to know which one it got:
-
-```ts
-// @evok-node/modbus
-function createModbusTransport(config: ModbusTransportConfig, deps: { clock: Clock; log: Logger }): ModbusTransport;      // §4 — owns the line outright
-function createRelayModbusTransport(ctx: InstanceContext, remoteTail: Tail): ModbusTransport;                             // relays through another instance's MODBUS_RAW
-```
-`createRelayModbusTransport` needs `ctx.messaging`, not `{clock, log}` — it's forwarding `CALL`s to `remoteTail`'s own `MODBUS_RAW` device rather than touching a wire, and that forwarding is trivial precisely because `MODBUS_RAW`'s bound methods (§6) share the exact same `CallOutcome` shape `ModbusTransport`'s own methods return: no translation layer, every method a 1:1 forward. `health()` relays the same way, through `MODBUS_RAW`'s ninth field (§6) — the one method on this device that isn't a function code, added for exactly this case, since a relay has no local breaker state of its own to read.
+A line that several driver instances need is never shared by one of them exposing its own `MODBUS_RAW` on the side — only the Raw Relay Driver ever binds that device (§6), so neither `08` nor `09` can be a relay target themselves. It's owned by a dedicated Raw Relay Driver instance from the start, and every consumer reaches it the same way: `transport: { kind: 'modbus-relay', driverId: ... }`.
 
 ## 8. Placement: native code and process isolation
 
