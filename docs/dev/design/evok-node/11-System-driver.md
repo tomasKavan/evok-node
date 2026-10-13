@@ -36,7 +36,7 @@ const SystemInfo = Codecs.struct({
   packages:         Codecs.array(Codecs.struct({ name: Codecs.string(), version: Codecs.string() })),  // unipi-* entries, dpkg status db
   hardware:         Codecs.struct({ model: Codecs.string(), family: Codecs.string(), serialNumber: Codecs.string() }),  // §3.1 — absent when unresolved
 });
-const Info = device('info', { '@': reading('info', SystemInfo, { subscribe: false }) });
+const Info = device('info', { '@': reading(SystemInfo, { subscribe: false }) });
 ```
 
 Computed once at `configure()`, recomputed at `reload()` only if config actually changed — never

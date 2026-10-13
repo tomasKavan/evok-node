@@ -16,7 +16,7 @@ This file is where that string becomes a bound device. `bindDefinition()` (§9) 
 
 Four rules this file assumes hold on every `hw-definitions` feature it's handed, none of them new: they're existing 05a mechanics plus this file's own scan cache, reused rather than reinvented on the YAML side of the boundary.
 
-**A feature's field keys mirror the registered `EndpointType`'s own schema path.** This is 05a §5's facet grammar (`<tail>:value.duty`) again, just used to key a YAML `fields` map instead of a wire address — `pwm: { value: { duty, prescaler, cycle } }` in YAML because `DOValue`'s `pwm` variant is `struct({ value: PwmValue })` in the registered `EndpointType`. A mismatch here — YAML nesting that doesn't line up with the schema — is exactly what `validateAgainstManifest` (`hw-definitions`, checked before this file ever runs) exists to catch.
+**A feature's field keys mirror the `DeviceType` field's own schema path.** YAML `fields` nest exactly as that field's `schema` does — `pwm: { value: { duty, prescaler, cycle } }` because `DOValue`'s `pwm` variant is `struct({ value: PwmValue })`. A mismatch here — YAML nesting that doesn't line up with the schema — is exactly what `validateAgainstManifest` (`hw-definitions`, checked before this file ever runs) exists to catch.
 
 **A union's discriminant option names its own `variant`.** Never positional, never code-ordered:
 
@@ -28,7 +28,7 @@ mode:
     - { code: 1, variant: voltage2_5, unit: V,  range: [0, 2.5] }
     - { code: 2, variant: current20,  unit: mA, range: [4, 20], channels: [3, 4] }
 ```
-`schema.tag` (`'mode'`, known from the registered `EndpointType`) plus `options[].variant` (known from the YAML) is what lets §5 go `code ↔ variant` for any union, with no per-kind lookup table.
+`schema.tag` (`'mode'`, known from the field's own `schema`) plus `options[].variant` (known from the YAML) is what lets §5 go `code ↔ variant` for any union, with no per-kind lookup table.
 
 **An address names its own register space explicitly.** `holdingReg` / `inputReg` / `coil` / `discreteInput` — never a generic `reg`/`coil` pair. Modbus has four independent address spaces, and the space alone decides writability: there is no function code that writes an input register or a discrete input. So a `channel`'s value may declare `holdingReg` and/or `coil` only; `inputReg`/`discreteInput` on a writable field is a load-time structural error (`validateAgainstManifest`), not something discovered on the first `SET`. Every Unipi map in the corpus turns out to use only `holdingReg` and `coil` — DI's coil mirror is read-only by the `kind` itself (05 §2), not by wire space — but a third-party, bring-your-own definition (09) is free to use the other two.
 
@@ -58,13 +58,13 @@ One consequence worth stating on its own: **there is no `perSection` attribute.*
 ```ts
 // @evok-node/modbus — hw-modbus-kit
 function polled<F extends Record<string, TypedCodec<unknown>>>(
-  kind: string, fields: F, opts?: { subscribe?: boolean }
+  fields: F, opts?: { subscribe?: boolean }
 ): ReadingType<{ [K in keyof F]: Infer<F[K]> } & { polled: { readAt: Date; stale: boolean } }> {
-  return reading(kind, Codecs.struct({ ...fields, polled: Codecs.struct({ readAt: Codecs.timestamp(), stale: Codecs.bool() }) }), opts);
+  return reading(Codecs.struct({ ...fields, polled: Codecs.struct({ readAt: Codecs.timestamp(), stale: Codecs.bool() }) }), opts);
 }
 ```
 
-Every `reading`-shaped kind in the catalogue (§10) is built with this, never a bare `reading()` call — that's what makes §3's `polled` rule a fact about this file rather than a convention someone has to remember per kind. `unipi.di`'s `@` field: `polled('unipi.di', { value: Codecs.bool(), counter: Codecs.uint32() }, { subscribe: true })`, decoding to `{ value: true, counter: 42, polled: { readAt: ..., stale: false } }`.
+Every `reading`-shaped kind in the catalogue (§10) is built with this, never a bare `reading()` call — that's what makes §3's `polled` rule a fact about this file rather than a convention someone has to remember per field. `unipi.di`'s `@` field: `polled({ value: Codecs.bool(), counter: Codecs.uint32() }, { subscribe: true })`, decoding to `{ value: true, counter: 42, polled: { readAt: ..., stale: false } }`.
 
 A driver not built on this file's scan cache — an event-native one, per 05 §4 — has no reason to use `polled()`; it stays module-sdk's plain `reading()`, and 05 §2's "the driver's own discretion" framing is exactly for that case. Inside `hw-modbus-kit`, there is no discretion: every reading is scan-cache-backed, so every reading uses `polled()`.
 
@@ -81,7 +81,7 @@ Modbus wire (number[] | bool[] | bool | number)
 
 **Stage 1 → 2, `encoding`.** Owned by `hw-definitions`. Decides how many registers/bits a value spans and how to turn raw wire content into one typed primitive — `uint16`/`int16`/`uint32` (word-swapped, CDAB)/`float32` (word-swapped)/`bool`+`bitOffset`. **`encoding.format` must equal the resolved schema leaf's own `ValueSchema.format`, identically** — not merely "produces a same-shaped JS value." A `uint16` YAML encoding against a schema leaf declared `format: 'timestamp'` is nonsense even though both happen to be numbers; `validateAgainstManifest` rejects it before this file ever runs.
 
-**Stage 2 → 3, `scale`.** Also `hw-definitions`, applied right after decoding, still before anything reaches a `Codec`. `scale` and the schema's own `Semantics.scaler` (05a §3.1) are not alternatives — they compose. The YAML author sets `scale` accounting for whatever `scaler` the registered `EndpointType` already declares, so the total conversion factor is deliberate, not an accidental double-scale. There's no mechanical check for "the right total factor" — only review, same as `provenance` review elsewhere (research/13 §5.1).
+**Stage 2 → 3, `scale`.** Also `hw-definitions`, applied right after decoding, still before anything reaches a `Codec`. `scale` and the schema's own `Semantics.scaler` (05a §3.1) are not alternatives — they compose. The YAML author sets `scale` accounting for whatever `scaler` the field's own `schema` already declares, so the total conversion factor is deliberate, not an accidental double-scale. There's no mechanical check for "the right total factor" — only review, same as `provenance` review elsewhere (research/13 §5.1).
 
 **Stage 3 → 4, the Device `Codec<T>`.** Whatever `hw-definitions` produced is what the registered `Codec<T>` treats as its own wire value — `validate()`, then its own `decode()`, including its own `scaler` if one is declared.
 
@@ -362,7 +362,7 @@ function createHwModbusKit(
 
 Tier 1, against a fixture `ResolvedDefinition` and the simulator (`design/simulator`) — no hardware:
 
-- Schema-walk roundtrip: a struct with a nested struct field, and a union whose active variant is picked from a live `mode` register, both decode and encode correctly; a union facet path that doesn't match the current variant is never fabricated.
+- Schema-walk roundtrip: a struct with a nested struct field, and a union whose active variant is picked from a live `mode` register, both decode and encode correctly; a union field path that doesn't match the current variant is never fabricated.
 - `polled` synthesis: a `reading`-shaped fixture kind built with `polled()` never sees `polled` as a YAML key; a fixture `channel` (or `setSchema`) declaring a `polled` member is fatal at `bindDevice()` time, before `attach()`.
 - Stale-after-failure: a block's first scan succeeds, then a later scan attempt fails — the next `onGet`'s `polled.stale` is `true`, while `polled.readAt` still reports the last *successful* snapshot's time, never the failed attempt's. This is the case §8's `stale = lastScanAt === null` design would have missed.
 - Register-space validation: a fixture `channel` feature declaring `inputReg` or `discreteInput` is rejected at load time, naming the field.

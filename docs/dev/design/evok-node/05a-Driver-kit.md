@@ -89,7 +89,6 @@ Three shapes, discriminated, each with its methods and `effect` fully implied ra
 // @evok-node/module-sdk
 interface ReadingType<T> {
   readonly shape: 'reading';       // GET (+SUBSCRIBE if `subscribe`); effect: 'none', implied
-  readonly kind: string;           // descriptive only — not independently resolved; the DeviceType that owns this field is the registered unit (§3.3/§3.5)
   readonly subscribe: boolean;
   readonly codec: Codec<T>;
   readonly schema: ValueSchema;    // §4 — carried into introspection, not just kept locally
@@ -97,7 +96,6 @@ interface ReadingType<T> {
 
 interface ChannelType<T, TSet = T> {
   readonly shape: 'channel';       // GET+SET (+SUBSCRIBE if `subscribe`); effect: 'mutates', implied
-  readonly kind: string;
   readonly subscribe: boolean;
   readonly codec: Codec<T>;
   readonly schema: ValueSchema;
@@ -107,7 +105,6 @@ interface ChannelType<T, TSet = T> {
 
 interface MethodType<R, A = void, E extends string = never> {
   readonly shape: 'method';        // CALL only
-  readonly kind: string;
   readonly effect: 'none' | 'mutates';   // the one shape where this still varies
   readonly resultCodec: Codec<R>;
   readonly resultSchema: ValueSchema;
@@ -133,16 +130,16 @@ A `channel`'s `SET` always returns exactly what it was given — `TSet` — neve
 
 ```ts
 // @evok-node/module-sdk
-function reading<T>(kind: string, codec: TypedCodec<T>, opts?: { subscribe?: boolean }): ReadingType<T>;
-function channel<T, TSet = T>(kind: string, codec: TypedCodec<T>, opts?: { subscribe?: boolean; set?: TypedCodec<TSet> }): ChannelType<T, TSet>;
-function method<R, A = void, E extends string = never>(kind: string, effect: 'none' | 'mutates', result: TypedCodec<R>, args?: TypedCodec<A>, opts?: { errorKinds?: readonly E[] }): MethodType<R, A, E>;
+function reading<T>(codec: TypedCodec<T>, opts?: { subscribe?: boolean }): ReadingType<T>;
+function channel<T, TSet = T>(codec: TypedCodec<T>, opts?: { subscribe?: boolean; set?: TypedCodec<TSet> }): ChannelType<T, TSet>;
+function method<R, A = void, E extends string = never>(effect: 'none' | 'mutates', result: TypedCodec<R>, args?: TypedCodec<A>, opts?: { errorKinds?: readonly E[] }): MethodType<R, A, E>;
 ```
 
-`channel('RO', Codecs.bool())` infers `ChannelType<boolean, boolean>` entirely from the second argument, `schema` included; nobody writes `<boolean>` or a schema literal anywhere.
+`channel(Codecs.bool())` infers `ChannelType<boolean, boolean>` entirely from its argument, `schema` included; nobody writes `<boolean>` or a schema literal anywhere.
 
 ### 3.3. `DeviceType<Fields>` — one tail, several fields, one registered kind
 
-Some device concepts need more than one address to be themselves — a digital input reading paired with a separately-writable debounce `channel` is the recurring example, and a `reading` has no `SET` at all (§3.1), so debounce can't just be a field of the reading. A `Device` groups them under one tail as a single registered kind — reusable across drivers and transports, the same way an `EndpointType`'s own `kind` already is (§3.5). Most kinds don't need this; it exists only for the composite ones:
+Some device concepts need more than one address to be themselves — a digital input reading paired with a separately-writable debounce `channel` is the recurring example, and a `reading` has no `SET` at all (§3.1), so debounce can't just be a field of the reading. A `Device` groups them under one tail as a single registered kind — reusable across drivers and transports (§3.5). Most kinds don't need this; it exists only for the composite ones:
 
 ```ts
 // @evok-node/module-sdk
@@ -158,9 +155,9 @@ function optional<T extends EndpointType>(type: T): OptionalEndpointType<T>;   /
 ```ts
 // di-device.ts — package.json-exposed, reusable by any driver that has this hardware shape
 const DIDevice = device('DI', {
-  '@':          reading('DI', Codecs.struct({ value: Codecs.bool(), counter: Codecs.uint32(), readAt: Codecs.timestamp(), stale: Codecs.bool() }), { subscribe: true }),
-  debounce:     channel('DI.debounce', Codecs.uint16({ unit: 'ms' })),
-  directSwitch: optional(channel('DI.directSwitch', Codecs.bool())),   // not every DI channel supports a forced override
+  '@':          reading(Codecs.struct({ value: Codecs.bool(), counter: Codecs.uint32(), readAt: Codecs.timestamp(), stale: Codecs.bool() }), { subscribe: true }),
+  debounce:     channel(Codecs.uint16({ unit: 'ms' })),
+  directSwitch: optional(channel(Codecs.bool())),   // not every DI channel supports a forced override
 });
 ```
 
@@ -174,7 +171,7 @@ A `Device` is mandatory, not an opt-in convenience: there is no separate way to 
 
 ### 3.4. One endpoint, several mutually exclusive shapes — `union`
 
-Some devices genuinely change datatype depending on runtime state — an analog output wired for voltage or current but never both, a digital output that's either a plain bit or a PWM triple. The tail stays fixed either way — `ao1`, `do1` — because the physical channel is one thing regardless of mode; what varies is which arm of a `Codecs.union` is populated. Introspection (§4) is unaffected by a mode change: it always describes the *whole* union, every variant it could ever take, because that is a static property of the registered `EndpointType`, resolved once through `kind` — never a per-instance, per-moment thing that would need re-announcing every time the mode flips. What a mode change actually changes is the *value* — plain `GET`/`subscribe` data, exactly the mechanism 03 §6.3 already has for anything else that changes.
+Some devices genuinely change datatype depending on runtime state — an analog output wired for voltage or current but never both, a digital output that's either a plain bit or a PWM triple. The tail stays fixed either way — `ao1`, `do1` — because the physical channel is one thing regardless of mode; what varies is which arm of a `Codecs.union` is populated. Introspection (§4) is unaffected by a mode change: it always describes the *whole* union, every variant it could ever take, because that is a static property of the `DeviceType`'s own field — never a per-instance, per-moment thing that would need re-announcing every time the mode flips. What a mode change actually changes is the *value* — plain `GET`/`subscribe` data, exactly the mechanism 03 §6.3 already has for anything else that changes.
 
 ```ts
 // AO — one channel, three mutually exclusive value shapes
@@ -183,7 +180,7 @@ const AOValue = Codecs.union('mode', {
   voltage2_5: Codecs.struct({ value: Codecs.uint16({ unit: 'mV', min: 0, max: 2_500,  scaler: 1 }) }),
   current20:  Codecs.struct({ value: Codecs.uint16({ unit: 'uA', min: 4_000, max: 20_000, scaler: 1 }) }),
 });
-const AO = channel('AO', AOValue, { subscribe: true });
+const AO = channel(AOValue, { subscribe: true });
 
 // DO — bool, or a PWM triple written as one unit (duty/prescaler/cycle are computed together — never three separate writes)
 const PwmValue = Codecs.struct({
@@ -195,7 +192,7 @@ const DOValue = Codecs.union('mode', {
   bool: Codecs.struct({ value: Codecs.bool() }),
   pwm:  Codecs.struct({ value: PwmValue }),
 });
-const DO = channel('DO', DOValue, { subscribe: true });
+const DO = channel(DOValue, { subscribe: true });
 ```
 
 Binding is one `bindDevice()` call, same as any other `channel` wrapped as a single-field device (§3.3) — no `unbind`/rebind dance when the mode changes, because it never stopped being the same endpoint:
@@ -219,12 +216,17 @@ kit.bindDevice(tail, AODevice, {
 ```json
 {
   "tail": "ao1", "kind": "AO",
-  "schema": {
-    "type": "union", "tag": "mode",
-    "variants": {
-      "voltage10":  { "type": "struct", "fields": { "value": { "type": "primitive", "format": "uint16", "unit": "mV", "min": 0, "max": 10000, "scaler": 1 } } },
-      "voltage2_5": { "type": "struct", "fields": { "value": { "type": "primitive", "format": "uint16", "unit": "mV", "min": 0, "max": 2500,  "scaler": 1 } } },
-      "current20":  { "type": "struct", "fields": { "value": { "type": "primitive", "format": "uint16", "unit": "uA", "min": 4000, "max": 20000, "scaler": 1 } } }
+  "fields": {
+    "@": {
+      "shape": "channel", "subscribe": true,
+      "schema": {
+        "type": "union", "tag": "mode",
+        "variants": {
+          "voltage10":  { "type": "struct", "fields": { "value": { "type": "primitive", "format": "uint16", "unit": "mV", "min": 0, "max": 10000, "scaler": 1 } } },
+          "voltage2_5": { "type": "struct", "fields": { "value": { "type": "primitive", "format": "uint16", "unit": "mV", "min": 0, "max": 2500,  "scaler": 1 } } },
+          "current20":  { "type": "struct", "fields": { "value": { "type": "primitive", "format": "uint16", "unit": "uA", "min": 4000, "max": 20000, "scaler": 1 } } }
+        }
+      }
     }
   }
 }
@@ -241,9 +243,10 @@ interface BoundEndpoint<T, E extends string = never> {
   emit(value: T): void;
 }
 
-interface BoundEndpointInfo {
+interface BoundDevice<F extends Record<string, EndpointType | OptionalEndpointType> = Record<string, EndpointType>> {
   readonly tail: Tail;
-  readonly kind: string;
+  readonly kind: string;                                              // DeviceType.kind
+  readonly fields: { readonly [K in keyof F]?: BoundEndpoint<...> };  // only fields actually bound — an unbound optional() field is absent
 }
 
 /** What `onCall` (only) resolves with — never the raw `Response` (03 §2), never a bare `T` either,
@@ -266,11 +269,12 @@ interface DriverKit {
     tail: Tail,
     type: DeviceType<F>,
     handlers: { readonly [K in keyof F]?: BindHandlers<...> }   // one entry per field actually being bound; omit an optional() field entirely to leave it unbound
-  ): { readonly [K in keyof F]?: BoundEndpoint<...> };
+  ): BoundDevice<F>;
   unbindDevice(tail: Tail): void;
   resolveDeviceKind(kind: string): Promise<DeviceType>;    // for a driver that only has a string, e.g. a definition-declared kind it never imported directly — see below
-  list(): readonly BoundEndpointInfo[];          // every field of every bound device, flattened — '@' reported under the device's own tail, a sibling under `<tail>.<key>`
-  find<T = unknown, E extends string = never>(tail: Tail): BoundEndpoint<T, E> | undefined;
+  list(): readonly BoundDevice[];                // one entry per bound device
+  find<F extends Record<string, EndpointType | OptionalEndpointType>>(tail: Tail, type: DeviceType<F>): BoundDevice<F> | undefined;   // kind-checked, typed — see below
+  find(tail: Tail): BoundDevice | undefined;    // untyped
   onGet<T>(ep: BoundEndpoint<T>, fn: (req: Request) => T | Promise<T>): void;
   onSet<T, TSet>(ep: BoundEndpoint<T>, fn: (value: TSet, req: Request) => TSet | Promise<TSet>): void;
   onCall<R, E extends string, A>(ep: BoundEndpoint<R, E>, fn: (payload: A, req: Request) => Promise<CallOutcome<R, E>>): void;
@@ -323,7 +327,7 @@ One narrow exception to `onGet`/`onSet` never throwing (§2): a handler may thro
 
 `onCall`'s three `CallOutcome` shapes are the entire expected-failure channel for a `method` endpoint (§2's "never throws," restated at this layer): resolving `{ok:true, result}` answers a success `Response`; resolving `{ok:false, kind:'domain-error', domainErrorKind, ...}` answers `Response.ok:false, kind:'domain-error'` with that same `domainErrorKind` — driver-kit checks it against the endpoint's own declared `errorKinds` (§3.1) first, and a value outside that set is treated exactly like a handler-shape mismatch above: a driver bug, reported as `internal-error` rather than trusted, since it's data-dependent and can't be caught at `bindDevice()` time the way a shape mismatch can; resolving `{ok:false, kind:'unreachable'|'timeout', ...}` answers that `Response` kind directly, with no `domainErrorKind` — the one place a handler picks a built-in, non-`domain-error` kind itself, because whether the device answered *this* call is exactly the handler's own, synchronous knowledge (03 §7). A handler that actually throws is unchanged from §2: driver-kit's dispatcher catches it, answers `internal-error`, and logs and counts it — nothing above is something the handler opts into, it's the only way any of these three outcomes reach the wire.
 
-`list`/`find` are driver-kit's own registry, already necessary internally for `$introspect` and for `unbindDevice`'s teardown — exposed so a driver doesn't keep a second, parallel map of what it's already told `bindDevice` about. What `list`/`find` can't replace is a driver's own business data attached to a tail (a DALI ballast's label, say) that was never part of the endpoint table to begin with.
+`list`/`find` work per device, never per field — a field handle is reached through its device, `kit.find(tail, DIDevice)?.fields.debounce?.emit(50)`; a field's own tail is `` key === '@' ? tail : `${tail}.${key}` ``. `find` on a field tail answers `undefined`. The typed `find(tail, type)` checks the bound device's `kind` against `type.kind`; a mismatch is a driver bug and throws, never a silent cast. `list`/`find` are driver-kit's own registry, already necessary internally for `$introspect` and for `unbindDevice`'s teardown — exposed so a driver doesn't keep a second, parallel map of what it's already told `bindDevice` about. What `list`/`find` can't replace is a driver's own business data attached to a tail (a DALI ballast's label, say) that was never part of the endpoint table to begin with.
 
 ### 3.6. Dynamic binding is user data, not config
 
@@ -359,13 +363,12 @@ interface DeviceEntry {
 }
 
 interface FieldEntry {
-  readonly kind: string;                // the field's own EndpointType.kind — descriptive only, not independently resolved (§3.3/§3.5: the DeviceType is the registered unit)
   readonly shape: 'reading' | 'channel' | 'method';
   readonly subscribe: boolean;
   readonly effect?: 'none' | 'mutates';   // method only
-  readonly schema: ValueSchema;         // duplicated from the registered EndpointType (§3.1) — see below for why
-  readonly setSchema?: ValueSchema;     // channel only, present iff the registered type has one
-  readonly argsSchema?: ValueSchema;    // method only, present iff the registered type has one
+  readonly schema: ValueSchema;         // duplicated from the field's own EndpointType (§3.1) — see below for why
+  readonly setSchema?: ValueSchema;     // channel only, present iff the field's type has one
+  readonly argsSchema?: ValueSchema;    // method only, present iff the field's type has one
 }
 ```
 
@@ -374,7 +377,6 @@ interface FieldEntry {
   "tail": "DI.01", "kind": "DI",
   "fields": {
     "@": { 
-      "kind": "DI",
       "shape": "reading", 
       "subscribe": true,  
       "schema": { 
@@ -400,7 +402,6 @@ interface FieldEntry {
       } 
     },
     "debounce": { 
-      "kind": "DI.debounce", 
       "shape": "channel", 
       "subscribe": false, 
       "schema": { "type": "primitive", "format": "uint16", "unit": "ms" } 
@@ -410,7 +411,7 @@ interface FieldEntry {
 ```
 (`directSwitch` is absent above — an `optional()` field (§3.3) this particular binding didn't supply, same as a struct field simply not existing yet, 05 §2's "no value yet" rule extended to a field that may never exist for this device at all. A device with a single `'@'` field and no siblings — 06's `get`, say — takes the identical shape, just with one key in `fields`.)
 
-`shape`, `subscribe`, and `effect` travel on the wire alongside `schema`, not just its declarative data — enough of an `EndpointType`'s own contract to route a request correctly without resolving `kind` locally at all: a browser UI or third-party API client that never imported this plugin's package has no other way to get it. `Codec` itself — the actual `decode`/`encode`/`validate` — stays behind: a function genuinely cannot cross this boundary; only its declarative twin, `schema`, does (§3.1).
+`shape`, `subscribe`, and `effect` travel on the wire alongside `schema`, not just its declarative data — enough of an `EndpointType`'s own contract to route a request correctly from the wire alone: a browser UI or third-party API client that never imported this plugin's package has no other way to get it. `Codec` itself — the actual `decode`/`encode`/`validate` — stays behind: a function genuinely cannot cross this boundary; only its declarative twin, `schema`, does (§3.1).
 
 This isn't a wire-only normalization — `bindDevice()` (§3.5) is the only way to bind anything at all, so `$introspect`'s single `devices[]` list follows directly from what's actually bound, rather than needing to reconcile two binding primitives into one shape.
 
@@ -428,12 +429,13 @@ Subscribing to a `Device`'s own tail — the literal tail, or one reached throug
 
 ## 7. Testing
 
-Tier 1 (unit; `basics/03-Testing.md`), against `driver-kit`'s own fixtures — a minimal fixture driver with a handful of registered endpoint kinds, no real transport:
+Tier 1 (unit; `basics/03-Testing.md`), against `driver-kit`'s own fixtures — a minimal fixture driver with a handful of fixture `DeviceType`s, no real transport:
 
 - Wildcard resolution (§6): a `DI.*` subscription picks up a fixture endpoint added after subscribing (a topology-generation bump) and drops one removed, with no re-subscribe from the caller.
 - `bindDevice()`'s checks (§3.5): a fixture `DeviceType` whose own `kind` isn't in the device manifest is fatal at `bindDevice()`, before `attach()`; independently, a fixture `DeviceType` whose exported `kind` disagrees with its manifest entry's `deviceKind` is fatal; a duplicate `tail` is fatal independently of either.
 - `resolveDeviceKind()` (§3.5): resolves a fixture `deviceKind` string to the same `DeviceType` a direct import of that fixture would give, and the result binds identically either way; a second call for the same `deviceKind` returns the memoized value, asserted by the fixture's own load-side-effect counter staying at 1; an unregistered `deviceKind` rejects, naming it, before `bindDevice()` ever runs.
-- Introspection payload (§4): `$introspect` on a fixture driver returns `{driverId, driverTypeName, type: 'driver-kit', devices}`, each `DeviceEntry` exactly `tail`/`kind`/`fields`, each `FieldEntry` exactly `kind`/`shape`/`subscribe`/`effect?`/`schema`/`setSchema?`/`argsSchema?`; a fixture device with a single `'@'` field and no siblings still appears as an ordinary `DeviceEntry` — assert `codec`/`setCodec`/`argsCodec`/`resultCodec` themselves never leak onto the wire, only their serializable counterparts do.
+- Introspection payload (§4): `$introspect` on a fixture driver returns `{driverId, driverTypeName, type: 'driver-kit', devices}`, each `DeviceEntry` exactly `tail`/`kind`/`fields`, each `FieldEntry` exactly `shape`/`subscribe`/`effect?`/`schema`/`setSchema?`/`argsSchema?`; a fixture device with a single `'@'` field and no siblings still appears as an ordinary `DeviceEntry` — assert `codec`/`setCodec`/`argsCodec`/`resultCodec` themselves never leak onto the wire, only their serializable counterparts do.
 - `RejectedPayload` (§3.5): a fixture `onSet` throwing it answers `bad-payload`, never `internal-error`; any other thrown error from `onGet`/`onSet` still answers `internal-error`, unchanged.
-- `DeviceType`/`bindDevice` (§3.3/§3.5): a `primitive`/`array`-shaped `@` declared alongside any sibling field is rejected when the `DeviceType` is built, before any driver binds it; a required field missing from `bindDevice`'s `handlers` is fatal, while the same `DeviceType` binds successfully with only some `optional()` fields supplied; a second `bindDevice()` whose tail falls inside an already-bound device's namespace, outside its declared fields, is fatal; both handles from one `bindDevice()` call are independently addressable, and `unbindDevice`ing the device's own tail doesn't silently leave a sibling field bound.
+- `DeviceType`/`bindDevice` (§3.3/§3.5): a `primitive`/`array`-shaped `@` declared alongside any sibling field is rejected when the `DeviceType` is built, before any driver binds it; a required field missing from `bindDevice`'s `handlers` is fatal, while the same `DeviceType` binds successfully with only some `optional()` fields supplied; a second `bindDevice()` whose tail falls inside an already-bound device's namespace, outside its declared fields, is fatal; every field handle in one `bindDevice()` call's `BoundDevice` is independently addressable, and `unbindDevice`ing the device's own tail doesn't silently leave a sibling field bound.
+- `list`/`find` (§3.5): `list()` returns one `BoundDevice` per bound device, with only bound fields in `fields`; `find()` on a field tail returns `undefined`; typed `find(tail, type)` with a `type` whose `kind` differs from the bound device's throws.
 - Wildcard over a device (§6): a `DI.*` subscription against a fixture device with `@` plus one subscribeable sibling field delivers events for both, each carrying its own concrete tail, never the device's bare tail or the pattern.

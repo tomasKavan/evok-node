@@ -231,9 +231,9 @@ The tail grammar is identical either way; what differs is only whether one `dali
 
 ```ts
 export const DALI_RAW = device('dali.raw', {
-  send:    method('dali.send', 'mutates', DaliBusTransactionCodec, DaliFrameCodec, { errorKinds: DALI_BUS_EXCEPTION_KINDS }),
-  traffic: reading('dali.traffic', DaliBusTransactionCodec, { subscribe: true }),   // GET = last observed transaction (memory, legal per 05 §2); subscribe = every one since
-  health:  reading('dali.raw.health', DaliBusHealthCodec, { subscribe: true }),     // this bus's own — §7.2
+  send:    method('mutates', DaliBusTransactionCodec, DaliFrameCodec, { errorKinds: DALI_BUS_EXCEPTION_KINDS }),
+  traffic: reading(DaliBusTransactionCodec, { subscribe: true }),   // GET = last observed transaction (memory, legal per 05 §2); subscribe = every one since
+  health:  reading(DaliBusHealthCodec, { subscribe: true }),     // this bus's own — §7.2
 });
 ```
 
@@ -247,16 +247,16 @@ Bound once per bus, at `bus.<i>.raw` (§7) — never a single shared instance, e
 
 ```ts
 const DaliGear = device('dali.gear', {
-  '@':            channel('dali.gear.level', Codecs.struct({ intensity: Codecs.uint8({ min: 0, max: 254 }) }), { subscribe: true, set: DaliLevelSetCodec }),
-  fadeTime:       channel('dali.gear.fadeTime', Codecs.uint8({ min: 0, max: 15 })),
-  fadeRate:       channel('dali.gear.fadeRate', Codecs.uint8({ min: 0, max: 15 })),
-  minLevel:       channel('dali.gear.minLevel', Codecs.uint8()),
-  maxLevel:       channel('dali.gear.maxLevel', Codecs.uint8()),
-  powerOnLevel:       channel('dali.gear.powerOnLevel', Codecs.uint8()),
-  systemFailureLevel: channel('dali.gear.systemFailureLevel', Codecs.uint8()),
-  groups:         channel('dali.gear.groups', Codecs.array(Codecs.uint8({ min: 0, max: 15 }))),   // array of group numbers, never a bitmask — SET diffs old vs new into ADD/REMOVE-GROUP; always this gear's own bus (§7) — group numbers don't cross buses
-  status:         reading('dali.gear.status', DaliStatusBitsCodec, { subscribe: true }),           // lamp/ballast failure — the one field the sparse poll exists for, §10
-  dimming:        reading('dali.gear.dimming', Codecs.enum(['up', 'down', 'none']), { subscribe: true }),
+  '@':            channel(Codecs.struct({ intensity: Codecs.uint8({ min: 0, max: 254 }) }), { subscribe: true, set: DaliLevelSetCodec }),
+  fadeTime:       channel(Codecs.uint8({ min: 0, max: 15 })),
+  fadeRate:       channel(Codecs.uint8({ min: 0, max: 15 })),
+  minLevel:       channel(Codecs.uint8()),
+  maxLevel:       channel(Codecs.uint8()),
+  powerOnLevel:       channel(Codecs.uint8()),
+  systemFailureLevel: channel(Codecs.uint8()),
+  groups:         channel(Codecs.array(Codecs.uint8({ min: 0, max: 15 }))),   // array of group numbers, never a bitmask — SET diffs old vs new into ADD/REMOVE-GROUP; always this gear's own bus (§7) — group numbers don't cross buses
+  status:         reading(DaliStatusBitsCodec, { subscribe: true }),           // lamp/ballast failure — the one field the sparse poll exists for, §10
+  dimming:        reading(Codecs.string({ enumValues: ['up', 'down', 'none'] }), { subscribe: true }),
 });
 // same tail, method fields:
 //   up()/down(): starts a repeating command — §9.3
@@ -294,7 +294,7 @@ For every gear/group `bindDevice`'d from KV-store on `configure()` (05a §3.6's 
 
 ## 11. Device management and commissioning
 
-Listing is `$introspect`/`kit.list()` (05a §3.5) — never a bespoke method; a flattened endpoint table already says which buses exist and what each one has bound, so a second listing call would only duplicate it. Binding is dynamic, user-data-backed (05a §3.6, KV-store per 06): `saveDevice(busIndex, shortAddr, label?)` binds `bus.<busIndex>.gear.<shortAddr>`; `removeGear(busIndex, shortAddr)` unbinds it. Both persist immediately (keyed by `busIndex` alongside `shortAddr`), replayed at the next `configure()`.
+Listing is `$introspect`/`kit.list()` (05a §3.5) — never a bespoke method; the device table already says which buses exist and what each one has bound, so a second listing call would only duplicate it. Binding is dynamic, user-data-backed (05a §3.6, KV-store per 06): `saveDevice(busIndex, shortAddr, label?)` binds `bus.<busIndex>.gear.<shortAddr>`; `removeGear(busIndex, shortAddr)` unbinds it. Both persist immediately (keyed by `busIndex` alongside `shortAddr`), replayed at the next `configure()`.
 
 Addressing workflow, `method`s on a single, non-bus-indexed `commissioning` tail (§7):
 
