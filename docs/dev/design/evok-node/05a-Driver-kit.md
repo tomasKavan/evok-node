@@ -237,7 +237,7 @@ A live `GET`/`subscribe` value tells a client which arm is populated right now �
 ### 3.5. `bindDevice`, `unbindDevice`, and the fatal duplicate
 
 ```ts
-// @evok-node/driver-kit
+// @evok-node/module-sdk
 interface BoundEndpoint<T, E extends string = never> {
   readonly tail: Tail;
   emit(value: T): void;
@@ -252,7 +252,9 @@ interface BoundDevice<F extends Record<string, EndpointType | OptionalEndpointTy
 /** What `onCall` (only) resolves with — never the raw `Response` (03 §2), never a bare `T` either,
  * since a bare value has no room to say "this failed, but not as a bug." One arm per expected
  * outcome; `internal-error` is never constructed here — it's what driver-kit answers if the handler
- * throws instead of resolving (§2, and the paragraph below). */
+ * throws instead of resolving (§2, and the paragraph below). Lives in `module-sdk`, not `driver-kit`,
+ * because `RemoteMethod` (§3.8a) resolves with it too, on the consumer side of a link this package
+ * never runs on. */
 type CallOutcome<R, E extends string = never> =
   | { readonly ok: true; readonly result: R }
   | { readonly ok: false; readonly kind: 'domain-error'; readonly domainErrorKind: E; readonly detail: string; readonly info?: unknown }
@@ -279,13 +281,15 @@ interface DriverKit {
   onSet<T, TSet>(ep: BoundEndpoint<T>, fn: (value: TSet, req: Request) => TSet | Promise<TSet>): void;
   onCall<R, E extends string, A>(ep: BoundEndpoint<R, E>, fn: (payload: A, req: Request) => Promise<CallOutcome<R, E>>): void;
   attach(): void;                              // §3.8
+  remote<E extends EndpointType>(address: Address, field: E): RemoteEndpoint<E>;                                                       // sugar over module-sdk's own remote(ctx, ...) — §3.8a
+  remoteDevice<F extends Record<string, EndpointType | OptionalEndpointType>>(address: Address, type: DeviceType<F>): RemoteDevice<F>;  // sugar over remoteDevice(ctx, ...) — §3.8a
 }
 ```
 
 `bindDevice` itself stays synchronous, and still takes an already-resolved `DeviceType` — resolving one from a bare `kind` string is always a separate, earlier step, never something `bindDevice` does on a caller's behalf. Most drivers never need that step: `07a`'s own built-in kinds (`unipi.di`, `unipi.ao`, …) are `import`ed directly, the same way `DIDevice` above is, and go straight into `bindDevice` with no resolution at all. `resolveDeviceKind(kind)` exists for the other case — a `kind` string with no compile-time import behind it, known only from a definition or a plugin's own runtime data (`07a`'s generic walk, resolving a YAML feature's `kind`, is the concrete caller). It's a thin wrapper over `ctx.plugins.resolve('device', kind)` (02 §4, 03 §9), and this is where `isDeviceType` actually lives — registered once, against `PluginRegistry`'s `'device'` kind, at `driver-kit`'s own module-load time, before any instance built on it can call either method:
 
 ```ts
-// @evok-node/driver-kit, module-load time, once
+// @evok-node/module-sdk, module-load time, once
 // Duck-typed, same reasoning as isModuleDescriptor (02 §4): a plugin may bundle its own
 // copy of module-sdk's types, and there's no `instanceof` to rely on across that boundary.
 function isDeviceType(mod: unknown, deviceKind: string): DeviceType {
@@ -329,6 +333,24 @@ One narrow exception to `onGet`/`onSet` never throwing (§2): a handler may thro
 
 `list`/`find` work per device, never per field — a field handle is reached through its device, `kit.find(tail, DIDevice)?.fields.debounce?.emit(50)`; a field's own tail is `` key === '@' ? tail : `${tail}.${key}` ``. `find` on a field tail answers `undefined`. The typed `find(tail, type)` checks the bound device's `kind` against `type.kind`; a mismatch is a driver bug and throws, never a silent cast. `list`/`find` are driver-kit's own registry, already necessary internally for `$introspect` and for `unbindDevice`'s teardown — exposed so a driver doesn't keep a second, parallel map of what it's already told `bindDevice` about. What `list`/`find` can't replace is a driver's own business data attached to a tail (a DALI ballast's label, say) that was never part of the endpoint table to begin with.
 
+### 3.5a. Multi-field GET/SET: `options.returnFields`
+
+A device's own tail answers `GET`/`SET` for `'@'` alone (§3.3); `returnFields` is how a caller folds one or more sibling fields' current values into that same round trip instead of issuing one request per field:
+
+```ts
+// @evok-node/module-sdk
+type ReturnFields = readonly string[] | '*';   // 03 §2's Request.options, narrowed to this one key
+function getReturnFields(req: Request): ReturnFields | undefined;   // throws RejectedPayload(detail) on a malformed options.returnFields (§3.5) — never silently ignored
+```
+
+Semantics, enforced by `attach()`'s dispatcher (§3.8) identically for every `driver-kit`-built driver:
+
+- `GET`/`SET` only — `options.returnFields` on `CALL`/`SUBSCRIBE`/`UNSUBSCRIBE` is `bad-payload`, since nothing there interprets it.
+- An explicit array is strict: every named key must exist on the bound device and must support the method being answered — naming a field that doesn't exist, or a `CALL`-only field, is `bad-payload`, never a silently dropped entry.
+- `'*'` resolves dynamically against the device's *current* table to every GET-able field, never failing the whole request over an unrelated `CALL`-only sibling the way an explicit array naming it would.
+- On `SET`, a named sibling is read-only in the response: driver-kit echoes its current value, it never routes any part of the `SET` payload to it. `'@'` remains the only field actually written.
+- Response shape: with no `returnFields`, `Response.body` is exactly today's bare `'@'` value, unchanged. With `returnFields` present (array or `'*'`), `Response.body` becomes `Readonly<Record<string, Value>>` — one key per returned field, `'@'` included, each already decoded to that field's own `schema` shape.
+
 ### 3.6. Dynamic binding is user data, not config
 
 Binding or unbinding an endpoint at runtime — in response to a `CALL`, say, rather than at `configure` — means whatever drove that decision has to survive a restart on its own; the endpoint table itself is never persisted, it's rebuilt by replaying whatever caused it. That "whatever" is user data (01 §2), the same category as an alias or a group, and belongs in the KV-store driver's own namespace for this driver (06) — reloaded at `configure`, written back on every change. 06 has the mechanism; this is only the reminder that a driver doing this has somewhere to put it.
@@ -343,6 +365,62 @@ attach(): void;
 
 No arguments — `createDriverKit(ctx)` already closed over `ctx` at construction. This is the one moment `ctx.messaging.onRequest(...)` is actually called, once, after every `bindDevice()` a driver wants at startup; wildcard resolution (§6) lives inside this same dispatcher, never reimplemented per driver. It also raises the driver's own introspection `generation` on every `bindDevice`/`unbindDevice` and emits it on `$introspect` — `SUBSCRIBE`-able for exactly this, 03 §5a — so a client watching for new endpoints never has to poll.
 
+### 3.8a. Reaching another driver: `RemoteEndpoint`/`RemoteDevice`
+
+`bindDevice`/`BoundDevice` (§3.5) is the producer side of a link — a real `emit()` closing over this driver's own handler. The other end of 03 §10's socket never gets to hold one of those; something reading or calling across to another driver's endpoint needs a handle that only ever talks over `ctx.messaging` (03 §9), never a local function reference. `RemoteEndpoint`/`RemoteDevice` are that handle, typed off the exact same `EndpointType`/`DeviceType` the producer bound against — the consumer-side mirror of §3.1's and §3.3's shapes, not a new vocabulary:
+
+```ts
+// @evok-node/module-sdk
+interface RemoteReading<T> {
+  readonly address: Address;
+  get(deadline?: Deadline): Promise<T>;
+  subscribe(onChange: (value: T) => void): () => void;   // unsubscribe
+}
+
+interface RemoteChannel<T, TSet = T> extends RemoteReading<T> {
+  set(value: TSet, deadline?: Deadline): Promise<TSet>;
+}
+
+interface RemoteMethod<R, A = void, E extends string = never> {
+  readonly address: Address;
+  call(args: A, deadline?: Deadline): Promise<CallOutcome<R, E>>;
+}
+
+type RemoteEndpoint<E extends EndpointType> =
+  E extends ReadingType<infer T> ? RemoteReading<T> :
+  E extends ChannelType<infer T, infer TSet> ? RemoteChannel<T, TSet> :
+  E extends MethodType<infer R, infer A, infer Err> ? RemoteMethod<R, A, Err> :
+  never;
+
+function remote<E extends EndpointType>(ctx: InstanceContext, address: Address, field: E): RemoteEndpoint<E>;
+```
+
+`RemoteEndpoint<E>` is conditional on `E`'s own shape, not one flat interface with a `set()` that throws at runtime for a `reading` — the same reasoning as `BindHandlers` rejecting a shape mismatch at `bindDevice()` time (§3.5), just caught on the other side of the link: a `reading`'s consumer handle has no `set` to call at all, a compile error, never a runtime one. `field` is always the same `EndpointType` value the producing driver bound against — imported directly or reached through its `DeviceType`, never redeclared by the consumer, so there's nowhere for the two sides to disagree about its shape.
+
+`get`/`set`/`call` sit above `ctx.messaging.get`/`set`/`call` (03 §4), decoding `Response.body` through `field`'s own `codec` (§3.1) and surfacing a failed response as the matching `CallOutcome` arm or a rejected promise — never a blind `as`. `subscribe` is sugar over `ctx.messaging.subscribe`, decoding each `Event.value` the same way. None of this depends on `driver-kit`, `ctx.plugins`, or anything else specific to a driver process — `remote` takes a bare `InstanceContext`, so an api reaches another driver's endpoint exactly the way a driver does (01 §9).
+
+A whole device, typed against its `DeviceType` rather than field by field:
+
+```ts
+// @evok-node/module-sdk
+type Unwrap<T> = T extends OptionalEndpointType<infer U> ? U : T extends EndpointType ? T : never;
+type GetResult<E extends EndpointType> = E extends ReadingType<infer T> | ChannelType<infer T, any> ? T : never;   // never for a method field — nothing to GET
+
+interface RemoteDevice<F extends Record<string, EndpointType | OptionalEndpointType>> {
+  readonly address: Address;
+  readonly fields: { readonly [K in keyof F]: RemoteEndpoint<Unwrap<F[K]>> };
+  get(deadline?: Deadline): Promise<GetResult<Unwrap<F['@']>>>;                                                                    // shortcut for fields['@'].get() — a compile error when F has no '@', never a runtime one
+  getFields<K extends keyof F>(keys: readonly K[], deadline?: Deadline): Promise<{ readonly [P in K]: GetResult<Unwrap<F[P]>> }>;  // one round trip, via §3.5a's returnFields — naming a method-shaped key is a compile error, not bad-payload
+  getAll(deadline?: Deadline): Promise<{ readonly [K in keyof F as GetResult<Unwrap<F[K]>> extends never ? never : K]: GetResult<Unwrap<F[K]>> }>;   // every GET-able field, via returnFields: '*' — a method-only field is absent from the result type, not present as never
+}
+
+function remoteDevice<F extends Record<string, EndpointType | OptionalEndpointType>>(ctx: InstanceContext, address: Address, type: DeviceType<F>): RemoteDevice<F>;
+```
+
+`get()` on a `RemoteDevice<F>` whose `F` has no `'@'` key doesn't compile — `F` is the exact literal type `device()` inferred (§3.3), never widened to a bare `Record`, so `F['@']` is already the error, before `GetResult` runs at all. `getFields`/`getAll` are both one round trip over `ctx.messaging.get` with `options.returnFields` (§3.5a), never one request per field. There is no `setFields`: once §3.5a's SET-side rule holds (a named sibling is echoed, never written), a multi-field write has nothing analogous to batch, so setting more than one field is still one `set()` call per field.
+
+`DriverKit.remote`/`.remoteDevice` (§3.5) are forwarding sugar only — `kit.remote(address, field)` is exactly `remote(ctx, address, field)` with the `ctx` a driver already has in scope closed over, the same convenience `attach()` already is over a bare `ctx.messaging.onRequest` call.
+
 ### 3.9. REMOVED
 
 ## 4. Introspection payload
@@ -350,7 +428,7 @@ No arguments — `createDriverKit(ctx)` already closed over `ctx` at constructio
 `driver-kit` is what fills in the rest of `IntrospectionBase` (03 §5) once `type: 'driver-kit'` is on it:
 
 ```ts
-// @evok-node/driver-kit
+// @evok-node/module-sdk
 interface DriverKitIntrospection extends IntrospectionBase {
   readonly type: 'driver-kit';
   readonly devices: readonly DeviceEntry[];           // every bound tail — a device with a single '@' field is how a lone endpoint is bound (§3.3), not a special wire case
@@ -417,6 +495,40 @@ This isn't a wire-only normalization — `bindDevice()` (§3.5) is the only way 
 
 A struct/array/union-shaped endpoint's `GET` and `subscribe` always deliver the whole decoded value — `DI.01`'s reading answers `{value, counter, readAt, stale}` in one payload, never `value` alone. There's no field-level address on the wire; a consumer that wants just one field reads it out of the full snapshot itself.
 
+## 4a. Validating another driver's introspection
+
+A `remote`/`remoteDevice` caller (§3.8a) that doesn't fully trust its own assumptions about the far side — the address might not even be a `driver-kit`-built driver, or might be one running an older, incompatible table — checks before decoding, the same tier of guard §3.5's `isDeviceType` already is for a locally-imported `DeviceType`, now applied to a `$introspect` response instead:
+
+```ts
+// @evok-node/module-sdk
+function isDriverKitIntrospection(body: Value): body is DriverKitIntrospection;   // shape only — type === 'driver-kit' plus devices/tail/kind/fields all well-formed; never checks a specific kind
+function isDeviceEntry(value: Value): value is DeviceEntry;
+function isFieldEntry(value: Value): value is FieldEntry;
+function matchesDeviceType<F extends Record<string, EndpointType | OptionalEndpointType>>(entry: DeviceEntry, type: DeviceType<F>): boolean;   // entry.kind === type.kind, plus every field type asks for actually present and shape-compatible
+```
+
+Each guard is duck-typed, the same reasoning as `isDeviceType`/`isModuleDescriptor` (§3.5, 02 §4): a `$introspect` response crossed a wire, so an `as DriverKitIntrospection` would have nothing behind it to enforce. `matchesDeviceType` is the structural check a `remoteDevice()` caller wants before trusting its own `DeviceType` against a driver it doesn't control the version of — it never replaces `remote`/`remoteDevice`'s own runtime decode against `field`'s `codec` (§3.8a), it's the earlier question: is this address even shaped the way `type` claims, before a single `get`/`set`/`call` is attempted.
+
+## 4b. Watching introspection for change
+
+`$introspect` is `SUBSCRIBE`-able (03 §5a) precisely so a consumer can revalidate continuously rather than once at startup — the driver behind a `RemoteDevice` can be reloaded with a new, incompatible table while something still holds that handle. `watchIntrospection` is the one, generic loop for that, built only on `IntrospectionSource` — never on `ctx`/`InstanceContext` directly — so the same logic works for a driver, an api, or a browser script talking to `api-nextgen` (15) over nothing but its own introspection-equivalent:
+
+```ts
+// @evok-node/module-sdk
+interface IntrospectionSource {
+  get(): Promise<Value>;
+  watch(onChange: (body: Value) => void): () => void;   // unsubscribe; fires on every new $introspect snapshot, generation bump included
+}
+
+function watchIntrospection(
+  source: IntrospectionSource,
+  check: (body: Value) => boolean,    // e.g. body => isDriverKitIntrospection(body) && matchesDeviceType(entry, type) — §4a
+  onResult: (ok: boolean) => void,    // called once immediately with the current result, then again only when a later snapshot flips it
+): () => void;                         // unsubscribe from source
+```
+
+`watchIntrospection` never knows what `check` tests — it runs it once against `source.get()` up front and again on every `source.watch` callback, calling `onResult` only when the boolean actually changes, never on every snapshot regardless of outcome. A driver's own `IntrospectionSource` is a handful of lines over `ctx.messaging.introspect`/`subscribe('$introspect', ...)` (03 §4); nothing here constructs that adapter — there's no reason to name it as its own type.
+
 ## 5. REMOVED
 
 ## 6. Wildcards — one family of endpoints, one subscription
@@ -439,3 +551,7 @@ Tier 1 (unit; `basics/03-Testing.md`), against `driver-kit`'s own fixtures — a
 - `DeviceType`/`bindDevice` (§3.3/§3.5): a `primitive`/`array`-shaped `@` declared alongside any sibling field is rejected when the `DeviceType` is built, before any driver binds it; a required field missing from `bindDevice`'s `handlers` is fatal, while the same `DeviceType` binds successfully with only some `optional()` fields supplied; a second `bindDevice()` whose tail falls inside an already-bound device's namespace, outside its declared fields, is fatal; every field handle in one `bindDevice()` call's `BoundDevice` is independently addressable, and `unbindDevice`ing the device's own tail doesn't silently leave a sibling field bound.
 - `list`/`find` (§3.5): `list()` returns one `BoundDevice` per bound device, with only bound fields in `fields`; `find()` on a field tail returns `undefined`; typed `find(tail, type)` with a `type` whose `kind` differs from the bound device's throws.
 - Wildcard over a device (§6): a `DI.*` subscription against a fixture device with `@` plus one subscribeable sibling field delivers events for both, each carrying its own concrete tail, never the device's bare tail or the pattern.
+- `returnFields` (§3.5a): a strict array naming an unknown field, or a `CALL`-only field, is `bad-payload`; `'*'` on a device with a mixed `GET`/`CALL` sibling set returns every GET-able field and silently skips the `CALL`-only one; `options.returnFields` on `CALL`/`SUBSCRIBE`/`UNSUBSCRIBE` is `bad-payload`; a `SET` naming a sibling echoes its current value in the response without the sibling's own handler ever firing.
+- `RemoteEndpoint`/`RemoteDevice` (§3.8a): `remote`/`remoteDevice` against a fixture driver's own bound device round-trips `get`/`set`/`call` through `field`'s `codec`, never a cast; a `RemoteMethod`'s `call` surfaces a fixture `onCall`'s `domain-error`/`unreachable`/`timeout` arms unchanged; `getFields`/`getAll` issue exactly one request each, via `returnFields`, never one per field, and `getAll`'s result omits a method-shaped field entirely rather than typing it `never`. Compile-time only, never run: a `RemoteDevice<F>` fixture whose `F` has no `'@'` key fails to typecheck on `.get()`, asserted the same way `basics/03-Testing.md` asserts any other type-level contract.
+- `isDriverKitIntrospection`/`isDeviceEntry`/`isFieldEntry`/`matchesDeviceType` (§4a): each guard rejects a malformed or foreign-shaped `$introspect` body without throwing; `matchesDeviceType` flags a `DeviceEntry` whose `kind` matches but whose field `schema` doesn't, the same as one whose `kind` disagrees outright.
+- `watchIntrospection` (§4b): calls `onResult` once, immediately, against a fixture `IntrospectionSource`'s current snapshot; calls it again exactly once when a later snapshot flips `check`'s result, and not at all for a snapshot that changes the body without changing `check`'s own boolean.

@@ -41,6 +41,7 @@ interface Request {
   readonly address: Address;
   readonly method: Method;
   readonly payload?: Value;
+  readonly options?: Readonly<Record<string, Value>>;   // open, layer-defined bag — e.g. 05a's returnFields
   readonly deadline: Deadline;   // 04 §6 — absolute, never "ms from now"
   readonly origin: Origin;
 }
@@ -69,6 +70,8 @@ type Envelope = Request | Response | Event;
 `Request.deadline` is never the sender's raw value once a link is crossed — every link crosses one now (§10) — 04 §6.2a says how it's reconstructed fresh at each hop. The type above is what a module's own code always sees: already locally valid, nothing further to convert.
 
 One shape for every method, not a discriminated union per method — a deliberate, narrow exception to `basics/02-Coding.md` §1.3: GET/SET/CALL/SUBSCRIBE/UNSUBSCRIBE are one thing with a varying payload, the way HTTP verbs share one request line. What each method requires of its payload is declared per-endpoint in introspection (§5) and checked once, generically, before a handler ever runs — not encoded in the type.
+
+`Request.options` is as open as `payload`: a bag of layer-defined keys, meaningless at this layer and never interpreted by the dispatcher itself. Whether a given method accepts any `options` at all, and what a key means, is declared above `module-sdk` — 05a §3.5a defines the first and so far only concrete use, `returnFields` on `GET`/`SET`.
 
 A batched, cross-driver read — an api asking for several qualified addresses in one logical call — is `module-sdk`'s fan-in helper, not a fourth envelope kind: it groups addresses by `DriverId`, sends one `Request` per driver over that driver's own link with its own slice of the caller's deadline, and merges partial `Response`s back keyed by the original address. A driver down does not fail the addresses that answered.
 
