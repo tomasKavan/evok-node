@@ -101,7 +101,7 @@ interface MessagingHandle {
   get(address: Address, deadline?: Deadline): Promise<Response>;
   set(address: Address, payload: Value, deadline?: Deadline): Promise<Response>;
   call(address: Address, payload?: Value, deadline?: Deadline): CallHandle;
-  introspect(driverId: DriverId): Promise<Response>;   // sugar over GET <driverId>:$introspect — §5
+  introspect(driverId: DriverId, since?: Generation): Promise<Response>;   // sugar over GET <driverId>:$introspect, `since` → options.since — §5, §5a
   subscribe(address: Address, onEvent: (event: Event) => void): void;   // upsert — subscribing an address already active replaces its handler
   unsubscribe(address: Address): void;
   listSubscriptions(): readonly Address[];   // this instance's own want-list — not the wire-level $subscriptions (§6.3)
@@ -125,10 +125,14 @@ Nothing here ever throws across the boundary. A handler that throws is a bug, no
 
 ```ts
 // @evok-node/module-sdk
+type Generation = { readonly epoch: string; readonly n: number };   // §5a
+
 interface IntrospectionBase {
   readonly driverId: DriverId;
   readonly driverTypeName: string;   // the manifest's own typeName for this driver (02 §4) — display/attribution
   readonly type: string;             // open — this file defines only the root; whoever answers a given type owns its own payload shape
+  readonly form: 'full';             // the whole table — §5a has the other form, 'change'
+  readonly generation: Generation;   // §5a
 }
 ```
 
@@ -138,7 +142,40 @@ Everything a consumer needs to route and validate a request is plain data on the
 
 ## 5a. Introspection change notification
 
-`$introspect` is also `SUBSCRIBE`-able, delivering `{ generation: Seq }` on every change to the driver's own endpoint table — a fresh bind, an unbind, never a change to an existing endpoint's own value, which is what its own address's events are for. Same precedent as `$health` (§3): a driver emits here itself, consumed like any other address, by `subscribe` (§4), through the exact same coalescing buffer and reconnect-replay §6.3 already describes — no new envelope kind, no new capability flag. The payload stays minimal on purpose: a client that sees the number change issues a fresh `introspect()` if it cares what changed, the same "a gap is harmless, re-`GET`" reasoning §6.3 already relies on everywhere else.
+A driver's endpoint table changes on a bind or an unbind — never on a value change, which is what each endpoint's own address is for. Every table change raises the driver's `Generation` (§5):
+
+- `epoch` — a random id the driver makes in memory when its process starts. Never persisted: it must change exactly when the driver loses its change history (05a §3.8 keeps one in memory), so a client can tell a restarted driver from a live one. An in-place reload (02 §5.1) keeps the process, so it keeps the epoch.
+- `n` — counts table changes within one epoch.
+
+`$introspect` answers in one of two forms. The rest of each form's payload is owned by `type` (§5):
+
+```ts
+// @evok-node/module-sdk
+interface IntrospectionChangeBase {
+  readonly driverId: DriverId;
+  readonly type: string;
+  readonly form: 'change';
+  readonly from: Generation;   // the generation this change applies on top of
+  readonly to: Generation;
+}
+
+type IntrospectAnswer = IntrospectionBase | IntrospectionChangeBase;
+```
+
+- **`SUBSCRIBE`** — an `IntrospectAnswer` on every table change, normally `form: 'change'`. Same coalescing buffer and reconnect-replay as any other address (§6.3).
+- **`GET`** — `form: 'full'`. With `options.since: Generation`, the driver may answer `form: 'change'` from `since` to now instead. `since` is valid only on `GET <driverId>:$introspect`; anywhere else it is `bad-payload`.
+- **`full` is always a valid answer**, to either method. A driver that keeps no history — a hand-built one, say — ignores `since` and is still correct.
+
+The client keeps only its last `Generation`:
+
+```ts
+on answer a:
+  if a.form === 'full'                → take it;  gen = a.generation
+  else if sameGeneration(a.from, gen) → apply it; gen = a.to
+  else                                → GET $introspect { since: gen }   // gap
+```
+
+The coalescing buffer (§6.3) may replace a pending change with a newer one. Nothing is lost: the client sees a gap and asks with `since`, and the driver answers the merged change, or `full`. No merge in the dispatcher, no resync protocol. 05a §4b has this rule as a ready helper, `followIntrospection`.
 
 ## 6. Subscriptions and call progress
 
@@ -375,7 +412,7 @@ Tier 1 (unit; `basics/03-Testing.md`), split by where the code actually lives.
 - `internal-error` on a handler that throws — logged and counted (`basics/02-Coding.md` §2.3), never propagated, never hanging the caller past its deadline.
 - `$subscriptions`/`$getCallProgress` answered without reaching the fixture handler; `$introspect`/`$health` reach it like any other address, exercised through the fixture handler like any other `GET`/`SUBSCRIBE`.
 - Subscription bookkeeping (§6.3): the per-address coalescing buffer under backpressure — deliver-latest-only, never a superseded snapshot; `subscribe` on an already-active address replaces the handler rather than adding a second one; `listSubscriptions()` reflects the consumer's own want-list exactly, distinct from a provider's `$subscriptions`.
-- `get`/`set`/`call`/`introspect` (§4): each delegates to the same underlying request path as the others and to `subscribe`/`unsubscribe`/`onRequest` where relevant — no behavior difference from what the old single `send` produced for the same method, `introspect(driverId)` produces exactly the `Request` a hand-built `GET <driverId>:$introspect` would.
+- `get`/`set`/`call`/`introspect` (§4): each delegates to the same underlying request path as the others and to `subscribe`/`unsubscribe`/`onRequest` where relevant — no behavior difference from what the old single `send` produced for the same method, `introspect(driverId)` produces exactly the `Request` a hand-built `GET <driverId>:$introspect` would, and `introspect(driverId, since)` the same with `options.since` set.
 - Call progress (§6.4): `getProgress()` reads back the default `{progress: 0}` before a fixture handler ever calls `reportProgress`; a `reportProgress` call updates both a subsequent `getProgress()` poll and fires an `Event` to an existing `subscribe`r on `$getCallProgress.<id>`, through the same coalescing buffer as §6.3; `getProgress()` (poll or subscribe) answers `unknown-address` once the matching `Response` has been sent; no subscription to `$getCallProgress.<id>` survives past that point — assert it's actually gone from the provider's bookkeeping, not just silent.
 - Reconnect and resubscribe (§6.3, below): sever a link mid-test (kill the fixture worker), assert dependents see `link-down`, then bring a fresh instance up at the same socket path and assert every previously-`subscribe`d address is replayed automatically, events resume with no fixture code calling `subscribe` again, and `Seq` for each address restarts rather than being read as a gap.
 - Transport (§10): every link round-trips a `Request`/`Response`/`Event` over a real Unix socket — bind path, listen/connect roles, reconnect-with-backoff after the listener restarts mid-test.

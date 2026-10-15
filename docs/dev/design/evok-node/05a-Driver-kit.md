@@ -318,6 +318,7 @@ pluginRegistry.registerKindGuard('device', isDeviceType);
 - A field declared without `optional()` (§3.3) is missing from `handlers`.
 - The device's own `tail`, or any field's derived tail, duplicates one already bound — checked against the driver's own table only, never a global view, because addresses are driver-qualified and uniqueness is local by construction. This is the direct mitigation for the wrong-relay bug class research/04 documents: no purchasable Unipi device has enough channels of one type to reproduce the bank-stride half of that bug on hardware, so this assertion is the only thing that can still catch a wrong address table before it drives the wrong output. A driver assembling its own tails in a loop is exactly where this matters most — 07 has the concrete mitigation for Modbus's own register arithmetic.
 - A second `bindDevice()` call whose tail falls inside an already-bound device's own tail — `DI.01.<anything>` once `DI.01` is a device — but isn't one of that device's declared field keys. A device's namespace is closed once bound; nothing else may graft onto it.
+- A `DeviceType` whose `kind` is already bound in this driver under a different `DeviceType` object. One kind is one schema for the life of the process: `$introspect` writes each kind's schema once (§4), so two objects claiming the same kind could disagree. A 07a alias binder is unaffected — it binds the real `DeviceType` and reports the real kind.
 
 A `DeviceType` gaining a new required field in a later package version is, by the second rule above, a breaking change for anything still calling `bindDevice` without it — there's no separate versioning mechanism; the same fatal check just starts firing for drivers that haven't caught up. Wrapping a newly-added field in `optional()` instead keeps old callers working unchanged.
 
@@ -363,7 +364,18 @@ Binding or unbinding an endpoint at runtime — in response to a `CALL`, say, ra
 attach(): void;
 ```
 
-No arguments — `createDriverKit(ctx)` already closed over `ctx` at construction. This is the one moment `ctx.messaging.onRequest(...)` is actually called, once, after every `bindDevice()` a driver wants at startup; wildcard resolution (§6) lives inside this same dispatcher, never reimplemented per driver. It also raises the driver's own introspection `generation` on every `bindDevice`/`unbindDevice` and emits it on `$introspect` — `SUBSCRIBE`-able for exactly this, 03 §5a — so a client watching for new endpoints never has to poll.
+No arguments — `createDriverKit(ctx)` already closed over `ctx` at construction. This is the one moment `ctx.messaging.onRequest(...)` is actually called, once, after every `bindDevice()` a driver wants at startup; wildcard resolution (§6) lives inside this same dispatcher, never reimplemented per driver. It also owns the driver's introspection `Generation` (03 §5a): `epoch` made once, in memory, by `createDriverKit(ctx)`; `n` raised by one on every `bindDevice`/`unbindDevice`, and each change emitted on `$introspect` as a `DriverKitChange` (§4) — so a client watching for new endpoints never has to poll.
+
+**Change log.** driver-kit keeps the last 16 table changes in memory, one entry per `bindDevice`/`unbindDevice`, and answers `GET $introspect` with `options.since` (03 §5a) from it:
+
+```ts
+since.epoch !== epoch  → full
+n - since.n > 16       → full     // older than the log
+since.n > n            → full     // can't happen within one epoch; full is the safe answer
+otherwise              → change from since to now: entries since.n+1 … n merged per tail, last one wins
+```
+
+16 is a constant, not config. A gap longer than that is a bulk change — a commissioning run, a reload — where `full` costs about the same as a merged change. `options.since` on any other address or method, or not a well-formed `Generation`, is `bad-payload`, enforced the same way as `returnFields` (§3.5a).
 
 ### 3.8a. Reaching another driver: `RemoteEndpoint`/`RemoteDevice`
 
@@ -425,19 +437,30 @@ function remoteDevice<F extends Record<string, EndpointType | OptionalEndpointTy
 
 ## 4. Introspection payload
 
-`driver-kit` is what fills in the rest of `IntrospectionBase` (03 §5) once `type: 'driver-kit'` is on it:
+`driver-kit` is what fills in the rest of both forms — `IntrospectionBase` (03 §5) and `IntrospectionChangeBase` (03 §5a) — once `type: 'driver-kit'` is on them:
 
 ```ts
 // @evok-node/module-sdk
-interface DriverKitIntrospection extends IntrospectionBase {
+interface DriverKitIntrospection extends IntrospectionBase {   // form: 'full'
   readonly type: 'driver-kit';
-  readonly devices: readonly DeviceEntry[];           // every bound tail — a device with a single '@' field is how a lone endpoint is bound (§3.3), not a special wire case
+  readonly kinds: Readonly<Record<string, KindEntry>>;   // one entry per kind with at least one bound device
+  readonly devices: readonly DeviceRef[];               // every bound tail — a lone endpoint is a single-'@' device (§3.3), not a special wire case
 }
 
-interface DeviceEntry {
+interface DriverKitChange extends IntrospectionChangeBase {   // form: 'change' — 03 §5a
+  readonly type: 'driver-kit';
+  readonly devices: Readonly<Record<Tail, DeviceRef | null>>;   // null = unbound; a DeviceRef = bound, new or re-bound
+  readonly kinds?: Readonly<Record<string, KindEntry>>;          // only kinds first bound after `from`
+}
+
+interface KindEntry {
+  readonly fields: Readonly<Record<string, FieldEntry>>;   // every field the DeviceType declares, optional() ones included; '@' present whenever the tail itself answers GET/SET/CALL with no suffix; a sibling field is addressed at `<tail>.<key>`
+}
+
+interface DeviceRef {
   readonly tail: Tail;
-  readonly kind: string;    // the DeviceType's own kind (§3.3), resolved from its own manifest — every bound tail has one, even a single-field device
-  readonly fields: Readonly<Record<string, FieldEntry>>;   // '@' present whenever the tail itself answers GET/SET/CALL with no suffix; a sibling field is addressed at `<tail>.<key>`
+  readonly kind: string;                  // the DeviceType's own kind (§3.3) — key into `kinds`
+  readonly unbound?: readonly string[];   // optional() fields this device left unbound
 }
 
 interface FieldEntry {
@@ -450,44 +473,50 @@ interface FieldEntry {
 }
 ```
 
+Each kind's schema is written once per payload, never once per device: one kind is one `DeviceType` (§3.5), so every device of that kind shares it. A driver with hundreds of devices of a few kinds stays small.
+
 ```json
 {
-  "tail": "DI.01", "kind": "DI",
-  "fields": {
-    "@": { 
-      "shape": "reading", 
-      "subscribe": true,  
-      "schema": { 
-        "type": "struct", 
-        "fields": { 
-          "value": {
-            "type":"primitive",
-            "format":"bool"
-          }, 
-          "counter": {
-            "type":"primitive",
-            "format":"uint32"
-          }, 
-          "readAt": {
-            "type":"primitive",
-            "format":"timestamp"
-          }, 
-          "stale": {
-            "type":"primitive",
-            "format":"bool"
-          } 
-        } 
-      } 
-    },
-    "debounce": { 
-      "shape": "channel", 
-      "subscribe": false, 
-      "schema": { "type": "primitive", "format": "uint16", "unit": "ms" } 
+  "driverId": "ext1", "driverTypeName": "extension", "type": "driver-kit",
+  "form": "full", "generation": { "epoch": "k3f9q2", "n": 42 },
+  "kinds": {
+    "DI": {
+      "fields": {
+        "@": {
+          "shape": "reading", "subscribe": true,
+          "schema": {
+            "type": "struct",
+            "fields": {
+              "value":   { "type": "primitive", "format": "bool" },
+              "counter": { "type": "primitive", "format": "uint32" },
+              "readAt":  { "type": "primitive", "format": "timestamp" },
+              "stale":   { "type": "primitive", "format": "bool" }
+            }
+          }
+        },
+        "debounce":     { "shape": "channel", "subscribe": false, "schema": { "type": "primitive", "format": "uint16", "unit": "ms" } },
+        "directSwitch": { "shape": "channel", "subscribe": false, "schema": { "type": "primitive", "format": "bool" } }
+      }
     }
-  }
+  },
+  "devices": [
+    { "tail": "DI.01", "kind": "DI", "unbound": ["directSwitch"] },
+    { "tail": "DI.02", "kind": "DI" }
+  ]
 }
 ```
-(`directSwitch` is absent above — an `optional()` field (§3.3) this particular binding didn't supply, same as a struct field simply not existing yet, 05 §2's "no value yet" rule extended to a field that may never exist for this device at all. A device with a single `'@'` field and no siblings — 06's `get`, say — takes the identical shape, just with one key in `fields`.)
+
+A later change — `DI.03` bound, `DI.02` unbound:
+
+```json
+{
+  "driverId": "ext1", "type": "driver-kit", "form": "change",
+  "from": { "epoch": "k3f9q2", "n": 42 }, "to": { "epoch": "k3f9q2", "n": 44 },
+  "devices": { "DI.03": { "tail": "DI.03", "kind": "DI" }, "DI.02": null }
+}
+```
+
+`DI.01` lists `directSwitch` in `unbound`: an `optional()` field (§3.3) this binding didn't supply. The kind still describes it; this device just doesn't have it — 05 §2's "no value yet" rule extended to a field that may never exist for this device at all. A change never removes a kind; a kind no `DeviceRef` points to is harmless. A device with a single `'@'` field — 06's `get`, say — is the same shape, with one key in its kind's `fields`.
 
 `shape`, `subscribe`, and `effect` travel on the wire alongside `schema`, not just its declarative data — enough of an `EndpointType`'s own contract to route a request correctly from the wire alone: a browser UI or third-party API client that never imported this plugin's package has no other way to get it. `Codec` itself — the actual `decode`/`encode`/`validate` — stays behind: a function genuinely cannot cross this boundary; only its declarative twin, `schema`, does (§3.1).
 
@@ -501,33 +530,44 @@ A `remote`/`remoteDevice` caller (§3.8a) that doesn't fully trust its own assum
 
 ```ts
 // @evok-node/module-sdk
-function isDriverKitIntrospection(body: Value): body is DriverKitIntrospection;   // shape only — type === 'driver-kit' plus devices/tail/kind/fields all well-formed; never checks a specific kind
-function isDeviceEntry(value: Value): value is DeviceEntry;
+function isDriverKitIntrospection(body: Value): body is DriverKitIntrospection;   // shape only — type 'driver-kit', form 'full', kinds/devices well-formed, every DeviceRef.kind present in kinds; never checks a specific kind
+function isDriverKitChange(body: Value): body is DriverKitChange;
+function isDeviceRef(value: Value): value is DeviceRef;
 function isFieldEntry(value: Value): value is FieldEntry;
-function matchesDeviceType<F extends Record<string, EndpointType | OptionalEndpointType>>(entry: DeviceEntry, type: DeviceType<F>): boolean;   // entry.kind === type.kind, plus every field type asks for actually present and shape-compatible
+function matchesDeviceType<F extends Record<string, EndpointType | OptionalEndpointType>>(ref: DeviceRef, kind: KindEntry, type: DeviceType<F>): boolean;   // ref.kind === type.kind, plus every field type asks for present in kind, shape-compatible, and not in ref.unbound
 ```
 
 Each guard is duck-typed, the same reasoning as `isDeviceType`/`isModuleDescriptor` (§3.5, 02 §4): a `$introspect` response crossed a wire, so an `as DriverKitIntrospection` would have nothing behind it to enforce. `matchesDeviceType` is the structural check a `remoteDevice()` caller wants before trusting its own `DeviceType` against a driver it doesn't control the version of — it never replaces `remote`/`remoteDevice`'s own runtime decode against `field`'s `codec` (§3.8a), it's the earlier question: is this address even shaped the way `type` claims, before a single `get`/`set`/`call` is attempted.
 
-## 4b. Watching introspection for change
+## 4b. Following introspection for change
 
-`$introspect` is `SUBSCRIBE`-able (03 §5a) precisely so a consumer can revalidate continuously rather than once at startup — the driver behind a `RemoteDevice` can be reloaded with a new, incompatible table while something still holds that handle. `watchIntrospection` is the one, generic loop for that, built only on `IntrospectionSource` — never on `ctx`/`InstanceContext` directly — so the same logic works for a driver, an api, or a browser script talking to `api-nextgen` (15) over nothing but its own introspection-equivalent:
+`$introspect` is `SUBSCRIBE`-able (03 §5a) so a consumer can follow a driver's table continuously rather than check it once at startup — the driver behind a `RemoteDevice` can be reloaded with a new, incompatible table while something still holds that handle. Two helpers, both built only on `IntrospectionSource` — never on `ctx`/`InstanceContext` directly — so the same logic works for a driver, an api, or a browser script talking to `api-nextgen` (15):
 
 ```ts
 // @evok-node/module-sdk
 interface IntrospectionSource {
-  get(): Promise<Value>;
-  watch(onChange: (body: Value) => void): () => void;   // unsubscribe; fires on every new $introspect snapshot, generation bump included
+  get(since?: Generation): Promise<IntrospectAnswer>;           // GET $introspect, options.since
+  watch(onAnswer: (a: IntrospectAnswer) => void): () => void;   // SUBSCRIBE $introspect; returns unsubscribe
 }
 
-function watchIntrospection(
+function followIntrospection(
   source: IntrospectionSource,
-  check: (body: Value) => boolean,    // e.g. body => isDriverKitIntrospection(body) && matchesDeviceType(entry, type) — §4a
-  onResult: (ok: boolean) => void,    // called once immediately with the current result, then again only when a later snapshot flips it
-): () => void;                         // unsubscribe from source
+  onAnswer: (a: IntrospectAnswer) => void,   // a 'full' first, then each 'change' — 'full' again after a restart or a gap the log can't cover
+): () => void;                               // unsubscribe from source
+
+function watchDevice(
+  source: IntrospectionSource,
+  tail: Tail,
+  check: (ref: DeviceRef | null, kind: KindEntry | undefined) => boolean,   // e.g. (r, k) => r !== null && k !== undefined && matchesDeviceType(r, k, type) — §4a
+  onResult: (ok: boolean) => void,   // once immediately, then only when the result flips
+): () => void;
 ```
 
-`watchIntrospection` never knows what `check` tests — it runs it once against `source.get()` up front and again on every `source.watch` callback, calling `onResult` only when the boolean actually changes, never on every snapshot regardless of outcome. A driver's own `IntrospectionSource` is a handful of lines over `ctx.messaging.introspect`/`subscribe('$introspect', ...)` (03 §4); nothing here constructs that adapter — there's no reason to name it as its own type.
+`followIntrospection` is 03 §5a's client rule, written once. It calls `watch` before `get()`, so no change can fall between the two; it keeps the last `Generation`, and on a gap calls `get(since)`. That generation is the only state it holds.
+
+`watchDevice` is built on `followIntrospection` and keeps only its own tail's `DeviceRef` and that ref's `KindEntry`. It re-runs `check` only for an answer that touches `tail` — a `full`, or a `change` naming it — never for every change. A `change` that re-binds `tail` to a kind it doesn't hold and doesn't carry makes it call `get()` for a `full`.
+
+A driver's own `IntrospectionSource` is a handful of lines over `ctx.messaging.introspect`/`subscribe('$introspect', ...)` (03 §4); nothing here constructs that adapter — there's no reason to name it as its own type.
 
 ## 5. REMOVED
 
@@ -544,14 +584,16 @@ Subscribing to a `Device`'s own tail — the literal tail, or one reached throug
 Tier 1 (unit; `basics/03-Testing.md`), against `driver-kit`'s own fixtures — a minimal fixture driver with a handful of fixture `DeviceType`s, no real transport:
 
 - Wildcard resolution (§6): a `DI.*` subscription picks up a fixture endpoint added after subscribing (a topology-generation bump) and drops one removed, with no re-subscribe from the caller.
-- `bindDevice()`'s checks (§3.5): a fixture `DeviceType` whose own `kind` isn't in the device manifest is fatal at `bindDevice()`, before `attach()`; independently, a fixture `DeviceType` whose exported `kind` disagrees with its manifest entry's `deviceKind` is fatal; a duplicate `tail` is fatal independently of either.
+- `bindDevice()`'s checks (§3.5): a fixture `DeviceType` whose own `kind` isn't in the device manifest is fatal at `bindDevice()`, before `attach()`; independently, a fixture `DeviceType` whose exported `kind` disagrees with its manifest entry's `deviceKind` is fatal; a duplicate `tail` is fatal independently of either; binding a second, different `DeviceType` object under a `kind` already bound in this driver is fatal.
 - `resolveDeviceKind()` (§3.5): resolves a fixture `deviceKind` string to the same `DeviceType` a direct import of that fixture would give, and the result binds identically either way; a second call for the same `deviceKind` returns the memoized value, asserted by the fixture's own load-side-effect counter staying at 1; an unregistered `deviceKind` rejects, naming it, before `bindDevice()` ever runs.
-- Introspection payload (§4): `$introspect` on a fixture driver returns `{driverId, driverTypeName, type: 'driver-kit', devices}`, each `DeviceEntry` exactly `tail`/`kind`/`fields`, each `FieldEntry` exactly `shape`/`subscribe`/`effect?`/`schema`/`setSchema?`/`argsSchema?`; a fixture device with a single `'@'` field and no siblings still appears as an ordinary `DeviceEntry` — assert `codec`/`setCodec`/`argsCodec`/`resultCodec` themselves never leak onto the wire, only their serializable counterparts do.
+- Introspection payload (§4): `$introspect` on a fixture driver returns `{driverId, driverTypeName, type: 'driver-kit', form: 'full', generation, kinds, devices}`; each kind appears once in `kinds` however many devices use it; each `KindEntry` lists every declared field, `optional()` ones included; each `FieldEntry` is exactly `shape`/`subscribe`/`effect?`/`schema`/`setSchema?`/`argsSchema?`; a device that leaves an `optional()` field unbound lists it in `unbound`; a fixture device with a single `'@'` field still appears as an ordinary `DeviceRef` — assert `codec`/`setCodec`/`argsCodec`/`resultCodec` themselves never leak onto the wire, only their serializable counterparts do.
+- Change log (§3.8): each `bindDevice`/`unbindDevice` raises `n` by one and emits a `DriverKitChange` whose `from` is the previous generation; `GET` with `since` inside the last 16 changes answers one merged `change` (bind then unbind of one tail → `null`); `since` 17 changes back, or with another epoch, answers `full`; a `change` carries a `KindEntry` only for a kind first bound after `from`; `options.since` on another address or method, or malformed, is `bad-payload`.
 - `RejectedPayload` (§3.5): a fixture `onSet` throwing it answers `bad-payload`, never `internal-error`; any other thrown error from `onGet`/`onSet` still answers `internal-error`, unchanged.
 - `DeviceType`/`bindDevice` (§3.3/§3.5): a `primitive`/`array`-shaped `@` declared alongside any sibling field is rejected when the `DeviceType` is built, before any driver binds it; a required field missing from `bindDevice`'s `handlers` is fatal, while the same `DeviceType` binds successfully with only some `optional()` fields supplied; a second `bindDevice()` whose tail falls inside an already-bound device's namespace, outside its declared fields, is fatal; every field handle in one `bindDevice()` call's `BoundDevice` is independently addressable, and `unbindDevice`ing the device's own tail doesn't silently leave a sibling field bound.
 - `list`/`find` (§3.5): `list()` returns one `BoundDevice` per bound device, with only bound fields in `fields`; `find()` on a field tail returns `undefined`; typed `find(tail, type)` with a `type` whose `kind` differs from the bound device's throws.
 - Wildcard over a device (§6): a `DI.*` subscription against a fixture device with `@` plus one subscribeable sibling field delivers events for both, each carrying its own concrete tail, never the device's bare tail or the pattern.
 - `returnFields` (§3.5a): a strict array naming an unknown field, or a `CALL`-only field, is `bad-payload`; `'*'` on a device with a mixed `GET`/`CALL` sibling set returns every GET-able field and silently skips the `CALL`-only one; `options.returnFields` on `CALL`/`SUBSCRIBE`/`UNSUBSCRIBE` is `bad-payload`; a `SET` naming a sibling echoes its current value in the response without the sibling's own handler ever firing.
 - `RemoteEndpoint`/`RemoteDevice` (§3.8a): `remote`/`remoteDevice` against a fixture driver's own bound device round-trips `get`/`set`/`call` through `field`'s `codec`, never a cast; a `RemoteMethod`'s `call` surfaces a fixture `onCall`'s `domain-error`/`unreachable`/`timeout` arms unchanged; `getFields`/`getAll` issue exactly one request each, via `returnFields`, never one per field, and `getAll`'s result omits a method-shaped field entirely rather than typing it `never`. Compile-time only, never run: a `RemoteDevice<F>` fixture whose `F` has no `'@'` key fails to typecheck on `.get()`, asserted the same way `basics/03-Testing.md` asserts any other type-level contract.
-- `isDriverKitIntrospection`/`isDeviceEntry`/`isFieldEntry`/`matchesDeviceType` (§4a): each guard rejects a malformed or foreign-shaped `$introspect` body without throwing; `matchesDeviceType` flags a `DeviceEntry` whose `kind` matches but whose field `schema` doesn't, the same as one whose `kind` disagrees outright.
-- `watchIntrospection` (§4b): calls `onResult` once, immediately, against a fixture `IntrospectionSource`'s current snapshot; calls it again exactly once when a later snapshot flips `check`'s result, and not at all for a snapshot that changes the body without changing `check`'s own boolean.
+- `isDriverKitIntrospection`/`isDriverKitChange`/`isDeviceRef`/`isFieldEntry`/`matchesDeviceType` (§4a): each guard rejects a malformed or foreign-shaped body without throwing; `isDriverKitIntrospection` rejects a `DeviceRef` whose `kind` is missing from `kinds`; `matchesDeviceType` flags a ref whose `kind` matches but whose kind's field `schema` doesn't, one whose `kind` disagrees outright, and one listing a field the type requires in `unbound`.
+- `followIntrospection` (§4b): delivers a `full` first, then each `change` in order; against a fixture source that drops a change, it calls `get(since)` and delivers the merged `change`; after a fixture restart (new epoch), it delivers a `full`.
+- `watchDevice` (§4b): calls `onResult` once, immediately; again exactly once when a later answer flips `check`'s result; never re-runs `check` for a `change` that doesn't name its tail.
