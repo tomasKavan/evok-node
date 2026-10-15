@@ -58,6 +58,15 @@ drivers:
 
 `path` is this driver's only config key. Talked to through a small interface of this driver's own (`open`/`all`/`upsert`/`remove`), never raw `node:sqlite` calls scattered through the handlers — `basics/02-Coding.md` §5.1's "behind an interface thin enough to swap it out," so a future engine change is one file, not a rewrite.
 
+## 5a. Sensitive values — note, not yet designed
+
+Some callers have to persist material whose leak is worse than a wrong label: 16a's Matter operational private keys, IPK and group keys, and setup passcode — an api's protocol identity state (13). Direction, to be designed together with 16a:
+
+- `set` gains an optional `sensitive: true`. A sensitive key lives in a second sqlite file beside the first (`<driverId>.secrets.db`), created with mode `0600`. `get`/`has`/`delete`/`list` work across both files unchanged, so a caller never has to remember where a key went; re-setting a key with the other flag moves it.
+- A sensitive value is never logged, never part of an export or backup by default, and never shown by the Inspector UI (16) — only its key is.
+- No encryption at rest. Without a secure element the encryption key would sit on the same disk, protecting nothing the file mode doesn't — stated here so nobody assumes otherwise.
+- The main file is created `0600` too: user data isn't public either.
+
 ## 6. In-memory mirror
 
 `Map<Namespace, Map<Key, Value>>`, hydrated once at `configure()` from `SELECT * FROM kv`, kept in sync on every `set`/`delete`. `get`/`has`/`list` answer from this and never touch disk — 01 §8's "never a synchronous disk read" applies here exactly as it does to any other driver's `GET`. No library: this is a plain nested `Map`, not a cache — there is no eviction, because everything stays resident. That's safe specifically because this driver's job is metadata (aliases, labels, settings), never readings or timeseries — both are non-goals stated elsewhere (root README, 05 §2) — so unbounded growth was never the shape of this data to begin with.

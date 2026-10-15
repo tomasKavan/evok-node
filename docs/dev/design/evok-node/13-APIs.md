@@ -13,6 +13,12 @@ restate.
 - **What "translation state" legitimately is:** projection tables, subscriptions, sessions, schema
   caches — and why it is *rebuilt* rather than persisted. The line between this and device state is
   the one thing this file must make unmissable.
+- **Protocol identity state — the one persistent kind.** Some state an api owns can't be rebuilt:
+  Matter's fabric table, operational keys, ACLs, fabric-scoped bindings/groups/scenes, the
+  tail → endpoint-number map and message counters (16a) — losing it un-pairs every controller. It is
+  never device state; it's the api's own identity on its protocol, like an HTTP api's TLS keys.
+  Persisted through 06 in the api's own `api.<id>` namespace, secrets as sensitive keys (06 §5a).
+  Define it narrowly, so "hold no state" still means exactly what it says for everything else.
 - **Consuming introspection:** how an API discovers what a driver offers and decides what to expose,
   the declared-drivers list, and what happens when a configured driver is one it does not understand.
 - **Heavy computation.** An API that needs it **declares** it and is spawned accordingly instead of
