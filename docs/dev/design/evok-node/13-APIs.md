@@ -19,6 +19,9 @@ restate.
   never device state; it's the api's own identity on its protocol, like an HTTP api's TLS keys.
   Persisted through 06 in the api's own `api.<id>` namespace, secrets as sensitive keys (06 §5a).
   Define it narrowly, so "hold no state" still means exactly what it says for everything else.
+  It is an api's state because there the api *is* the device. In the opposite case — evok-node as a
+  protocol **client**, e.g. 12a's own Matter controller (12a §4a) — the client is a driver, and its
+  fabric is that driver's user data.
 - **Consuming introspection:** how an API discovers what a driver offers and decides what to expose,
   the declared-drivers list, and what happens when a configured driver is one it does not understand.
 - **Heavy computation.** An API that needs it **declares** it and is spawned accordingly instead of

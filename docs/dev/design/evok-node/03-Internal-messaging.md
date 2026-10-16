@@ -227,7 +227,7 @@ type ErrorKind =
 | `not-subscribed` | `unsubscribe` on something never subscribed | caller |
 | `domain-error` | a `method`-shaped endpoint's own business logic produced a named failure outside this protocol vocabulary; `domainErrorKind` narrows it, drawn from the closed set the endpoint itself declares (05a §3.1/§3.5) — 06's `get` is the first user | depends on `domainErrorKind` |
 | `not-ready` | module hasn't called `onRequest` yet | timing |
-| `unreachable` | driver is up, its device/bus isn't answering (05's degradation state); also directly returnable from a `CALL` handler for that one call (05a §3.5) | environment |
+| `unreachable` | driver is up, its device/bus isn't answering (05's degradation state); also directly returnable from a `CALL` handler for that one call, and thrown as `SourceUnreachable` from a `SET` handler (05a §3.5) | environment |
 | `timeout` | driver tried, no answer within its own budget; also directly returnable from a `CALL` handler for that one call (05a §3.5) | environment |
 | `deadline-exceeded` | caller's own deadline elapsed before any response arrived; manufactured locally, may never have reached the target | nobody, structurally |
 | `link-down` | the peer process/thread itself is gone | infrastructure |

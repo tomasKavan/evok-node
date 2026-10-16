@@ -17,6 +17,7 @@
   loses a driver.
 - **Auth and ACL:** the same model as nextgen, with write and test actions gated.
 - **Configuration editing:** how it reaches config and how it triggers a reload safely.
+- **Remote PLCs (12a §4b):** adding a remote offers only that PLC's hacomposite drivers.
 
 **Inputs:** 15 · research/01 · [`STATUS.md`](../plan/STATUS.md), the `ui → client` open question
 

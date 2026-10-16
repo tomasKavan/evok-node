@@ -14,7 +14,7 @@ A **key** is a plain string, entirely the calling module's own business past tha
 
 ## 3. Operations
 
-Five methods, all `CALL`-shaped (05a §3.1) — `get`, `has`, `set`, `delete`, `list` — because a value has no fixed shape to hang a `reading`/`channel` off of, and `CALL` is exactly the shape for "an addressable thing with an effect and no stable value type of its own." There is nothing richer: no ranges, no transactions across keys, no query. A caller that needs more than this is asking for a different kind of storage, not a bigger version of this one.
+Six methods, all `CALL`-shaped (05a §3.1) — `get`, `has`, `set`, `delete`, `list`, `batch` — because a value has no fixed shape to hang a `reading`/`channel` off of, and `CALL` is exactly the shape for "an addressable thing with an effect and no stable value type of its own." There is nothing richer: no ranges, no query, and no read-modify-write transaction — `batch` applies several writes atomically, but nothing can be read inside it. A caller that needs more than this is asking for a different kind of storage, not a bigger version of this one.
 
 | Method | Effect | Args | Result | Notes |
 |---|---|---|---|---|
@@ -23,6 +23,7 @@ Five methods, all `CALL`-shaped (05a §3.1) — `get`, `has`, `set`, `delete`, `
 | `set` | `mutates` | `{ key: string, value: json }` | `json` | echoes exactly the `value` it was given |
 | `delete` | `mutates` | `{ key: string }` | `bool` | idempotent — always resolves `true`, whether or not the key existed |
 | `list` | `none` | *(none)* | `json` | the caller's own keys, as a plain string array |
+| `batch` | `mutates` | `{ ops: ({ op: 'set', key, value } \| { op: 'delete', key })[] }` | `bool` | all ops or none, applied in order; resolves `true`. 12a's Matter controller storage (12a §4a) is the first user |
 
 `value`'s codec is `json` — the closed vocabulary's own escape hatch for "no stable shape to declare" (03 §5) — because this driver stores exactly what it's given and never interprets it. Array data rides through this the same as anything else: `set('group-1', ['DI.01', 'DI.02'])` needs nothing special. `list`'s result is `json` too for the same reason: the closed `returns` vocabulary has no array-of-scalar member today, only scalars, `enum`, `struct` and `json` itself — widening it is a separate, general question for 05, not something to settle here for one method's sake.
 
@@ -30,7 +31,7 @@ Five methods, all `CALL`-shaped (05a §3.1) — `get`, `has`, `set`, `delete`, `
 
 ## 4. Dispatch
 
-Built on `driver-kit` exactly as any other driver would be — `bindDevice()` each of these five as its own single-`'@'`-field device (05a §3.3 — binding is mandatory through a `Device`, even for a lone endpoint) at `attach()` (05a §3.8), once, and never again. There is no dynamic binding here: the endpoint table is these five methods, forever, so `$introspect`'s `generation` never bumps after startup and a client watching it sees a driver that simply never changes shape. This only works because `onGet`/`onSet`/`onCall` now receive the full `Request` as their last argument (05a §3.5) — this driver is the reason that exists: `get`/`has`/`set`/`delete` all read `req.origin` to resolve §2's namespace, something the payload-only handler shape from before couldn't do.
+Built on `driver-kit` exactly as any other driver would be — `bindDevice()` each of these six as its own single-`'@'`-field device (05a §3.3 — binding is mandatory through a `Device`, even for a lone endpoint) at `attach()` (05a §3.8), once, and never again. There is no dynamic binding here: the endpoint table is these six methods, forever, so `$introspect`'s `generation` never bumps after startup and a client watching it sees a driver that simply never changes shape. This only works because `onGet`/`onSet`/`onCall` now receive the full `Request` as their last argument (05a §3.5) — this driver is the reason that exists: `get`/`has`/`set`/`delete`/`batch` all read `req.origin` to resolve §2's namespace, something the payload-only handler shape from before couldn't do.
 
 Generic payload validation against each method's `argsCodec` happens before a handler ever runs, same as any `driver-kit`-bound endpoint (03 §5) — this driver's own handlers never re-check that `key` is a string.
 
@@ -60,9 +61,9 @@ drivers:
 
 ## 5a. Sensitive values — note, not yet designed
 
-Some callers have to persist material whose leak is worse than a wrong label: 16a's Matter operational private keys, IPK and group keys, and setup passcode — an api's protocol identity state (13). Direction, to be designed together with 16a:
+Some callers have to persist material whose leak is worse than a wrong label: 16a's Matter operational private keys, IPK and group keys, and setup passcode — an api's protocol identity state (13); and the same kind of keys for 12a's own Matter controller fabric — a driver's user data (12a §4a). Direction, to be designed together with 16a and 12a §4a:
 
-- `set` gains an optional `sensitive: true`. A sensitive key lives in a second sqlite file beside the first (`<driverId>.secrets.db`), created with mode `0600`. `get`/`has`/`delete`/`list` work across both files unchanged, so a caller never has to remember where a key went; re-setting a key with the other flag moves it.
+- `set`, and `batch`'s `set` op, gain an optional `sensitive: true`. A sensitive key lives in a second sqlite file beside the first (`<driverId>.secrets.db`), created with mode `0600`. `get`/`has`/`delete`/`list` work across both files unchanged, so a caller never has to remember where a key went; re-setting a key with the other flag moves it.
 - A sensitive value is never logged, never part of an export or backup by default, and never shown by the Inspector UI (16) — only its key is.
 - No encryption at rest. Without a secure element the encryption key would sit on the same disk, protecting nothing the file mode doesn't — stated here so nobody assumes otherwise.
 - The main file is created `0600` too: user data isn't public either.
@@ -74,6 +75,8 @@ Some callers have to persist material whose leak is worse than a wrong label: 16
 ## 7. Writes: order and durability
 
 `set`/`delete` write to sqlite first, then update the mirror, then respond. This ordering is the whole durability story: the mirror is never ahead of disk, so a crash between the two loses nothing that was ever acknowledged, and a write that throws — disk full, say — never touches the mirror at all, surfacing as an ordinary `internal-error` (03 §4) with no special-casing needed.
+
+`batch` follows the same order as one unit: one sqlite transaction, then the mirror, then the response. A failure on any op rolls back all of them, and the mirror is never touched.
 
 This does briefly block the driver's own event loop, which sounds like it collides with 01 §8's "nothing on the boundary may block" — it doesn't, and it's worth saying why: that rule is about a slow *remote* answer masquerading as a fast one, so a caller can trust that a timeout means the driver is wedged, not that a bus was slow. A local write of a few bytes to sqlite is neither slow nor remote; treating it under the same rule as a live Modbus read would be a category error, not a stricter reading of the same principle.
 
@@ -95,4 +98,5 @@ Tier 1 (unit; `basics/03-Testing.md`), scoped to `packages/driver-kv-store`, aga
 - `get`/`has`/`set`/`delete`/`list`, including: `get` on a missing key answers `domain-error`/`key-not-found`, never `internal-error`; `has` never errors; `delete` on a never-set key still resolves `true`; `set` echoes exactly what it was given, including array-shaped `value`.
 - Namespace isolation: two fixture origins (one `driver`, one `api`, same bare id) land in `driver.<id>` and `api.<id>` respectively, never collide, and neither can see the other's keys through any payload field — because there isn't one.
 - Write ordering: a forced write failure (a locked or unwritable file) leaves the mirror exactly as it was, and answers `internal-error`.
+- `batch`: a forced failure on its last op leaves none of its ops applied, on disk or in the mirror; ops apply in order (`set` then `delete` of one key leaves it absent).
 - Reload: a `path` change closes the old handle, rehydrates from the new file, and a request arriving mid-swap resolves only after the swap completes rather than racing it; a config change that leaves `path` untouched never calls `prepareReload`/`reload` at all.
