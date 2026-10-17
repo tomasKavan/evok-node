@@ -2,13 +2,13 @@
 
 ## 1. Scope
 
-The shared runtime a module may lean on that is not messaging (03), config (02) or the KV-store driver (06): **logging, time, scheduling, and deadlines/cancellation.**
+The shared runtime a module may lean on that is not messaging (03), config (02) or the KV-store driver (06): **logging, time, scheduling, deadlines/cancellation, and user-facing text.**
 
 Error handling is decided elsewhere. The general shape — expected failure is a value, `throw` is for broken invariants, error kinds are string-literal unions — is `basics/02-Coding.md` §2. The one piece still open, how an error crosses the driver↔api envelope itself, is 03's, because it cannot be settled without the envelope shape it lives in.
 
 ## 2. Where this lives
 
-`@evok-node/module-sdk` (01 §11) is where `Logger`, `Clock`, `Deadline` and the scheduler helper are typed and published — `InstanceContext` already lives there (02 §4), and a third-party plugin author needs these exactly as much as a built-in driver does. The actual sinks a `Logger` writes to — the pino instance(s), the file/stdout destinations — are constructed once, in `main`, because `main` is the only thing ever allowed to touch them (§3.2). A plugin author imports the interface, never a concrete pino handle.
+`@evok-node/module-sdk` (01 §11) is where `Logger`, `Clock`, `Deadline`, the scheduler helper and `LocalizedText` are typed and published — `InstanceContext` already lives there (02 §4), and a third-party plugin author needs these exactly as much as a built-in driver does. The actual sinks a `Logger` writes to — the pino instance(s), the file/stdout destinations — are constructed once, in `main`, because `main` is the only thing ever allowed to touch them (§3.2). A plugin author imports the interface, never a concrete pino handle.
 
 ## 3. Logging
 
@@ -171,3 +171,16 @@ What crosses instead is `remaining(senderClock, deadline)` — a plain duration,
 ### 6.3. Enforcement
 
 Every wait races against the `AbortSignal` `signalFor` produces, derived from the injected `Clock` — never `AbortSignal.timeout()`, which reads the wall clock and inherits the same NTP-step problem §4.1 exists to avoid. This is the mechanism behind `basics/02-Coding.md` §4.1's "no unbounded loop, no promise without a timeout, no `setTimeout`/`setInterval` without an abort path tied to a lifecycle" — that rule states the requirement; this section states the one way it is satisfied, so there is a single pattern to review against rather than one per call site.
+
+## 7. User-facing text
+
+Text a module ships for a human to read — labels, hints, choice labels — is `LocalizedText`. Text a user typed (a device name, a rule name) is stored as typed and is never `LocalizedText`. Log messages are not user-facing: English only.
+
+```ts
+// @evok-node/module-sdk
+type LanguageTag = string;                                              // BCP 47: 'en', 'cs', 'nb'
+type LocalizedText = string | Readonly<Record<LanguageTag, string>>;    // a plain string is English; a record always has 'en'
+function resolveText(text: LocalizedText, lang: LanguageTag): string;  // lang → its primary subtag → 'en'
+```
+
+Which language to ask for is the UI's choice. A module never picks one.

@@ -94,3 +94,7 @@ Mandatory minimum:
 - `zod` for validations
 - Vue.js 3 and Prime Vue v5 for inspector SPA
 - TBD
+
+## 9. User-facing strings
+
+Every string a module ships for a human to read is `LocalizedText` (evok-node/04 §7), with English always present. A string a user typed is stored as typed and never translated.
