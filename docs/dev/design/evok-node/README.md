@@ -14,7 +14,7 @@ EVOK is very low-level and narrow focused system. It's focus is on Unipi HW (PLC
 
 Reliability and separation is big topic in evok-node. Modularized architecture with possibility to dedicate compute heavy or foreign drivers or API to separate threads and processes makes sure the API won't crash or stale. Considering drivers as in memory copy of HW state helps with query reliability.
 
-**Home automation is built in.** The HA composite driver assembles home devices — lights, covers, sensors — from other drivers' endpoints or from Matter devices, and runs rules between them. They are exposed through the HA composite API, a home control UI and a Matter bridge.
+**Home automation is built in.** The home driver assembles home devices — lights, covers, sensors — from other drivers' endpoints or from Matter devices, and runs rules between them. They are exposed through the Home API, the Home UI and a Matter bridge.
 
 Integrated web interface is here to determine holistic state of connected devices, including configuration and logs, and provide simple means to configure devices without need to touch CLI.
 

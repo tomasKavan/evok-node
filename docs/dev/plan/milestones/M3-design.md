@@ -10,9 +10,9 @@ Target numbering in `design/evok-node/` once M3 is done.
 
 | Doc | Content | Today |
 |---|---|---|
-| 12a | HA composite driver | 12a |
-| 12b | HA composite rules | 12b |
-| 12c | HA composite main devices | new |
+| 12a | Home driver | 12a |
+| 12b | Home rules | 12b |
+| 12c | Home main devices | new |
 | 12d | Almanac driver | new |
 | 13 | APIs — common to all, API plugins | 13 + 18 |
 | 13a | Auth & ACL framework | new |
@@ -21,8 +21,8 @@ Target numbering in `design/evok-node/` once M3 is done.
 | 15 | WS API | 15 Nextgen API |
 | 16 | Inspector UI | 16 |
 | 17 | Inspector UI plugins | 17 |
-| 18 | HA composite API | 18 API plugins |
-| 19 | HA control UI | new |
+| 18 | Home API | 18 API plugins |
+| 19 | Home UI | new |
 | 20 | Matter bridge API | 16a |
 
 ## Tasks
@@ -32,18 +32,18 @@ Drop EVOK API compatibility and the config migration tool. Rewrite goals and non
 **Done when:** no document claims EVOK compatibility or a migration path; 14 is REMOVED; link check finds only links to not-yet-created packages.
 **Refs:** design README · root README · dev README · 01 §11 · basics/01 §3
 
-### M3.2 — HA composite driver: finalize   `area/hacomposite`
+### M3.2 — Home driver: finalize   `area/home`
 Templates and devices — general rules, what is stored, what the UI cannot control. Tails for `local`/`matter` origins. Management split by API kind (inspector vs controller). Device options as JSON in method argument types. Final driver name. Matter mapping table.
 **Done when:** 12a has no **Open:**; 20 (16a) holds the mapping table.
 **Refs:** 12a §2–§5 · 05a §3.1 · 16a
 
-### M3.3 — HA composite: main devices   `area/hacomposite`
-Deep dive per device type: switch, light (on/off, dimmable, COB), window cover, lock, AQ sensor, temperature sensor, occupancy sensor, light sensor, AC unit. Fields, templates, Matter counterpart.
+### M3.3 — Home: main devices   `area/home`
+Deep dive per device type: switch, light (on/off, dimmable, COB), window cover, lock, AQ sensor, temperature sensor, occupancy sensor, light sensor, AC unit. Fields, templates, Matter counterpart. Per type: what a `SET` reports while the device moves to its target (Matter `CurrentLevel` and its like), WindowCovering % direction, RoomAirConditioner's single `setpoint` vs Matter's heat/cool setpoints.
 **Done when:** 12c covers every listed type; 12a §2.2 and the 20 mapping table agree with it.
 **Refs:** 12a §2–§3 · 16a
 
 ### M3.4 — Almanac driver   `area/almanac`
-Calendar, weather forecast, sun position. Data sources, offline behaviour. Respective HA composite devices.
+Calendar, weather forecast, sun position. Data sources, offline behaviour. Respective home devices.
 **Done when:** 12d designed; new device types added to 12c.
 **Refs:** 05a · 12a · 12b
 
@@ -58,12 +58,12 @@ A library APIs use, not an API. Upstream identity provider (authentik). Users, r
 **Refs:** 13 · 15 · 06 §5a · 12a §4b
 
 ### M3.7 — Shell app (mobile/desktop)   `area/shell-app`
-What it is and how it's used. Multi-user, multi-PLC, multi-app: what an app (inspector, HA control) must provide to load in the shell. Platforms, framework. Authorization via 13a, biometrics. Push notifications, Matter BLE pairing.
+What it is and how it's used. Multi-user, multi-PLC, multi-app: what an app (inspector, Home UI) must provide to load in the shell. Platforms, framework. Authorization via 13a, biometrics. Push notifications, Matter BLE pairing.
 **Done when:** 13b designed; framework research doc exists.
 **Refs:** 13a · 16 · 19
 
 ### M3.8 — WS API   `area/api`
-Renamed from nextgen. Relays internal messaging; per-connection and per-request plugins. Other APIs built on top of it. Authorization through a plugin using 13a.
+Renamed from nextgen. Relays internal messaging; per-connection and per-request plugins. Other APIs built on top of it. Authorization through a plugin using 13a. The hello advertises `evokNodeVersion` (12a §4b).
 **Done when:** 15 designed and renamed; `api-nextgen` renamed in docs.
 **Refs:** 03 · 13 · 13a · 15
 
@@ -73,22 +73,22 @@ Structure, logic, wireframes, mobile vs desktop, frameworks, design guide. Basic
 **Refs:** 15 · 05a · 04 · 11
 
 ### M3.10 — Inspector UI: plugins   `area/ui`
-Plugin approach. Main plugins: unipi system, unipi local, unipi extension, DALI (with commissioning workflow), HA composite config and control.
+Plugin approach. Main plugins: unipi system, unipi local, unipi extension, DALI (with commissioning workflow), Home config and control.
 **Done when:** 17 designed.
 **Refs:** 16 · 08 · 09 · 11 · 12 · 12a
 
-### M3.11 — HA composite API   `area/api`
-Subset of the WS API; understands only the HA composite driver.
+### M3.11 — Home API   `area/api`
+Subset of the WS API; understands only the home driver. Relays the subset of management 12a §5 lists.
 **Done when:** 18 designed.
 **Refs:** 15 · 12a · 12b · 13a
 
-### M3.12 — HA control UI   `area/ui`
+### M3.12 — Home UI   `area/ui`
 Structure, logic, typical users, wireframes, mobile vs desktop vs kiosk, frameworks, design guide. UX is the priority. Grouping (rooms, topics). Limited set of controls, all defined. Rule definition. Matter pairing.
 **Done when:** 19 designed, wireframes committed.
 **Refs:** 18 · 12a §6 · 12b · 12c · 13b
 
 ### M3.13 — Matter bridge API   `area/api`
-Exposes HA composite devices as Matter bridged devices.
+Exposes home devices as Matter bridged devices.
 **Done when:** 20 designed (from 16a).
 **Refs:** 16a · 12a · 12c · 13
 

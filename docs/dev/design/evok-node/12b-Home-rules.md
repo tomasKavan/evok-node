@@ -1,12 +1,12 @@
-# 12b — Home Automation Composite rules
+# 12b — Home rules
 
 ## 1. Scope
 
-A **rule** controls hacompos devices (12a §2) when another hacompos device changes. Rules are part of the hacomposite driver (12a): same package, same KV namespace (06), same failure domain.
+A **rule** controls home devices (12a §2) when another home device changes. Rules are part of the home driver (12a): same package, same KV namespace (06), same failure domain.
 
-- Only hacompos devices, of any origin (12a §1), `exposed: false` ones included (12a §2.1). Never a plain driver-kit device: a rule that switches a relay uses the `OnOffLight` assembled from it.
+- Only home devices, of any origin (12a §1), `exposed: false` and `controllable: false` ones included (12a §2.1). Never a plain driver-kit device: a rule that switches a relay uses the `OnOffLight` assembled from it.
 - A rule runs on the PLC that stores it. A `remote` device can be in a rule here; the remote's own rules stay the remote's (12a §4b).
-- A user never writes code. They pick a **rule kind** (§2) and fill in its slots and options (§3), in the Inspector UI or the user-facing SPA (§8).
+- A user never writes code. They pick a **rule kind** (§2) and fill in its slots and options (§3), in the Inspector UI or the Home UI (§8).
 - A run is short: no delays, no timers, no scheduling inside a rule. Anything that needs time is a device — a `Timer` (12a §2.2):
 
 ```
@@ -19,11 +19,11 @@ rule B:  hall timer elapsed       →  hall light off
 A **rule kind** is the recipe: which devices may trigger a rule, which devices it controls, what a user fills in, and the function that runs. Like a template (12a §3), it is a manifest-loaded, `kind`-resolved module (02 §4), so a plugin can add one without touching this package:
 
 ```json
-{ "kind": "hacompos-rule", "ruleKind": "toggle-on-press", "path": "./dist/index.js", "export": "TogglePress" }
+{ "kind": "home-rule", "ruleKind": "toggle-on-press", "path": "./dist/index.js", "export": "TogglePress" }
 ```
 
 ```ts
-// @evok-node/driver-hacomposite
+// @evok-node/driver-home
 interface RuleKind<T extends Slots, A extends Slots, O extends readonly OptionSpec[]> {
   readonly kind: string;               // must equal the manifest's ruleKind
   readonly label: LocalizedText;       // 04 §7
@@ -53,7 +53,7 @@ The direction lives in the rule's state (§5.5). With no state yet, it points to
 ## 3. Slots and options
 
 ```ts
-// @evok-node/driver-hacomposite
+// @evok-node/driver-home
 interface Slot extends DeviceSelection {        // 12a §2.4: types, min, max
   readonly label: LocalizedText;
   readonly hint?: LocalizedText;
@@ -70,7 +70,7 @@ type Slots = Readonly<Record<string, Slot>>;    // slot key → slot
 ## 4. Run context
 
 ```ts
-// @evok-node/driver-hacomposite
+// @evok-node/driver-home
 interface RuleEvent {
   readonly slot: string;
   readonly tail: string;             // the device's own tail (12a §4.1)
@@ -161,7 +161,7 @@ The kind's `limit`, overridden by `RuleRecord.limit`; `{ runs: 10, perMs: 1000 }
 ## 6. Storage
 
 ```ts
-// @evok-node/driver-hacomposite
+// @evok-node/driver-home
 interface RuleRecord {
   readonly id: string;                                              // generated, see below
   readonly ruleKind: string;
@@ -202,7 +202,7 @@ The first row that holds wins.
 
 ## 8. Management endpoints
 
-Same conventions as 12a §5: validate before anything is persisted, answer `domain-error`. Reachable from the Inspector UI and from api-hacomposite (the SPA's api). The SPA lists `exposed: false` devices for rules (12a §2.1).
+Same conventions as 12a §5: validate before anything is persisted, answer `domain-error`. Reachable from the Inspector UI and from the Home API (12a §5). The Home UI lists `controllable: false` devices for rules (12a §2.1).
 
 ```ts
 type RuleStatus = 'ok' | 'errored' | 'throttled' | 'disabled' | 'device-removed';   // §7
@@ -247,7 +247,7 @@ listRuleSets(): readonly RuleSetRecord[];
 
 ## 9. Testing
 
-Tier 1, against fixture hacompos devices and a fake `Clock`:
+Tier 1, against fixture home devices and a fake `Clock`:
 
 - A trigger during a run waits and runs after it; two rules of one RuleSet never run at once; the 17th queued trigger drops the oldest.
 - `fields` omitted: a `name` change never triggers, a `switch` change does; `'*'` triggers on `reachable` too.

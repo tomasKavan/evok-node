@@ -18,9 +18,10 @@
   **deliberately deferred** (G-2 defers ports, paths and authentication; the deferral is tracked in
   [`STATUS.md`](../../plan/STATUS.md)) — so state what ACL assumes of it and nothing more.
 - **Serving the inspector UI** at the root.
-- **evok-node as a client of evok-node.** A hacomposite driver imports another PLC's devices over
+- **evok-node as a client of evok-node.** A home driver imports another PLC's devices over
   this api (12a §4b). Its authentication — PLC to PLC, no human in the loop — is part of this api's
-  auth design.
+  auth design (M3.6). The connection's hello advertises `evokNodeVersion`: 12a §4b checks a remote's
+  against the range it supports.
 
 **Inputs:** research/01 (as contrast) · research/08 · to_revision/0003 ·
 [`STATUS.md`](../../plan/STATUS.md), the undeclared-workspace-edges open question
