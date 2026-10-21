@@ -11,4 +11,4 @@ can justify is a fixture nobody can safely change.
 Prefer generated or captured data whenever either can express the case. Hand-built data asserts what
 we believe; the corpus asserts what the maps say.
 
-See [docs/rules/testing.md](../../docs/rules/testing.md).
+See [Testing §3](/docs/dev/design/basics/03-Testing.md#3-fixtures).

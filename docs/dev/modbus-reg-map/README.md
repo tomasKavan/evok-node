@@ -39,6 +39,6 @@ kept rather than normalised.
 
 `1_1/` · `axon/` · `edge/` · `extensions/` · `neuron/` · `patron/` · `accessories/`
 
-Axon is [a non-goal](../GOALS.md#non-goals); its CSVs stay as free cross-check data for the Neuron
+Axon is [dropped](/docs/dev/design/evok-node/README.md#hardware-scope); its CSVs stay as free cross-check data for the Neuron
 register model, and for nothing else. Where a source documents no register map at all, there is no
 CSV and none has been invented — see the EMO-R8 note.

@@ -1,7 +1,7 @@
 # 13 — APIs
 
 > **Memo, not content.** What belongs in this file, and what it gets written from. Written during
-> [M3](../plan/roadmap.md); do not implement against a memo.
+> [M3](../../plan/roadmap.md); do not implement against a memo.
 
 **Job:** what every API must be, whatever it speaks. The concepts 14–18 specialise rather than
 restate.

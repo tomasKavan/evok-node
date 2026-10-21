@@ -1,7 +1,7 @@
 # 18 — API plugins
 
 > **Memo, not content.** What belongs in this file, and what it gets written from. Written during
-> [M3](../plan/roadmap.md); do not implement against a memo.
+> [M3](../../plan/roadmap.md); do not implement against a memo.
 
 **Job:** writing an API surface that is not ours.
 

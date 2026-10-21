@@ -1,7 +1,7 @@
 # 15 — Nextgen API
 
 > **Memo, not content.** What belongs in this file, and what it gets written from. Written during
-> [M3](../plan/roadmap.md); do not implement against a memo.
+> [M3](../../plan/roadmap.md); do not implement against a memo.
 
 **Job:** our own WS and HTTP surface — designed rather than inherited.
 
@@ -16,14 +16,14 @@
 - **Public schema ownership and versioning,** and the `client` package's relationship to it.
 - **ACL:** subjects, resources, actions, and where enforcement sits. The authentication *mechanism* is
   **deliberately deferred** (G-2 defers ports, paths and authentication; the deferral is tracked in
-  [`STATUS.md`](../plan/STATUS.md)) — so state what ACL assumes of it and nothing more.
+  [`STATUS.md`](../../plan/STATUS.md)) — so state what ACL assumes of it and nothing more.
 - **Serving the inspector UI** at the root.
 - **evok-node as a client of evok-node.** A hacomposite driver imports another PLC's devices over
   this api (12a §4b). Its authentication — PLC to PLC, no human in the loop — is part of this api's
   auth design.
 
 **Inputs:** research/01 (as contrast) · research/08 · to_revision/0003 ·
-[`STATUS.md`](../plan/STATUS.md), the undeclared-workspace-edges open question
+[`STATUS.md`](../../plan/STATUS.md), the undeclared-workspace-edges open question
 
 **Open:** `client → api-nextgen` versus a separate `schema-nextgen` package, and the deferred auth
 mechanism.

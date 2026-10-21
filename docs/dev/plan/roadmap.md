@@ -8,7 +8,7 @@ The roadmap is deliberately short. It ends at the last milestone whose shape is 
 |---|---|---|---|
 | **M1** | **Research** — what EVOK and Unipi hardware actually do | **done** | [`docs/dev/research/`](/docs/dev/research/README.md) |
 | **M2** | **Repo scaffolding** — workspace, TS, tests, lint, CI, layering guard | **done** | `packages/`, root config, `.github/workflows/` |
-| **M3** | **Development documentation structure** — the structure of design we implement against | **underway** | [`docs/dev/`](/docs/dev/README.md) |
+| **M3** | **Design** — every part of the system designed before development starts | **underway** | [`milestones/M3-design.md`](milestones/M3-design.md) |
 
 **M4 and beyond are not defined**, on purpose. M3 is what tells us in which order we are going to continue in following steps we'll design and code chapter by chapter: create architecture and absorb the proposals in [`research`](/docs/dev/research/README.md).
 
@@ -18,5 +18,5 @@ The roadmap is deliberately short. It ends at the last milestone whose shape is 
 |---|---|
 | `named` | listed here, not yet broken into tasks. No file under `milestones/` |
 | `planned` | has a `milestones/MN-*.md` file with tasks |
-| `underway` | work has started. May be `named` or `planned` — M1 and M3 predate the milestone-file convention and have neither file |
+| `underway` | work has started. May be `named` or `planned` — M1 predates the milestone-file convention and has no file |
 | `done` | every task it had meets RPL-2 — demonstrable, not merely written |

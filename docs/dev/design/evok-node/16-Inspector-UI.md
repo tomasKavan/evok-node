@@ -1,7 +1,7 @@
 # 16 — Inspector UI
 
 > **Memo, not content.** What belongs in this file, and what it gets written from. Written during
-> [M3](../plan/roadmap.md); do not implement against a memo.
+> [M3](../../plan/roadmap.md); do not implement against a memo.
 
 **Job:** the SPA that makes a running daemon observable, testable and configurable.
 
@@ -19,6 +19,6 @@
 - **Configuration editing:** how it reaches config and how it triggers a reload safely.
 - **Remote PLCs (12a §4b):** adding a remote offers only that PLC's hacomposite drivers.
 
-**Inputs:** 15 · research/01 · [`STATUS.md`](../plan/STATUS.md), the `ui → client` open question
+**Inputs:** 15 · research/01 · [`STATUS.md`](../../plan/STATUS.md), the `ui → client` open question
 
 **Open:** the `ui → client` dependency, and whether configuration editing is in 1.0 at all.

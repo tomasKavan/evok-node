@@ -1,7 +1,7 @@
 # 16a — Matter bridge API
 
 > **Memo, not content.** What belongs in this file, and what it gets written from. Written during
-> [M3](../plan/roadmap.md); do not implement against a memo.
+> [M3](../../plan/roadmap.md); do not implement against a memo.
 
 **Job:** expose hacomposite devices (12a) as bridged Matter devices, so any Matter controller (Apple
 Home, Google Home, …) can control them.

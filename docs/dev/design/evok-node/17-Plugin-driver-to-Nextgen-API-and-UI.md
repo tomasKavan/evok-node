@@ -1,7 +1,7 @@
 # 17 — Driver plugins in the nextgen API and the UI
 
 > **Memo, not content.** What belongs in this file, and what it gets written from. Written during
-> [M3](../plan/roadmap.md); do not implement against a memo.
+> [M3](../../plan/roadmap.md); do not implement against a memo.
 
 **Job:** the end-to-end path by which a third-party driver becomes visible and usable in the nextgen
 API (15) and the inspector (16).

@@ -6,7 +6,7 @@ the generated `(model, section, kind, channel) → (register, bitOffset, coil)` 
 Definitions are ours and ship with this package; nothing is read from `/etc/evok` at runtime, and no Unipi
 data package is a dependency. Definition ids are paths — `modbus/unipi/xs11` — and the operator's
 own live under `/etc/evok-node/hw_definitions/custom/`, a disjoint namespace with no merge. Format:
-[research/13](../../docs/research/13-config-and-hw-definition-format.md).
+[research/13](/docs/dev/research/13-config-and-hw-definition-format.md).
 
 The one audited address function lives here, with the `/16` bank stride and `%16` mask in exactly one
 place. Frozen per load, not once per process (RCD-4). A multi-register value must lie wholly

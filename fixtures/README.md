@@ -8,6 +8,6 @@ Three directories, three different rules about who may edit them.
 | [`captured/`](captured/README.md) | recorded from real hardware or stock EVOK 3.0.6 | **no** — irreplaceable measurements |
 | [`handwritten/`](handwritten/README.md) | small hand-built cases | yes, with a comment saying why the case exists |
 
-**`generated/` and `captured/` are read-only — [RT-1](../docs/rules/testing.md).** If a test fails
+**`generated/` and `captured/` are read-only — [Testing §3](/docs/dev/design/basics/03-Testing.md#3-fixtures).** If a test fails
 against them, the code is wrong. Enforced by CI fixture-drift, [`CODEOWNERS`](../CODEOWNERS) and
 [`.prettierignore`](../.prettierignore).

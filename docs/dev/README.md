@@ -10,7 +10,7 @@ One of the goals is to have rich web based tool to inspect, debug and control Un
 
 This is project of Unipi fan and enthusiastic - tomasKavan. To achieve the broad scope of this project, a heavily utilization of agentic support is in order. While most of the design, structer and pattern is man-made, research and coding is executed mainly by agents. 
 
-All PRs to main are carefully reviewed and tested on broad battery of test including real hardware test on custom made test rig - see [`/docs/design/test-rig`](/docs/design/test-rig/README.md).
+All PRs to main are carefully reviewed and tested on broad battery of test including real hardware test on custom made test rig - see [`/docs/dev/design/test-rig`](/docs/dev/design/test-rig/README.md).
 
 Agents are also involved in testing CI/CD and issues intake. Boundaries for each agentic role is set and maintained in [`/AGENTS.md`](/AGENTS.md) and referenced files. 
 
@@ -28,7 +28,7 @@ npm test          # vitest, tier 0 only
 
 Before you start, read [`design/basic`](./design/basics/README.md) and where it's leads you to. Get familiar with the repo structure, package structure and with the build, debug and testing process.
 
-The docu describes best practices to use [git](./design/basics/01-Git.md) - branching, commiting and creating PRs. Please follow it.
+The docu describes best practices to use [git](./design/basics/04-Git.md) - branching, commiting and creating PRs. Please follow it.
 
 Official relases are tagged and build from `main` and released by maintainer only.
 

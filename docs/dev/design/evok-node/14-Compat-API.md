@@ -1,7 +1,7 @@
 # 14 — Compat API
 
 > **Memo, not content.** What belongs in this file, and what it gets written from. Written during
-> [M3](../plan/roadmap.md); do not implement against a memo.
+> [M3](../../plan/roadmap.md); do not implement against a memo.
 
 **Job:** the EVOK 3.x surface as a **first-class deliverable** — the reason the project exists, not a
 compatibility shim bolted to the side.
@@ -25,7 +25,7 @@ compatibility shim bolted to the side.
 `COMPATIBILITY.md` (RD-3)
 
 **Open:** **blocked on golden-transcript capture** for the Gate's empty-surface shape and the
-split-definition baseline. Time-sensitive and unrecoverable — see [`STATUS.md`](../plan/STATUS.md).
+split-definition baseline. Time-sensitive and unrecoverable — see [`STATUS.md`](../../plan/STATUS.md).
 
 **Also open:** alias data is shared with `api-nextgen`, and apis can't reach each other or own
 anything addressable (01 §6/§9) — needs a small owning driver exposing `CALL` endpoints

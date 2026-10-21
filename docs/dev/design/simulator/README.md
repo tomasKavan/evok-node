@@ -1,7 +1,7 @@
-# 19 — Simulator
+# Simulator
 
 > **Memo, not content.** What belongs in this file, and what it gets written from. Written during
-> [M3](../plan/roadmap.md); do not implement against a memo.
+> [M3](../../plan/roadmap.md); do not implement against a memo.
 
 **Job:** simulating each component well enough that most tests need no hardware.
 
