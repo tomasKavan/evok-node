@@ -15,7 +15,9 @@
 
 ## In progress
 
-**M3 — design.** Tasks in [`milestones/M3-design.md`](milestones/M3-design.md). M3.1 underway: broken paths fixed; compat retirement and goals revision proposed, not yet applied.
+**M3 — design.** Tasks in [`milestones/M3-design.md`](milestones/M3-design.md). M3.1 done in docs: compat API retired, goals and non-goals revised, broken paths fixed. Hardware capture from stock EVOK is out of scope; the baseline is part of M3.20.
+
+- **Compat API retired — code not cleaned yet.** `packages/api-compat` and its entries in `tsconfig.json`, `.dependency-cruiser.cjs`, `vitest.config.ts` and `package-lock.json` still exist; `package.json` description still says drop-in replacement. Coder work, not started.
 
 - Root README.md is finalized, TBD at URLs which is uknown at the moment.
 - Dev docs README.md is finalized. Documentaiton has rules.

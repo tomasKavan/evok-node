@@ -11,4 +11,4 @@ there is no way to send a request without one.
 **Must not depend on:** anything of ours. It is the root of the DAG.
 
 **Must not contain:** any package's *public* wire schema. One package holding both the internal contract
-and a public surface is how internal metadata reaches a compat shape (RCD-10).
+and a public surface is how internal metadata leaks into a public surface.

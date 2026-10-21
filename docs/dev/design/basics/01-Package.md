@@ -31,7 +31,6 @@ Relevant to the tool:
 - **[`driver-extension`](/packages/driver-extension)** - Unipi RTU extensions, one instance per RS-485 line. For docu see [09-Extension-driver.md](/docs/dev/design/evok-node/09-Extension-driver.md).
 - **[`driver-dali`](/packages/driver-dali)** - pluggable DALI controllers (Foxtron ASCII built in), raw bus access, stored gears/groups, commissioning. See [12-DALI-driver.md](/docs/dev/design/evok-node/12-DALI-driver.md).
 - **[`api-nextgen`](/packages/api-nextgen)** - Our new WebSocket + HTTP API/surface. Owns its public schema. Documented in [15-Nextgen-API.md](/docs/dev/design/evok-node/15-Nextgen-API.md).
-- **[`api-compat`](/packages/api-compat)** - the EVOK 3.x surface. See in [14-Compat-API.md](/docs/dev/design/evok-node/14-Compat-API.md).
 - **[`ui`](/packages/ui)** - the web SPA, over the nextgen API. Described in [16-Inspector-UI.md](/docs/dev/design/evok-node/16-Inspector-UI.md).
 
 Supporting, testing and other:
@@ -39,7 +38,6 @@ Supporting, testing and other:
 - **[`rig`](/packages/rig)** - hardware-rig control service. Private, low level access to devices. No sharing code with main tool. Documented in [`design/test-rig](/docs/dev/design/test-rig/README.md). Rig is private package.
 - **[`client`](/packages/client)** - Nextgen API TypeScript client. Based on [user docu](/docs/user/README.md), TBD: deployed to npm `@evok-node/nextgen-cli-ts.
 - **[`plugin-sdk`](/packages/plugin-sdk)** - published types (`ModuleDescriptor`, `ModuleInstance`, `InstanceContext`) and the runtime guard (`isModuleDescriptor`) a driver or api plugin author builds against — the same check `main` runs on a loaded module. Published to npm, like `client`. See [02-Main-and-configuration.md §4](/docs/dev/design/evok-node/02-Main-and-configuration.md).
-- **[`evok-migration`](/packages/evok-migration)** - Migration tool to convert classic evok config to `evok-node` format. See in [Rplacing classic evok](#replacing-classic-evok).
 
 ## 2. Toolchain
 
@@ -84,7 +82,7 @@ Notes:
 
 ### 3.2. `evok-node`
 
-Contains the tool, configuration, migration script and system.d service. 
+Contains the tool, configuration and system.d service. 
 
 Package lives in [`/packages/main`](/packages/main/README.md).
 
@@ -102,14 +100,8 @@ Notes:
 
 `evok` and `evok-node` are in conflict. Can't be installed on one system at the same time. (Occupying same port and openning same serial files). `evok-unipi-data` and `evok-node-data` is ok to have on one system simultaneously.
 
-To replace `evok` with `evok-node` with preserving configuration it's necessary:
-1. Uninstall `evok` ! but not purge !
-2. Install `evok-node`
-3. Run migration tool
-4. Optionally purge 
+EVOK configuration is not migrated. To replace `evok`:
+1. Uninstall or purge `evok`.
+2. Install `evok-node`. Autogen creates the hardware configuration (§3.1); the rest is configured again.
 
-#### 3.3.1. Config migration script
-
-`evok-node` has `evok` configuration [migration tool](/packages/evok-migration). Migration tool understands.
-
-TBD: define how the migration script should be designed. We'll know more once 02-Main-and-configuration is ready.
+#### 3.3.1. REMOVED

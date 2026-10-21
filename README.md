@@ -1,12 +1,13 @@
 # evok-node
 
-A Node.js/TypeScript drop-in replacement for Unipi Technology's **EVOK 3.x** API. EVOK is a load-bearing part of Unipi's FOSS stack with a long tail of open, known defects; this project exists to fix them. The interface is inherited; the design is not.
+A Node.js/TypeScript PLC runtime for Unipi hardware — drivers, own APIs, home automation, rules and UIs. It replaces Unipi Technology's **EVOK** daemon, which has a long tail of open, known defects. It does not keep EVOK's API.
 
 Main features:
-- EVOK 3 full compatibility API.
 - Flexible and extendible by plugins.
 - Strong on driver and API separation.
 - Rich web UI with inspector and device status and logs.
+- Home automation devices and rules, also exposed as a Matter bridge.
+- Home control UI and a mobile/desktop shell app.
 
 ## Unipi devices user and administrators
 
@@ -18,7 +19,7 @@ TBD - url where the repository with debian package will be
 
 and install it as any other Debian package.
 
-For futher information, including guide how to migrate from `evok` follow user documentation at [TBD - add URL to public user docu](). Same docu is alvalible in this repo [`/docs/user`](/docs/user/README.md).
+For futher information, including how to replace `evok`, follow user documentation at [TBD - add URL to public user docu](). Same docu is alvalible in this repo [`/docs/user`](/docs/user/README.md).
 
 ## Developers
 

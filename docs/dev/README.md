@@ -1,8 +1,8 @@
 # evok-node for developers
 
-A Node.js/TypeScript drop-in replacement for Unipi Technology's **EVOK 3.x** API.
+A Node.js/TypeScript PLC runtime for Unipi hardware — drivers, own APIs, home automation, rules and UIs.
 
-The design puts strong emphasis to full compatibility with EVOK 3 API, while adopting own design strategy to allow high exendability by plugins in various parts of the system, and focusing on high stability by decoupling device drivers from API providing modules. 
+The design aims at high extendability by plugins in various parts of the system, and at high stability by decoupling device drivers from API modules.
 
 One of the goals is to have rich web based tool to inspect, debug and control Unipi device. Allow easy access to logs, history and system configuration over web brings FOSS tooling on Unipi closer to less CLI cappable users.
 

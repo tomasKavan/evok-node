@@ -111,9 +111,9 @@ The dividing line: a definition failing to *resolve* is a configuration problem,
 
 ## 7. Sections and cardinality
 
-"At most one onboard driver instance" is [14](14-Compat-API.md)'s constraint to define what it *means* to a compat client — this file only obeys it, and does not enforce it in code. `unipitcp` is a fact about the box, not something this driver can see two of; running two onboard instances against it is a configuration mistake, and it's the administrator's responsibility not to make it, the same stance `main` already takes on resource collisions generally (02 §7). One gap worth naming honestly: `main`'s own collision warning compares literal `transport:` keys in config.yaml, so it does not catch two `autogen: true` onboard instances — both would resolve the same host:port only once each reads `autogen.yaml` at `configure()`, after that static check has already run. Not closed by tooling; left as an operational note.
+**At most one onboard driver instance.** This file states the rule, but does not enforce it in code. `unipitcp` is a fact about the box, not something this driver can see two of; running two onboard instances against it is a configuration mistake, and it's the administrator's responsibility not to make it, the same stance `main` already takes on resource collisions generally (02 §7). One gap worth naming honestly: `main`'s own collision warning compares literal `transport:` keys in config.yaml, so it does not catch two `autogen: true` onboard instances — both would resolve the same host:port only once each reads `autogen.yaml` at `configure()`, after that static check has already run. Not closed by tooling; left as an operational note.
 
-Zero onboard sections (the Gate) is legal — `devices: []`, nothing more to say here that 14 doesn't already own.
+Zero onboard sections (the Gate) is legal — `devices: []`.
 
 ## 8. Binding and rates
 

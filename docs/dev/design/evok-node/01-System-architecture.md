@@ -69,7 +69,7 @@ This now holds structurally rather than by convention: every instance has its ow
 
 An api declares which driver ids it consumes; it is wired to those and nothing else — wiring is configuration, not discovery. What it does with a driver it does not recognise is the api's own business: skip it, not refuse the whole config.
 
-How open or fixed a given api's declared set is, and what it does with a driver outside it, is that api's own business to state — 14 and 15 are where each concrete api answers this.
+How open or fixed a given api's declared set is, and what it does with a driver outside it, is that api's own business to state — each concrete api's own file (15 onwards) answers this.
 
 ## 10. Extension points
 
@@ -91,7 +91,6 @@ evok-node can be extended without changing its own code, at two different levels
 | `driver-onboard` | The transport driver for the controller's own onboard I/O. |
 | `driver-extension` | The transport driver for one RS-485/TCP (modbus) extension line. |
 | `api-nextgen` | The open, evok-node-native api. |
-| `api-compat` | The fixed EVOK 3.x projection. |
 | `simulator` | Test-only stand-in for hardware transports. |
 | `client` | TS client retargeting `api-nextgen`'s schema. |
 | `ui` | The inspector SPA, served by `api-nextgen`. |

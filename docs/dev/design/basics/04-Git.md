@@ -29,7 +29,7 @@ enforced by `commitlint`, scoped to the package:
 feat(modbus): add t3.5 inter-frame pacing to the RTU port
 fix(core): reset ds_mode to Simple when both DS bits are clear
 test(hw-definitions): generate address tables for discontinued Neurons
-chore(fixtures): re-record captured transcripts from L527
+chore(fixtures): regenerate address tables
 ```
 
 `feat!:` or a `BREAKING CHANGE:` footer for breaking changes. **The wire API is the public

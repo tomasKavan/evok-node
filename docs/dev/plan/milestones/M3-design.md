@@ -120,7 +120,8 @@ Simulators for all driver transports: Modbus (Unipi board and extensions), DALI.
 **Refs:** design/test-rig · basics/03 §1.3
 
 ### M3.20 — Test rig: test definition   `area/rig`
-**Done when:** test definition format and initial test set designed.
+Includes the performance baseline (idle CPU, scan timing, API latency) — no capture from stock EVOK.
+**Done when:** test definition format, initial test set and baseline designed.
 **Refs:** design/test-rig · basics/03 §2
 
 ### M3.21 — Development plan   `area/plan`

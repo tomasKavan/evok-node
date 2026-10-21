@@ -1,7 +1,6 @@
 # `@evok-node/api-nextgen`
 
-Our own surface, not an extension of EVOK's — G-2 forbids admin, introspection and richer metadata
-riding on the compat shapes, and EVOK's envelope is frozen by real clients.
+Our own WS and HTTP surface.
 
 A stateless translator: it holds no state and caches no readings. Its **public schema names no driver
 type**, so a new driver adds data and never schema. Serves the `ui` at `/` when `ui: true`, which

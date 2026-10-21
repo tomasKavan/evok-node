@@ -7,4 +7,4 @@ N6; the edge is listed as undecided in `.dependency-cruiser.cjs` rather than gue
 alternative — a separate `schema-nextgen` package — is a real option and picking one silently would settle
 it. Decide when the schema lands.
 
-**Must not depend on:** any driver, `main`, `modbus`, `hw-definitions`, `api-compat`.
+**Must not depend on:** any driver, `main`, `modbus`, `hw-definitions`.

@@ -183,5 +183,3 @@ a bus:
 - Whether a user-settable `label` belongs on `info` at all, and if so where it's stored (the KV-store
   driver, 06) and what write path exposes it — no driver has a write surface yet, so this is genuinely
   undecided, not merely deferred.
-- Whether the compat surface (14) needs anything from this driver — `device_info`, `/version` — before
-  post-1.0, per research/01 §2 and §9.
