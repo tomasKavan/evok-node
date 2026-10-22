@@ -93,6 +93,14 @@ connectedhomeip marks these changes reportable [V-src S5]:
 
 So a controller sees intermediate values about once a second during a fade, and the final value at its end. Nothing in the spec requires `CurrentLevel` to jump to the target at once [I]. A light that does — reporting the target immediately — is still within the rules, since "at the end" is the only mandatory report [I].
 
+## 5a. matter.js servers
+
+Built, like `SwitchServer` (research/matter/03 §5), on the generated, logic-free `…Behavior` of their cluster [I — checked for `SwitchServer` only].
+
+- `LevelControlServer`: with `OnOff`, it reacts to `OnOff` changes and sets `CurrentLevel` to `OnLevel` on turn-on (when not null); it turns the light on when a `…WithOnOff` move goes up and off when it reaches `MinLevel` [V-src S16].
+- By default (`managedTransitionTimeHandling` false) it sets the target at once and ignores transition times; when true, its `Transitions` step `CurrentLevel` every 100 ms. Overridable: `moveToLevelLogic`, `moveLogic`, `stepLogic`, `stopLogic`, `handleOnOffChange`, `createTransitions` [V-src S16].
+- `OnOffServer`: see research/matter/02 §2. It also invalidates scenes on a state change, and `OffWithEffect` ignores the effect and calls `off()` [V-src S17].
+
 ## 6. Real devices and experiences
 
 | Device / case | What happened |
@@ -143,3 +151,5 @@ Matter does not define a dimming curve: what `CurrentLevel` 127 looks like is th
 - S13 — Apple, Adaptive Lighting over Matter Accessory Requirements: https://developer.apple.com/apple-home/downloads/Adaptive-Lighting-over-Matter-Accessory-Requirements.pdf
 - S14 — connectedhomeip PR #74405, "[LevelControl] Use CurrentLevel as the On target when OnLevel is null" (merged 2026-09-25): https://github.com/project-chip/connectedhomeip/pull/74405
 - S15 — manufacturer manual "Universal series DALI dimmer" (manual_54_en.pdf, item 70040010), supplied by Tomas.
+- S16 — matter.js `packages/node/src/behaviors/level-control/LevelControlServer.ts`: https://github.com/project-chip/matter.js/blob/main/packages/node/src/behaviors/level-control/LevelControlServer.ts
+- S17 — matter.js `packages/node/src/behaviors/on-off/OnOffServer.ts`: https://github.com/project-chip/matter.js/blob/main/packages/node/src/behaviors/on-off/OnOffServer.ts

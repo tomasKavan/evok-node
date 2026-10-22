@@ -40,13 +40,31 @@ A kind whose `kind` disagrees with its manifest entry, with no trigger slot or n
 
 ### 2.1. Built-in kinds
 
-None of them has options.
+Only `toggle-on-press` has options. The `buttons` slots set `fields: ['switch']` (§3), so a change of a switch's `features` never runs them.
 
 | Kind | Triggers | Actions | Does |
 |---|---|---|---|
-| `toggle-on-press` | `buttons`: `GenericSwitch`, 1–n | `lights`: `OnOffLight`, `DimmableLight`, `ColorTemperatureLight`, `ExtendedColorLight`, 1–n | A short press: if any light is on, all go off; otherwise all go on. |
+| `toggle-on-press` | `buttons`: `GenericSwitch`, 1–n | `lights`: `OnOffLight`, `DimmableLight`, `ColorTemperatureLight`, `ExtendedColorLight`, 1–n | The press chosen by `event` (below): if any light is on, all go off; otherwise all go on. |
 | `dimmer-on-longpress` | `buttons`: `GenericSwitch`, 1–n | `lights`: `DimmableLight`, `ColorTemperatureLight`, `ExtendedColorLight`, 1–n | `longPress` → `move` in the current direction; `longRelease` → `stop`. The direction toggles on every long press. |
-| `one-button-window-cover` | `buttons`: `GenericSwitch`, 1–n | `covers`: `WindowCovering`, 1–n | A short press → `goTo` the end in the current direction. `longPress` → `goTo` that end; `longRelease` → `stop`. The direction toggles on every press. |
+| `one-button-window-cover` | `buttons`: `GenericSwitch`, 1–n | `covers`: `WindowCovering`, 1–n | `shortRelease` → `goTo` the end in the current direction. `longPress` → `goTo` that end; `longRelease` → `stop`. The direction toggles on every press. |
+
+`toggle-on-press` options:
+
+```ts
+Codecs.struct({
+  event:   Codecs.string({ enumValues: ['shortRelease', 'initialPress', 'multiPressComplete'], default: 'shortRelease',
+             label: { en: 'Toggle on', cs: 'Přepnout při' } }),
+  presses: Codecs.uint8({ min: 1, default: 1, label: { en: 'Presses', cs: 'Počet stisků' } }),   // multiPressComplete only: toggles when `count` equals it
+})
+```
+
+| `event` | Fires | Trade-off (12c-03 §1.1) |
+|---|---|---|
+| `shortRelease` | on each short press's release | also on each press of a double |
+| `initialPress` | on each press, at once | also on the first press of a long press |
+| `multiPressComplete` | after exactly `presses` presses | late by the button's multi-press window; needs multi-press on |
+
+A button that doesn't produce the chosen event — no multi-press, or no release (12c-03 §2) — never runs the rule.
 
 The direction lives in the rule's state (§5.5). With no state yet, it points to the end farther from the current `level` or `position.current`. A button with short-press toggle and long-press dimming is two rules on the same button: `toggle-on-press` and `dimmer-on-longpress`.
 
@@ -162,7 +180,7 @@ The kind's `limit`, overridden by `RuleRecord.limit`; `{ runs: 10, perMs: 1000 }
 
 ### 5.6. Gaps and startup
 
-- Subscriptions may coalesce (03 §6.3): a run may see a later value without the ones between. The function must tolerate it; `switch.lastEvent.seq` shows the gap (12a §2.2).
+- Subscriptions may coalesce (03 §6.3): a run may see a later value without the ones between. The function must tolerate it; `switch.lastEvent.seq` shows the gap (12c-03 §2).
 - The first value a subscription delivers is the baseline, never a trigger — so a restart triggers nothing.
 
 ## 6. Storage
@@ -267,4 +285,4 @@ Tier 1, against fixture home devices and a fake `Clock`:
 - Removing a device used by a rule succeeds, and the rule becomes `device-removed` and stops running; a `missing` device makes it `errored` until it returns.
 - Removing a RuleSet leaves its rules without a set.
 - `createRule` with a wrong slot count, a device of the wrong kind, or an unknown tail answers `invalid-slots` before anything is written.
-- Built-in kinds: `toggle-on-press` turns all lights off when one is on; `dimmer-on-longpress` sends `move` then `stop` and alternates direction; `one-button-window-cover` goes to the opposite end on each short press and stops on `longRelease`.
+- Built-in kinds: `toggle-on-press` turns all lights off when one is on, and with `event: 'multiPressComplete', presses: 2` toggles on a double press only; `dimmer-on-longpress` sends `move` then `stop` and alternates direction; `one-button-window-cover` goes to the opposite end on each short press and stops on `longRelease`.

@@ -13,7 +13,7 @@ One file per device group, numbered as they are written. Each covers: how the sp
 | [`01-lights.md`](01-lights.md) | On/Off, Dimmable, Color Temperature, Extended Color Light |
 | [`02-plug-in-units.md`](02-plug-in-units.md) | On/Off Plug-in Unit, Mounted On/Off Control; dimmable variants for comparison |
 | [`03-generic-switch.md`](03-generic-switch.md) | Generic Switch, Switch cluster: features, event sequences, timing, matter.js, controllers, multi-button tags |
-| [`04-sensors.md`](04-sensors.md) | Contact, Light, Occupancy, Temperature, Humidity, Air Quality Sensor: encodings, occupancy hold time, concentration clusters, multi-sensor composition, Apple Home limits |
+| [`04-sensors.md`](04-sensors.md) | Contact, Light, Occupancy, Temperature, Humidity, Air Quality Sensor: encodings, occupancy hold time, concentration clusters, multi-sensor composition, Apple Home limits; Unipi sources (DI, AI, 1-Wire, xG18, IAQ) |
 
 ## 2. Apple Home support
 

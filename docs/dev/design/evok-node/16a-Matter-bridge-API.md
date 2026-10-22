@@ -21,7 +21,7 @@ Home, Google Home, …) can control them.
   tail → endpoint-number map, message counters. Losing it un-pairs every controller; a changed
   endpoint number loses the device's rooms and automations in the controller. Stored in `api.<id>`
   (06), secrets as sensitive keys (06 §5a).
-- **Discrete events** (Generic Switch) rebuilt from 12a's `switch.lastEvent` sequence (12a §2.2).
+- **Behaviours, not servers, for device clusters** — below.
 - **HS colour.** Home keeps CIE xy (12c-01 §2). If a controller needs HueSaturation (Apple Home?), this
   api converts HS ↔ xy.
 - **Writes to an unreachable device:** 12a answers `unreachable` (12a §3); which Matter status that
@@ -57,3 +57,58 @@ FixedLabel and UserLabel.
 | `LightSensor` | Light Sensor `0x0106` | IlluminanceMeasurement |
 | `RoomAirConditioner` | Room Air Conditioner `0x0072` | OnOff, Thermostat, FanControl |
 | `Timer` | — | ignored |
+
+**matter.js: behaviours, not servers, for device clusters.** Home owns how a device behaves —
+templates, `onFor`, fades, press gestures (12c). A matter.js `…Server` brings that logic again,
+with its own timers and state, so the two would decide twice and race. Per cluster kind:
+
+| Cluster | matter.js | Its logic |
+|---|---|---|
+| device — Switch, OnOff, LevelControl, ColorControl, WindowCovering, DoorLock, … | the generated `XxxBehavior.with(features)`, extended here | none — commands forward to home, attributes mirror home, events come from home's values |
+| protocol — Descriptor, BridgedDeviceBasicInformation, FixedLabel, UserLabel, Identify | the `…Server` as it is | Matter plumbing only. `IdentifyServer` counts `IdentifyTime` down; this api calls home's `identify` when bound (12c-02 §4) |
+
+What the device servers would do on their own (research/matter/01–03): `SwitchServer` detects
+gestures with its own long-press and multi-press timings; `OnOffServer` runs `OnWithTimedOff` on a
+100 ms timer and handles scenes; `LevelControlServer` sets `CurrentLevel` to `OnLevel` itself when
+the light turns on, and can run its own fades.
+
+```ts
+// pseudocode — a dimmable light; the full field ↔ command mapping is 12c-01 §4
+class HomeOnOff extends OnOffBehavior.with(OnOff.Feature.Lighting) {
+  on()  { return home.set(tail, 'onOff', true); }
+  off() { return home.set(tail, 'onOff', false); }
+  onWithTimedOff({ onOffControl, onTime }) {
+    return home.call(tail, 'onFor', { seconds: ceil(onTime / 10), onlyWhenOn: onOffControl.acceptOnlyWhenOn });
+  }
+  // toggle, offWithEffect, onWithRecallGlobalScene: the same, one forward each
+}
+class HomeLevel extends LevelControlBehavior.with(LevelControl.Feature.OnOff, LevelControl.Feature.Lighting) {
+  moveToLevel({ level, transitionTime }) {
+    return transitionTime == null ? home.set(tail, 'level', level)
+                                  : home.call(tail, 'moveToLevel', { level, transitionMs: transitionTime * 100 });
+  }
+  // move, step, stop and the …WithOnOff variants: forwards
+}
+class HomeSwitch extends SwitchBehavior.with(/* from `features`, 12c-03 §4 */) {}
+
+subscribe(tail, v => {                                // home → Matter, the only direction values flow
+  endpoint.set({ onOff: { onOff: v.onOff, onTime: v.onForRemaining * 10 },
+                 levelControl: { currentLevel: v.level, remainingTime: 0 } });
+});
+subscribe(switchTail, v => {                          // a switch: position, then one event per lastEvent
+  endpoint.set({ switch: { currentPosition: v.switch.position } });
+  switchEndpoint.events[v.switch.lastEvent.type].emit(payload(v.switch.lastEvent), context);
+});
+```
+
+- **Commands answer after home does.** A forward that home answers `unreachable` becomes a Matter
+  status (above); nothing is applied locally first.
+- **Values flow one way**, home → Matter, by `endpoint.set`. A mirror write is never turned back
+  into a command [I — verify in matter.js].
+- **Every mandatory command** of the chosen features is implemented — a bare behaviour has none.
+- **Features are fixed per endpoint.** They come from the device (12c-03's `features`, a light's
+  type) when the endpoint is created. If they change, the endpoint is re-created under the same
+  endpoint number (tail → endpoint map); controllers re-read it.
+- **Switch events** are emitted per `switch.lastEvent`, with the payload of 12c-03 §4; a gap in
+  `seq` is not filled in. matter.js's own `SwitchServer` does the same `events.<name>.emit(…)`
+  call (research/matter/03 §5).

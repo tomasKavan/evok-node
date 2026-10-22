@@ -87,7 +87,7 @@ No home `DeviceType` declares `'@'` — every field is named. The whole device i
 
 | DeviceType | Matter counterpart (16a) | Fields beyond `CommonFields` |
 |---|---|---|
-| `GenericSwitch` | Generic Switch | `switch` reading `{position, lastEvent}` · `multiPressMax` reading |
+| `GenericSwitch` | Generic Switch | 12c-03 §2 |
 | `OnOffLight` | On/Off Light | 12c-01 §2 |
 | `DimmableLight` | Dimmable Light | 12c-01 §2 |
 | `ColorTemperatureLight` | Color Temperature Light | 12c-01 §2 |
@@ -104,27 +104,7 @@ No home `DeviceType` declares `'@'` — every field is named. The whole device i
 | `RoomAirConditioner` | Room Air Conditioner | `onOff` · `mode` channel `off`/`cool`/`heat`/`auto`/`fan`/`dry` · `setpoint` channel\<float32, °C\> · `temperature` reading · `fanMode` channel `auto`/`low`/`medium`/`high` |
 | `Timer` | — (16a ignores it) | `running` reading\<bool\> · `remaining` reading\<uint32, s\> · `elapsed` reading `{seq, at}` · `start` method `{seconds}` · `cancel` method |
 
-Every reading and channel above is `subscribe: true`. A source's own staleness never appears per field — it folds into `reachable` (§4.2). One in full; the rest follow the same shape, lights in 12c-01 §2:
-
-```ts
-const SwitchState = Codecs.struct({
-  position:  Codecs.uint8(),                       // 0 = released, 1 = pressed
-  lastEvent: Codecs.struct({
-    type:  Codecs.string({ enumValues: ['press', 'release', 'longPress', 'longRelease', 'multiPress', 'multiPressComplete'] }),
-    count: Codecs.uint8(),                         // presses counted so far; 0 outside a multi-press
-    seq:   Codecs.uint32(),                        // +1 per event — two identical presses are two values, never one
-    at:    Codecs.timestamp(),
-  }),
-});
-
-export const GenericSwitch = device('home.GenericSwitch', {
-  ...CommonFields,
-  switch:        reading(SwitchState, { subscribe: true }),
-  multiPressMax: reading(Codecs.uint8({ min: 2 })),   // `local`: the template's setting (§2.3), exposed read-only; `matter`: the device's own
-});
-```
-
-`lastEvent` carries a full press/release/long-press/multi-press sequence as consecutive values — a short press is `press` → `release`, a long one `press` → `longPress` → `longRelease`, a double press ends `multiPressComplete` with `count: 2` — so a consumer that needs discrete events (16a) can rebuild each one from a subscription, and a gap in `seq` tells it one was coalesced away (03 §6.3).
+Every reading and channel above is `subscribe: true`. A source's own staleness never appears per field — it folds into `reachable` (§4.2). The types in full: lights in 12c-01 §2, plug-in units in 12c-02 §2, the switch in 12c-03 §2; the rest follow the same shape.
 
 `Timer` is a virtual device: its template has no roles (§3). It is how a rule waits, since rules never do (12b §1). `start` (re)starts it for `seconds`; when it runs out, `running` turns false and `elapsed` emits with `seq` +1; `cancel` stops it without `elapsed`. Timers are not persistent: after a restart every timer is stopped.
 
@@ -132,7 +112,7 @@ A function a device type has no evok-node equivalent for yet is simply not a fie
 
 ### 2.3. Settings live in management, not on the device
 
-How a device *behaves or is assembled* — a `GenericSwitch` template's long-press threshold and multi-press window, a DALI-sourced light's fade time (the template writes it to the gear's own `fadeTime`, 12 §9.1) — is a **setting**: declared by the template as an annotated codec (§3, 05a §3.1a), stored in `DeviceRecord.settings` (§4), edited only through `manage` (§5), never a device field. A device field is only what a consumer needs to read or control at runtime. A setting a consumer still needs to *see* — `multiPressMax`, which 16a must report — is additionally exposed as a plain `reading` whose value comes from `settings`; it is never writable through the device.
+How a device *behaves or is assembled* — a `GenericSwitch` template's long-press threshold and multi-press window, a DALI-sourced light's fade time (the template writes it to the gear's own `fadeTime`, 12 §9.1) — is a **setting**: declared by the template as an annotated codec (§3, 05a §3.1a), stored in `DeviceRecord.settings` (§4), edited only through `manage` (§5), never a device field. A device field is only what a consumer needs to read or control at runtime. A setting a consumer still needs to *see* — a switch's `multiPressMax`, which 16a must report — is additionally exposed in a plain `reading` (`features`, 12c-03 §2) whose value comes from `settings`; it is never writable through the device.
 
 ### 2.4. Forms
 
@@ -248,11 +228,11 @@ A template may declare no roles: its device is virtual, assembled from nothing �
 - `save` is debounced, so a light dimmed by `move` doesn't write KV on every step.
 - `updateDevice` keeps it; `removeDevice` removes it (§4.1).
 
-Handlers answer from memory, the way every driver does (01): `assemble()` subscribes to the source fields it needs and emits on its own bound fields as they change, so `onGet` reads the last known value, never a round trip. A `switch-from-di` template turns `input`'s edges into `SwitchState` values using its own settings (long-press threshold, multi-press window, `multiPressMax`); a `dimmable-from-dali` template's `level` reads `gear`'s own `intensity` (12 §9.1) and its `onSet` forwards a write to it (12c-01 §3.4).
+Handlers answer from memory, the way every driver does (01): `assemble()` subscribes to the source fields it needs and emits on its own bound fields as they change, so `onGet` reads the last known value, never a round trip. A `switch-from-di` template turns `input`'s edges into `switch` values using its own settings (12c-03 §3); a `dimmable-from-dali` template's `level` reads `gear`'s own `intensity` (12 §9.1) and its `onSet` forwards a write to it (12c-01 §3.4).
 
 A `SET` forwarded to a source that can't take it — not up, not answering — throws `SourceUnreachable` (05a §3.5) and is answered `unreachable`. It is never queued and replayed later.
 
-Each built-in `DeviceType` (§2) ships with the templates its own built-in source drivers warrant — the light templates of 12c-01 §3, a single-`unipi.di` template for `GenericSwitch`, the role-less `timer` for `Timer` — and a template is itself a manifest-loaded, `kind`-resolved module (01 §10; `{ "kind": "home-template", "templateKind": "dimmable-from-dali", … }`), so a driver plugin for hardware this driver doesn't know about yet can ship its own template for an existing `DeviceType` without touching this package. It imports that `DeviceType` from `@evok-node/driver-home`; it never rebuilds one under the same kind (05a §3.5).
+Each built-in `DeviceType` (§2) ships with the templates its own built-in source drivers warrant — the light templates of 12c-01 §3, `switch-from-di` for `GenericSwitch` (12c-03 §3), the role-less `timer` for `Timer` — and a template is itself a manifest-loaded, `kind`-resolved module (01 §10; `{ "kind": "home-template", "templateKind": "dimmable-from-dali", … }`), so a driver plugin for hardware this driver doesn't know about yet can ship its own template for an existing `DeviceType` without touching this package. It imports that `DeviceType` from `@evok-node/driver-home`; it never rebuilds one under the same kind (05a §3.5).
 
 ## 4. Device storage and lifecycle
 
@@ -517,7 +497,7 @@ Tier 1, against fixture drivers (no hardware) that each expose a handful of `bin
 - A template returning handlers for a `CommonKey` other than `identify` is rejected when the template is resolved.
 - `SET` on `name`/`userLabels` persists the `DeviceRecord` before the reply; after a restart, `GET` returns the written value.
 - `GET` with `returnFields: '*'` on an assembled device returns every readable field in one response, with no `'@'` key.
-- `GenericSwitch` from a fixture `unipi.di`: two identical short presses produce two `switch` values with consecutive `seq`; a long press produces `press` → `longPress` → `longRelease`; a double press ends with `multiPressComplete`, `count: 2`; `multiPressMax` reflects the device's `settings`.
+- `GenericSwitch` from a fixture `unipi.di` on a fake `Clock` (12c-03 §1.1, §3): two identical short presses produce two `switch` values with consecutive `seq`; a long press produces `initialPress` → `longPress` → `longRelease`; with multi-press on, a double press produces `multiPressOngoing(2)` and ends with `multiPressComplete(2)`, one press over `multiPressMax` ends with `multiPressComplete(0)`; a counter step with no edge seen replays a short press; `features` reflects the device's `settings`.
 - `reachable`: false while a source's driver isn't up, true once it binds a matching device, false again when that driver re-binds the tail under a different kind or drops it, and false while the template has `markStale(true)`; emits only on a flip.
 - `createDevice` with a required role missing, an unknown role, a source of the wrong kind, a source no driver currently has, or a source whose driver isn't in `config.local`, answers `invalid-sources` before any `DeviceRecord` is written or anything is bound; bad `settings` answer `invalid-settings`.
 - A `DeviceRecord` restored from a KV fixture at `configure()` binds whether or not its sources' drivers are up yet — exercised the same way 12 §12 exercises stored-gear replay.

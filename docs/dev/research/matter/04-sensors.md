@@ -1,6 +1,6 @@
 # 04 — Sensors
 
-**Research, not design.** Matter Contact, Light, Occupancy, Temperature, Humidity and Air Quality Sensor: what the spec requires, value encodings, how real devices and controllers behave, Apple Home support. Feeds 12c's sensor sections.
+**Research, not design.** Matter Contact, Light, Occupancy, Temperature, Humidity and Air Quality Sensor: what the spec requires, value encodings, how real devices and controllers behave, Apple Home support, and which Unipi hardware and evok-node drivers can feed each type (§8a). Feeds 12c's sensor sections.
 
 Spec data from the connectedhomeip data model, `data_model/1.5/` (S1, S2); spec prose from matter.js's generated cluster docs, which cite Matter 1.6.1 section numbers (S3). Up to `data_model/1.7/` these six device types change only by dropping Zigbee elements [V-src S1]. Their clusters do change after 1.5 [V-src S2, `1.6/`, `1.7/`]:
 
@@ -151,11 +151,77 @@ Aqara FP300 (presence, light, temperature, humidity) shows each as its own page 
 | Settings | `HoldTime` and sensitivity not seen in Apple Home; FP300 settings are in Aqara's app [I from S10] |
 | Contact Sensor `false`/`true` shown as open/closed | [I] — no source states it |
 
+## 8a. What our sources deliver
+
+Unipi hardware and the other evok-node drivers that can feed these six types. Driver facts are from the design docs; hardware facts from Unipi documents.
+
+### 8a.1. Source kinds
+
+| Source | Kind (driver) | Facts |
+|---|---|---|
+| Digital input | `unipi.di` (08, 09) | `{value, counter}` per poll; poll `fast` 100 ms onboard, 200 ms on RS-485 extensions [V 08 §8, 09 §4]. True at 7–35 V DC, false below 3 V, 3–7 V undefined; a separate supply per input group is recommended to keep isolation [V S22]. Debounce 5 ms factory; counter counts rising edges, so a pulse shorter than one poll still shows as a counter step [V research/02 §4.9] |
+| Analog input, resistance | `unipi.ai` `resistance3w`/`resistance2w` (08, 09) | value in Ω, no temperature conversion in any driver [V 07a §10.1]. Patron/Neuron sections 2–3: 0–1960 Ω 3-wire, 0–100 kΩ 2-wire; xS52/xS54: 75–2000 Ω, 1–20 kΩ; Edge: 90–2000 Ω on AI4/AI5 only; S-size units measure resistance only through the section-1 AO [V research/02 §4.5, research/06]. Conversion takes 400 ms (Patron/Neuron), 200 ms (xS5x), 100 ms (Edge) [V research/02 §4.5] |
+| Analog input, 0–10 V / 0–20 mA | `unipi.ai` `voltage10`/`current20` | for third-party transmitters; the V or mA → °C/%/lx/ppm scaling is the transmitter's datasheet [I]. Unipi sells no lux, CO₂ or presence sensor [V S23] |
+| 1-Wire chips | `unipi.temp`, `unipi.humidity` (10) | through `owserver`; scan default 60 s, lengthened automatically when the bus can't keep up [V 10 §7]. DS2438 humidity: one of five `owserver` attributes (`HIH4000/humidity`, `HIH5030/humidity`, …), all disabled until adoption picks one [V 10 §4]. Up to 15 sensors per bus [V research/02 §5] |
+| xG18 extension | 8 × `unipi.temp` with `valid`, `intervalS` (09) | DS18B20 only, int16; one validity bit and one measuring interval (s) per channel [V xG18 map v1.1, 07a §10.3] |
+| IAQ sensor | `unipi.temp`, `unipi.humidity`, `unipi.lux`, `unipi.co2`, `unipi.vocIndex`, `unipi.vocAccuracy`, `unipi.vocCo2Eq`, `unipi.pressure`, … (09) | §8a.2 |
+| DALI | — (12) | DALI-2 occupancy and light sensors are control devices (24-bit frames): out of scope in 12 v1 [V 12 §1, §13] |
+| `matter` origin | — (12a §4a) | any Matter sensor of §7, already in Matter's shape |
+
+Unipi's own 1-Wire and analog sensors [V S19, S20, S21]:
+
+| Product | Chip / element | Measures | Accuracy, range |
+|---|---|---|---|
+| 1-Wire probes (1.5–10 m), pipe-surface, sump, outdoor | DS18B20 | temperature | ±0.5 °C (−10…85 °C); −55…+125 °C by model |
+| 1W-T-IB2 wall sensor (1W-T-IB, discontinued) | DS18B20 | temperature | ±0.5 °C; −40…+85 °C |
+| 1W-TH-IB2 wall sensor (1W-TH-IB, discontinued) | DS2438 + Honeywell RH (IB: HIH5030) | temperature, humidity | ±2 °C (IB: ±1 °C); RH ±3 %, 11–89 % |
+| PTS 310A, PTS 320, PTS 350B | Pt1000 | temperature (ambient, sump/duct, pipe surface) | −50…+150 °C by model |
+
+Pt1000 fits both resistance ranges: −50 °C ≈ 803 Ω, 0 °C = 1000 Ω, 150 °C ≈ 1573 Ω [I — IEC 60751 coefficients].
+
+### 8a.2. IAQ sensor
+
+Variants RW-TH, RLW-TH, RW-THC, RLW-THC; `L` = LoRaWAN. All have Modbus RTU (RS-485), Modbus TCP, MQTT, HTTP and a digital output [V S18 §1].
+
+| Quantity | Variants | Range | Accuracy [V S18 §2] |
+|---|---|---|---|
+| Temperature | all | −40…+85 °C | ±0.5 °C; user offset in settings |
+| Relative humidity | all | 0–90 %, non-condensing | ±2 % (20–80 %) |
+| Ambient light | all | 0–7500 lx | indicative; "indirect", depends on placement [V S18 §4] |
+| VOC index | **all** | 0–500 | indicative |
+| CO₂ | THC only | 300–5000 ppm | ±30 ppm ± 3 % |
+| Pressure | all | 300–1100 hPa | ±5 hPa |
+| Dew point, absolute humidity | all | — | computed |
+
+- **VOC index** is relative, not a concentration: ~25 = clean, 250 = polluted; it adapts to the room over the last 4 days. `VOC accuracy` 0–3: 0 = invalid (after power-up), 3 = stable. `VOC CO₂ equivalent` (ppm) "does not represent the CO₂ concentration" [V S18 §4, §4.2].
+- **CO₂** needs several minutes after power-up. Automatic calibration every 7 days needs fresh air at least 1 h a day; it overwrites a manual calibration [V S18 §4.1].
+- **Averaging**: a moving average, set per interface; for Modbus configurable, 0 = off [V S18 §4.3].
+- **Unset value**: HTTP sends `null` [V S18 §6.4]; Modbus `float32` has no null and the map doesn't say — [GAP], already owed in `modbus-reg-map-notes/accessory-iaq.md`.
+- **Variant over Modbus**: the input map has no model register [V CSV]; a TH unit can't be told from a THC one by register content alone [I].
+- Modbus TCP: one open connection at a time [V S18 §6.6].
+- LED colour follows CO₂ (VOC on TH): green below ≈ 450 ppm, red above ≈ 2000 ppm [V S18 §5].
+
+### 8a.3. Fit per Matter type
+
+| Matter type | Sources | Notes [I unless tagged] |
+|---|---|---|
+| Contact Sensor | `unipi.di` + reed / magnetic contact, external supply | Matter `true` = closed (§3). A DI is `true` when the contact conducts; a contact that conducts with the door shut matches Matter directly, one that conducts with it open needs inverting |
+| Occupancy Sensor | `unipi.di` + PIR or presence detector with relay / open-collector output | the detector usually has its own hold time; Matter's `HoldTime` (§4) is then a second delay on top. No Unipi occupancy sensor exists [V S23]; DALI-2 sensors out of scope [V 12] |
+| Light Sensor | IAQ `unipi.lux`; `unipi.ai` + 0–10 V lux transmitter | IAQ lux is indicative (§8a.2) |
+| Temperature Sensor | 1-Wire DS18B20 / DS2438, xG18, IAQ, `unipi.ai` + Pt1000 | Pt1000 needs an Ω → °C conversion that no driver does [V 07a §10.1] |
+| Humidity Sensor | IAQ, 1-Wire DS2438 + HIH, `unipi.ai` + transmitter | 1W-TH-IB2: 11–89 % only [V S19] |
+| Air Quality Sensor | IAQ (THC: CO₂ + VOC index; TH: VOC index only) | CO₂ → CO₂ concentration cluster in ppm. VOC index has no Matter home: TVOC is a concentration with a unit (§5.2), the index is unitless. So the `AirQuality` level must be derived from CO₂ and/or the VOC index. `VOC CO₂ equivalent` is not a CO₂ value. Pressure → Matter Pressure Sensor, not shown by Apple (§6). Dew point and absolute humidity: no Matter cluster |
+
+### 8a.4. Conflict with our own docs
+
+- 07a §10.3 says `vocIndex`/`vocAccuracy`/`vocCo2Eq` are bound only on the THC variant. The IAQ manual lists VOC on all four variants; only CO₂ differs [V S18 §1]. This also answers part of `accessory-iaq.md`'s "which quantities exist on which variant".
+
 ## 9. Gaps
 
 - Apple's mapping of the 7 Matter air-quality values to HAP's 6.
 - Whether Apple Home shows a PIR-feature Occupancy Sensor as motion.
 - Whether Apple Home shows the CO₂ value of an Air Quality Sensor today — S5 says yes, older reports (S14, S15) say no.
+- What the IAQ sensor's Modbus registers hold for an unset value (CO₂ on a TH unit, VOC right after power-up).
 
 ## 10. Sources
 
@@ -176,3 +242,9 @@ Aqara FP300 (presence, light, temperature, humidity) shows each as its own page 
 - S15 — esp-matter #873, "Air quality measurement issue": https://github.com/espressif/esp-matter/issues/873
 - S16 — Espressif Arduino Matter, Contact Sensor endpoint: https://docs.espressif.com/projects/arduino-esp32/en/latest/matter/ep_contact_sensor.html
 - S17 — connectedhomeip `docs/guides/darwin.md`, supported device types: https://pigweed.googlesource.com/third_party/github/project-chip/connectedhomeip/+show/HEAD/docs/guides/darwin.md
+- S18 — Unipi, Indoor Air Quality sensor, user guide and technical documentation (in repo: `docs/dev/modbus-reg-map/accessories/Accessory-IAQ.pdf`); KB page: https://kb.unipi.technology/en:hw:05-sensors:iaq
+- S19 — Unipi e-shop, 1-Wire temperature and humidity sensors: https://www.unipi.technology/products/1-wire-temperature-and-humidity-sensors-382
+- S20 — Unipi news, 1W-T-IB and 1W-TH-IB (2019-02-07): https://unipi.technology/news/try-the-brand-new-unipi-1-wire-sensors-264
+- S21 — Unipi KB, analog sensors (PTS Pt1000): https://kb.unipi.technology/en:hw:05-sensors:analog
+- S22 — Unipi KB, connection of digital inputs: https://kb.unipi.technology/_export/raw/en:hw:connection-of-di-hidden
+- S23 — Unipi KB, sensors index (1-Wire, analog, IAQ only): https://kb.unipi.technology/en:hw:05-sensors

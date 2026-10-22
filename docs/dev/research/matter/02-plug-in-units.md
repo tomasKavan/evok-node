@@ -36,7 +36,7 @@ LT is mandatory [V-src S1], so everything in [01 §2](01-lights.md) applies to a
 | `DF` (Dead Front) | Optional. For appliances: while off, other clusters may reject commands with `INVALID_IN_STATE`. Not required by these types [V-src S1, S2] |
 | `OFFONLY` | Conformance is "optional if not LT"; LT is mandatory here, so an on/off unit can never be off-only [V-src S1, S2] |
 
-matter.js `OnOffServer` implements the Timed On / Delayed Off state machine and `StartUpOnOff` itself, with a 100 ms tick [V-src S4]. A bridged endpoint built on it gets a working `OnWithTimedOff` without its own code; the countdown then runs in matter.js and ends with `off()` [V-src S4].
+matter.js `OnOffServer` implements the Timed On / Delayed Off state machine and `StartUpOnOff` itself, with a 100 ms tick [V-src S4]. A bridged endpoint built on it gets a working `OnWithTimedOff` without its own code; the countdown then runs in matter.js and ends with `off()` [V-src S4]. It does not apply `StartUpOnOff` on an endpoint under an aggregator — a bridged one [V-src S4].
 
 ## 3. Energy measurement
 

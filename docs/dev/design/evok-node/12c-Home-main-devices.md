@@ -13,6 +13,7 @@
 |---|---|
 | [`12c-01-Lights.md`](12c-Home-main-devices/12c-01-Lights.md) | `OnOffLight`, `DimmableLight`, `ColorTemperatureLight`, `ExtendedColorLight` |
 | [`12c-02-Plug-in-units.md`](12c-Home-main-devices/12c-02-Plug-in-units.md) | `OnOffPlugInUnit` |
+| [`12c-03-Generic-switch.md`](12c-Home-main-devices/12c-03-Generic-switch.md) | `GenericSwitch` |
 
 **Job:** one section per home `DeviceType`: fields, built-in templates and Matter mapping, in full.
 12a holds what every type shares; this file holds what one type adds.
@@ -51,7 +52,7 @@ resolution vs Matter (0.01 °C, Percent100ths, log lux), the moving-device patte
 
 | DeviceType | Matter | Known now |
 |---|---|---|
-| `GenericSwitch` | Generic Switch | Apple Home: momentary only |
+| `GenericSwitch` | Generic Switch | momentary only; one template, `switch-from-di` |
 | `OnOffLight` | On/Off Light | |
 | `DimmableLight` | Dimmable Light | |
 | `ColorTemperatureLight` | Color Temperature Light | |

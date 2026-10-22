@@ -105,7 +105,10 @@ endpoint.set({ switch: { rawPosition: 0 } });        // released
 ```
 
 - It emits the §3 sequences itself, per the endpoint's features; overflow gives total 0; a long press inside a multi-press sequence counts as a press; a long press ends the sequence [V-src S6].
-- A write to `currentPosition` is also treated as an input [V-src S6]. No documented way to emit events directly while using `SwitchServer` [GAP — not checked whether a custom behaviour on the bare cluster can].
+- `longPressDelay`, `multiPressDelay` and `debounceDelay` are per-endpoint state, settable at creation and at runtime. Each is read when its timer starts, so a change applies from the next press [V-src S6].
+- A write to `currentPosition` is also treated as an input [V-src S6]. `SwitchServer` has no hook to emit events itself [V-src S6].
+- `SwitchServer` is built on the generated `SwitchBehavior` (`ClusterBehavior.for(Switch)`, no logic) via `SwitchBehavior.with(...features)`, and emits with `this.events.initialPress.emit(payload, this.context)` [V-src S6, S19]. A behaviour of its own on `SwitchBehavior.with(...)` can emit the same way [I — the same call, not run yet].
+- Homebridge 2.x bridges buttons the same way: it sets `currentPosition` and lets `SwitchServer` decide the events; to replay a decided gesture it holds a long press 2.5 s, just over the 2 s default [V S18].
 
 ## 6. Controllers
 
@@ -199,8 +202,6 @@ What follows for `switch-from-di` [I]:
 ## 12. Open — [GAP]
 
 - Apple Home: events consumed per trigger, `AS`, `MultiPressMax` > 2. Testable on the rig with a matter.js bridged switch.
-- matter.js: emitting Switch events without `SwitchServer`'s state machine (§5).
-- Whether the undocumented `Interrupt Mask` register (research/02) gives DI edges faster than polling.
 
 ## 13. Sources
 
@@ -221,3 +222,5 @@ What follows for `switch-from-di` [I]:
 - S15 — home-assistant/core #159035, BILRESA scroll wheel: https://github.com/home-assistant/core/issues/159035
 - S16 — home-assistant/core #159452, presses over `MultiPressMax` discarded: https://github.com/home-assistant/core/issues/159452
 - S17 — Aqara forum, H2 switch multi-press in Apple Home: https://forum.aqara.com/t/h2-switch-in-apple-home-app-multi-press/2549
+- S18 — Homebridge 2.4.0 `dist/matter/SwitchAPI.d.ts`: https://app.unpkg.com/homebridge@2.4.0/files/dist/matter/SwitchAPI.d.ts
+- S19 — matter.js `packages/node/src/behaviors/switch/SwitchBehavior.ts`: https://github.com/project-chip/matter.js/blob/main/packages/node/src/behaviors/switch/SwitchBehavior.ts
