@@ -22,6 +22,13 @@
   this api (12a §4b). Its authentication — PLC to PLC, no human in the loop — is part of this api's
   auth design (M3.6). The connection's hello advertises `evokNodeVersion`: 12a §4b checks a remote's
   against the range it supports.
+- **Session language.** `hello.lang`, else the request's `Accept-Language`, else `en`. `setLang` changes
+  it mid-session; the client refetches what it shows.
+- **Localization at the edge.** A per-connection plugin resolves `LocalizedText` (04 §7) to the session's
+  language in everything it sends: schema annotations (`label`, `hint`, `enumLabels` — 05a §3.1a),
+  values of format `text`, and the schemas inside values of format `schema`. Drivers always answer every
+  language, so introspection stays one shared payload.
+- **Refs.** `$refs` (03 §3, 05a §3.10) is relayed like any other address.
 
 **Inputs:** research/01 (as contrast) · research/08 · to_revision/0003 ·
 [`STATUS.md`](../../plan/STATUS.md), the undeclared-workspace-edges open question

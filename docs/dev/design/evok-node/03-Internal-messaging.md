@@ -77,14 +77,15 @@ A batched, cross-driver read — an api asking for several qualified addresses i
 
 ## 3. Addressing
 
-`<driverId>:<tail>` (01 §6), case-sensitive, tail grammar owned entirely by the issuing driver. Four tails are reserved at the messaging layer, outside any driver's own grammar:
+`<driverId>:<tail>` (01 §6), case-sensitive, tail grammar owned entirely by the issuing driver. Five tails are reserved at the messaging layer, outside any driver's own grammar:
 
 - `$introspect` — `GET` returns the driver's introspection payload (01 §6, §5); also `SUBSCRIBE`-able — §5a.
 - `$subscriptions` — `GET` returns the caller's own active subscriptions on that driver.
 - `$health` — a driver `emit`s here whenever its own reachability or degradation state changes; its value's shape and meaning are that driver's own business, exactly like any other address — consumed like any other address, by `subscribe` (§4). `main` never inspects it — a driver's degradation is a business signal for whoever subscribes, not something `main` supervises (§11 covers what `main` actually reacts to).
+- `$refs` — `CALL` lists the objects of one ref type the driver accepts as ids — 05a §3.10.
 - `$getCallProgress.<id>` — parameterized by a `CALL` `Request`'s own `MessageId`, not a fixed string; exists only while that call is in flight. Both `GET`-able and `subscribe`-able — §6.4.
 
-`$subscriptions` and `$getCallProgress.<id>` are handled by this layer alone, identically for every driver — no driver's own `onRequest` ever sees a request against either, and no driver code is involved in answering one. `$introspect`'s and `$health`'s own *address* is reserved the same way, but their *content* is the driver's: a driver answers `$introspect` and emits to `$health` exactly like any other address (§4, §5), by hand or through whatever library it leans on to do it for it — a library such as driver-kit (05) is one example, never a requirement this file imposes. There is no `$ping`: liveness is a property of the transport (§10), never a message a module sees.
+`$subscriptions` and `$getCallProgress.<id>` are handled by this layer alone, identically for every driver — no driver's own `onRequest` ever sees a request against either, and no driver code is involved in answering one. `$introspect`'s, `$refs`' and `$health`'s own *address* is reserved the same way, but their *content* is the driver's: a driver answers `$introspect` and `$refs` and emits to `$health` exactly like any other address (§4, §5), by hand or through whatever library it leans on to do it for it — a library such as driver-kit (05) is one example, never a requirement this file imposes. There is no `$ping`: liveness is a property of the transport (§10), never a message a module sees.
 
 ## 4. Handling — `onRequest`
 

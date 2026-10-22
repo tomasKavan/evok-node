@@ -63,12 +63,12 @@ What it is and how it's used. Multi-user, multi-PLC, multi-app: what an app (ins
 **Refs:** 13a · 16 · 19
 
 ### M3.8 — WS API   `area/api`
-Renamed from nextgen. Relays internal messaging; per-connection and per-request plugins. Other APIs built on top of it. Authorization through a plugin using 13a. The hello advertises `evokNodeVersion` (12a §4b).
+Renamed from nextgen. Relays internal messaging; per-connection and per-request plugins. Other APIs built on top of it. Authorization through a plugin using 13a. The hello advertises `evokNodeVersion` (12a §4b). Session language (`hello.lang`, `Accept-Language`, `setLang`) and the localization engine resolving `LocalizedText` at the edge (05a §3.1a).
 **Done when:** 15 designed and renamed; `api-nextgen` renamed in docs.
 **Refs:** 03 · 13 · 13a · 15
 
 ### M3.9 — Inspector UI: basics   `area/ui`
-Structure, logic, wireframes, mobile vs desktop, frameworks, design guide. Basic controls for raw driver-kit devices. Logs.
+Structure, logic, wireframes, mobile vs desktop, frameworks, design guide. Basic controls for raw driver-kit devices. Logs. Generic forms from annotated schemas and `$refs` (05a §3.1a, §3.10); a ref filter that depends on another field of the same form (DALI bus → gear).
 **Done when:** 16 designed, wireframes committed.
 **Refs:** 15 · 05a · 04 · 11
 

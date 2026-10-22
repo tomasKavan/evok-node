@@ -2,7 +2,16 @@
 
 ## 1. Scope
 
-Package: `packages/driver-home` (`@evok-node/driver-home`). Config `type: home`.
+Package: `packages/driver-home` (`@evok-node/driver-home`).
+
+```yaml
+drivers:
+  home:
+    type: home
+    local: [onboard, ext1, dali1]   # drivers whose devices templates may use as sources (§2.4, §3)
+```
+
+`local` is the whole config. Devices, remotes, rules and the hierarchy are user data, in KV (§4, §4b, §6; 12b §6).
 
 This driver assembles home-automation devices and exposes each on its own tail (§4.1), in evok-node's own terms (05a §3): field names, units and value shapes chosen for evok-node consumers, never copied from another protocol's spec. A device has one of three **origins** — where it is composed:
 
@@ -56,7 +65,7 @@ Who binds what:
 | `reachable` | this driver | computed — §4.2 |
 | `origin` | this driver | `DeviceRecord.origin.kind` (§4.1) |
 | `exposed`, `controllable` | this driver | `DeviceRecord.exposed`/`controllable`, written through `manage` only. `remote`: the remote's, changed by `overrides` (§4b) |
-| `identify` | the origin | `local`: when its template supplies an `indicator` role (§3). `matter`: when the endpoint has the Identify cluster (§4a). `remote`: when the remote device has it bound (§4b). Otherwise left unbound and listed in the device's `unbound` (05a §4) |
+| `identify` | the origin | `local`: when its template's `indicator` role has a source (§3). `matter`: when the endpoint has the Identify cluster (§4a). `remote`: when the remote device has it bound (§4b). Otherwise left unbound and listed in the device's `unbound` (05a §4) |
 | everything else | the origin | `local`: `assemble()` (§3). `matter`: the mapping table (§4a). `remote`: the remote device's own fields (§4b) |
 
 Two flags say who else may use a device. Neither hides it from this PLC's rules (12b) or from the Inspector UI, which controls every device:
@@ -136,44 +145,64 @@ A function a device type has no evok-node equivalent for yet is simply not a fie
 
 ### 2.3. Settings live in management, not on the device
 
-How a device *behaves or is assembled* — a `GenericSwitch` template's long-press threshold and multi-press window, a DALI-sourced light's fade time (the template writes it to the gear's own `fadeTime`, 12 §9.1) — is a **setting**: declared by the template (§3), stored in `DeviceRecord.settings` (§4), edited only through `manage` (§5), never a device field. A device field is only what a consumer needs to read or control at runtime. A setting a consumer still needs to *see* — `multiPressMax`, which 16a must report — is additionally exposed as a plain `reading` whose value comes from `settings`; it is never writable through the device.
+How a device *behaves or is assembled* — a `GenericSwitch` template's long-press threshold and multi-press window, a DALI-sourced light's fade time (the template writes it to the gear's own `fadeTime`, 12 §9.1) — is a **setting**: declared by the template as an annotated codec (§3, 05a §3.1a), stored in `DeviceRecord.settings` (§4), edited only through `manage` (§5), never a device field. A device field is only what a consumer needs to read or control at runtime. A setting a consumer still needs to *see* — `multiPressMax`, which 16a must report — is additionally exposed as a plain `reading` whose value comes from `settings`; it is never writable through the device.
 
-### 2.4. Option specs
+### 2.4. Forms
 
-What a human fills in is described by `OptionSpec`, so the Inspector UI and the Home UI can render an input for each one without knowing the kind behind it. Rule options use it (12b §3). Template settings (§2.3) are not described this way yet.
+What a human fills in to create a device or a rule is one **form** per kind: a `ValueSchema` with the annotations of 05a §3.1a, built by this driver when the template (§3) or rule kind (12b §2) is resolved. A UI renders the form and sends its value back; it knows nothing about the kind behind it.
 
 ```ts
 // @evok-node/driver-home
-interface DeviceSelection {
-  readonly types: readonly DeviceType[];   // allowed DeviceTypes; on the wire, their `kind` strings
+interface Selection {                          // a template's role (§3), a rule's slot (12b §3)
+  readonly types: readonly DeviceType[];       // allowed DeviceTypes; on the wire, their `kind` strings
   readonly min: number;
   readonly max: number;
-}
-
-interface OptionBase {
-  readonly key: string;                    // what the function reads the value by
-  readonly label: LocalizedText;           // 04 §7
+  readonly label: LocalizedText;               // 04 §7
   readonly hint?: LocalizedText;
 }
 
-type OptionSpec =
-  | OptionBase & { readonly type: 'string'; readonly minLength?: number; readonly maxLength?: number; readonly default?: string }
-  | OptionBase & { readonly type: 'number'; readonly min?: number; readonly max?: number; readonly step?: number; readonly default?: number }
-  | OptionBase & { readonly type: 'select'; readonly choices: readonly { readonly key: string; readonly label: LocalizedText }[];
-                   readonly multi?: boolean; readonly default?: string | readonly string[] }
-  | OptionBase & { readonly type: 'device' } & DeviceSelection;
+// template form
+Codecs.struct({
+  sources:  Codecs.struct(mapValues(template.roles, selectionToRefs('home.source'))),
+  settings: template.settings ?? Codecs.struct({}),
+})
+// rule form — 12b §3
+Codecs.struct({
+  triggers: Codecs.struct(mapValues(kind.triggers, selectionToRefs('home.device'))),
+  actions:  Codecs.struct(mapValues(kind.actions,  selectionToRefs('home.device'))),
+  options:  kind.options ?? Codecs.struct({}),
+})
+// selectionToRefs(type)(s): an array of
+//   Codecs.string({ ref: { type, filter: { kinds: s.types.map(t => t.kind) } } }), with min/max/label/hint from s;
+//   wrapped in Codecs.optional when s.min is 0
 ```
 
-| `type` | Stored value |
-|---|---|
-| `string` | string |
-| `number` | number |
-| `select` | the choice's `key`; with `multi`, an array of keys |
-| `device` | an array of device tails (§4.1) |
+This driver registers two ref types (05a §3.10):
 
-An option without `default` is required; a `device` option has none. The values are validated by one codec built from the specs (05a §3.1); a `device` value is also checked against this driver's devices and `types`.
+| Ref type | Lists | `has` |
+|---|---|---|
+| `home.device` | this driver's devices whose kind is in `filter.kinds`; `label` is the device's `name`, `path` its place in the hierarchy (§6) | a record with that tail and kind |
+| `home.source` | devices of the drivers in `config.local` whose kind is in `filter.kinds`, from their introspection | its driver is in `config.local`, its tail is bound, and `matchesDeviceType` passes (05a §4a) |
 
-**Open** (M3.2, after the rest of 12a): `OptionSpec` folded into `ValueSchema` (05a §3.1) as optional annotations — `label`, `hint`, `default`, choice labels — so template settings (§2.3), rule options (12b §3) and any method's arguments describe a human input the same way. It needs a generic reference to an object of a given type (a device, a group, …): on the wire a string or number holding the object's id, plus a client-side plugin that fills the pick-list, since a function never crosses messaging (03 §5).
+A ref type exists only where a generic form must pick an object that has no listing method of its own. The hierarchy has `listHierarchy` (§5), so it has none.
+
+A form is the dynamic part of a call. The static part is the method's own `argsSchema` in introspection (05a §4), where the form's members are `json`:
+
+```
+Name             [ Hall switch      ]          ← manage.createDevice argsSchema
+Exposed          [x]   Controllable [x]
+— Switch from digital input —                  ← listTemplates(...).form
+Input            [ ext1:DI.01 ▾ ]              ← CALL home:$refs { type: 'home.source', filter: { kinds: ['unipi.di'] } }
+Indicator LED    [ — ▾ ]           (optional)
+Long press after [  800 ] ms
+```
+
+```json
+CALL home:manage.createDevice { "deviceType": "home.GenericSwitch", "templateKind": "switch-from-di",
+  "name": "Hall switch", "sources": { "input": ["ext1:DI.01"] }, "settings": { "longPressMs": 800 } }
+```
+
+The driver decodes the form (defaults filled), runs `checkRefs`, and answers `invalid-sources`, `invalid-settings` (§5), `invalid-slots` or `invalid-options` (12b §8) before anything is persisted.
 
 ## 3. Templates
 
@@ -181,34 +210,41 @@ A **template** is a named recipe for assembling one `DeviceType` from other driv
 
 ```ts
 // @evok-node/driver-home
-interface Role<F extends Record<string, EndpointType | OptionalEndpointType>> {
-  readonly type: DeviceType<F>;    // the source driver's own exported DeviceType — imported, never redeclared
-  readonly optional?: boolean;     // e.g. `indicator`
-}
+interface Role extends Selection {}   // §2.4 — `types` are the source drivers' own exported DeviceTypes, imported, never redeclared; a role is 1–1 unless it says otherwise
 
-type Sources<R extends Record<string, Role<any>>> = {
-  readonly [K in keyof R]: R[K]['optional'] extends true ? RemoteDevice<FieldsOf<R[K]['type']>> | undefined : RemoteDevice<FieldsOf<R[K]['type']>>;
+type SourceOf<R extends Role> = RemoteDevice<FieldsOf<R['types'][number]>>;   // a union when `types` has several — narrowed by kind
+type Sources<R extends Record<string, Role>> = {
+  readonly [K in keyof R]:
+    R[K]['max'] extends 1 ? (R[K]['min'] extends 0 ? SourceOf<R[K]> | undefined : SourceOf<R[K]>)   // 1–1 or 0–1: one source
+                          : readonly SourceOf<R[K]>[];                                            // otherwise an array
 };
 
-interface AssemblyContext<R extends Record<string, Role<any>>, S> {
+interface AssemblyContext<R extends Record<string, Role>, S> {
   readonly sources: Sources<R>;
   readonly settings: S;
   markStale(stale: boolean): void;   // §4.2 — for a source that is present and well-shaped but reports its own data stale
 }
 
-interface AssemblyTemplate<F extends Record<string, EndpointType | OptionalEndpointType>, R extends Record<string, Role<any>>, S> {
+interface AssemblyTemplate<F extends Record<string, EndpointType | OptionalEndpointType>, R extends Record<string, Role>, S> {
   readonly kind: string;               // 'dimmable-from-dali', 'dimmable-from-pwm', 'switch-from-di', 'timer', ... — must equal the manifest's templateKind
   readonly deviceType: DeviceType<F>;   // the exported home DeviceType object (05a §3.5: one kind, one object)
-  readonly roles: R;                 // e.g. { gear: { type: DaliGear } }, { input: { type: UnipiDi }, indicator: { type: UnipiLed, optional: true } }
-  readonly settings: TypedCodec<S>;  // Codecs.void when the template has none
-  readonly defaults: S;
+  readonly label: LocalizedText;     // 04 §7
+  readonly hint?: LocalizedText;
+  readonly roles: R;                 // e.g. { gear: { types: [DaliGear], min: 1, max: 1, label: 'Gear' } }, { relays: { types: [UnipiRo, UnipiDo], min: 1, max: 4, label: 'Relays' } }
+  readonly settings?: TypedCodec<S>; // annotated, defaults included (05a §3.1a); absent ⇒ no settings
   product?(ctx: AssemblyContext<R, S>): Promise<Infer<typeof Product> | undefined>;   // §2.1 — read once, when the device is created
   assemble(ctx: AssemblyContext<R, S>):
     { readonly [K in Exclude<keyof F, CommonKey>]?: BindHandlers<…> } & { readonly identify?: BindHandlers<…> };
 }
 ```
 
-A role names a source by its `DeviceType` alone, never a driver kind: a kind already names its own family (`dali.gear`), and which driver serves it is the source's address (§4). `assemble()` returns handlers for the device type's own fields, plus `identify` when an `indicator` role is bound, and never for any other `CommonKey` — a template that does is a packaging mistake, rejected when the template is resolved.
+A role names a source by its `DeviceType` alone, never a driver kind: a kind already names its own family (`dali.gear`), and which driver serves it is the source's address (§4). `assemble()` returns handlers for the device type's own fields, plus `identify` when its `indicator` role has a source, and never for any other `CommonKey` — a template that does is a packaging mistake, rejected when the template is resolved.
+
+A role with `max` above 1 takes several sources that together make **one** physical device — a chandelier on two relays, one temperature averaged from three probes. Separate lights stay separate devices, tied together by a rule (12b). With several sources:
+
+- `reachable` needs every one (§4.2).
+- A `SET` goes to each. If any throws `SourceUnreachable`, the answer is `unreachable` and nothing is rolled back — the same as rules (12b §5.3).
+- How the sources combine into one value — on only when both relays are, an average — is the template's, and it states it.
 
 A template may declare no roles: its device is virtual, assembled from nothing — the built-in `timer` template for `Timer` (§2.2) — and is always `reachable` (§4.2).
 
@@ -228,8 +264,8 @@ A **device record** is this driver's own user data (01 §2), stored in its KV na
 type DeviceOrigin =
   | { readonly kind: 'local';                               // §3
       readonly templateKind: string;
-      readonly sources: Readonly<Record<string, Address>>;  // one driver-qualified address per bound role (03 §3); an unbound optional role is absent
-      readonly settings: Value; }                           // decoded by the template's own `settings` codec
+      readonly sources: Readonly<Record<string, readonly Address[]>>;   // per role, its driver-qualified addresses (03 §3); a role with no source is absent
+      readonly settings: Value; }                           // the template's `settings`, defaults filled
   | { readonly kind: 'matter';                              // §4a
       readonly nodeId: string;                              // decimal Matter NodeId — json has no bigint
       readonly uniqueId?: string;                           // BridgedDeviceBasicInformation.uniqueId, when the endpoint has one
@@ -268,7 +304,7 @@ Tails are `device.<origin>.<origin-specific>`:
 
 A tail never changes: not on `updateDevice`, not when a Matter bridge renumbers its endpoints (§4a). A removed device's number is never reused, so a rule (12b) or 16a's tail → endpoint map that still names it never reaches a new device. A `remote` origin is another evok-node (§4b); 05a's `RemoteDevice` is only the handle a `local` device uses to reach a source in this daemon.
 
-`configure()` replays every stored `DeviceRecord`. A `local` one the same way 12-DALI-driver's own stored gears are replayed (12 §10.1, 05a §3.6): resolve `templateKind` → `AssemblyTemplate`, build one `remoteDevice(ctx, address, role.type)` (05a §3.8a) per `sources` entry, call `assemble()`, and `bindDevice()` the result under its tail. A `matter` or `remote` one is bound the same way, ahead of its node or peer link, so which `optional()` fields it binds comes from `optionalBound`, recorded at commissioning or import. When the node's or the remote's own description changes it, the device is re-bound under the same tail. A device is bound whether or not its sources are up yet, so start order never matters; until they are, the device is simply not `reachable`. A record without `deviceType` is never bound.
+`configure()` replays every stored `DeviceRecord`. A `local` one the same way 12-DALI-driver's own stored gears are replayed (12 §10.1, 05a §3.6): resolve `templateKind` → `AssemblyTemplate`, build one `remoteDevice(ctx, address, type)` (05a §3.8a) per source address, `type` being the one of `role.types` its kind matches, call `assemble()`, and `bindDevice()` the result under its tail. A `matter` or `remote` one is bound the same way, ahead of its node or peer link, so which `optional()` fields it binds comes from `optionalBound`, recorded at commissioning or import. When the node's or the remote's own description changes it, the device is re-bound under the same tail. A device is bound whether or not its sources are up yet, so start order never matters; until they are, the device is simply not `reachable`. A record without `deviceType` is never bound.
 
 Who writes a record depends on its origin: a `local` one through `createDevice`/`updateDevice`/`removeDevice` (§5), a `matter` one through pairing (§4a), a `remote` one through import (§4b) and its `overrides` through `updateDevice`. Every write persists the record first, then binds, re-binds or unbinds the device live — the same persist-before-apply order 06 §7 states for any driver's own dynamic binding. A change to a `local` device's `sources` or `settings` re-binds it (unbind, `assemble()`, bind) under the same tail and kind; a change to `name`, labels, tags, `product`, `exposed`, `controllable` or `overrides` only emits on the affected common field.
 
@@ -282,7 +318,7 @@ matter:  node.subscriptionActive  &&  endpoint in the node's PartsList  &&  (Bri
 remote:  peer link up  &&  the remote device's own `reachable`
 ```
 
-For `local`, each bound device runs one `watchDevice` (05a §4b) per bound source, with `check = (ref, kind) => ref !== null && kind !== undefined && matchesDeviceType(ref, kind, role.type)` (05a §4a). This also covers a source driver reloaded with a table that no longer matches — a source that disappears or changes shape makes the device unreachable rather than broken, and it recovers on its own when a matching table returns.
+For `local`, each bound device runs one `watchDevice` (05a §4b) per bound source, with `check = (ref, kind) => ref !== null && kind !== undefined && role.types.some(t => matchesDeviceType(ref, kind, t))` (05a §4a). This also covers a source driver reloaded with a table that no longer matches — a source that disappears or changes shape makes the device unreachable rather than broken, and it recovers on its own when a matching table returns.
 
 A `local` device with no roles has no source to check: it is always `reachable`.
 
@@ -357,49 +393,47 @@ interface RemoteOverrides {        // this PLC's own, written through updateDevi
 
 ## 5. Management endpoints
 
-Listing an assembled device's own fields is `$introspect`/`kit.list()` (05a §3.5), same as any other driver — never duplicated here. What needs its own surface is managing records, Matter nodes and remotes, on non-bus-indexed management tails, exposed in whatever shape the WS API (15) and its Inspector UI plugin (16, 17) want, never Matter-shaped:
+Listing an assembled device's own fields is `$introspect`/`kit.list()` (05a §3.5), same as any other driver — never duplicated here. What needs its own surface is managing records, Matter nodes, remotes and the hierarchy: one device, `manage` (kind `home.Manage`, no `'@'`), whose fields are the methods below — `home:manage.createDevice`. Each takes one args struct (none when it has no arguments) and is shaped for the WS API (15) and its Inspector UI plugin (16, 17), never Matter-shaped:
 
 ```ts
 type DeviceStatus = 'ok' | 'unreachable' | 'missing';   // §4.3
 
 // devices
 listDeviceTypes(): readonly { kind: string; templates: readonly string[] }[];
-listTemplates(deviceType: string): readonly {
-  kind: string;
-  roles: Record<string, { kind: string; optional: boolean }>;
-  settings: ValueSchema;               // the template's settings schema, for the Inspector UI to render
-  defaults: Value;
+listTemplates(args: { deviceType: string }): readonly {
+  kind: string; label: LocalizedText; hint?: LocalizedText;
+  form: ValueSchema;                   // §2.4 — format `schema` on the wire
 }[];
 createDevice(args: {                   // always a `local` device
   deviceType: string; templateKind: string;
-  sources: Record<string, Address>;
   name: string;
-  settings?: Value;                    // omitted ⇒ the template's defaults
+  sources: Value;                      // the form's `sources`: role → addresses (format `json`)
+  settings?: Value;                    // the form's `settings`; omitted ⇒ every default
   exposed?: boolean;                   // omitted ⇒ true
   controllable?: boolean;              // omitted ⇒ true
   fixedLabels?: readonly { label: string; value: string }[];
   tags?: readonly { key: string; value: string }[];
   product?: { vendor: string; name: string; serial: string };   // omitted ⇒ the template's (§3), else empty
 }): DeviceRecord;
-updateDevice(tail: string, patch: {
+updateDevice(args: { tail: string; patch: {
   name?: string; exposed?: boolean; controllable?: boolean; groupId?: string;   // not `remote`
   fixedLabels?: readonly { label: string; value: string }[];
   tags?: readonly { key: string; value: string }[];
   product?: { vendor: string; name: string; serial: string };
-  sources?: Record<string, Address>; settings?: Value;   // `local` only
+  sources?: Value; settings?: Value;                     // `local` only — merged with the stored values, checked against the form
   overrides?: RemoteOverrides;                           // `remote` only — §4b
-}): DeviceRecord;
-removeDevice(tail: string): void;
+} }): DeviceRecord;
+removeDevice(args: { tail: string }): void;
 listDevices(): readonly (DeviceRecord & { status: DeviceStatus })[];
 
 // Matter (§4a)
 commission(args: { pairingCode: string }): { nodeId: string; devices: readonly DeviceRecord[] };   // unknown types included
-unpair(nodeId: string): { decommissioned: boolean };   // false ⇒ removed locally only; the device may need a factory reset
+unpair(args: { nodeId: string }): { decommissioned: boolean };   // false ⇒ removed locally only; the device may need a factory reset
 listNodes(): readonly { nodeId: string; devices: readonly string[] }[];   // record tails
 
 // remotes (§4b)
 addRemote(r: RemoteRecord): RemoteRecord;
-removeRemote(id: string): void;        // removes its imported devices too
+removeRemote(args: { id: string }): void;        // removes its imported devices too
 listRemotes(): readonly (RemoteRecord & { link: 'up' | 'down' | 'incompatible' })[];   // incompatible: evokNodeVersion out of range (§4b)
 
 // hierarchy (§6)
@@ -410,14 +444,14 @@ listHierarchy(): {
 createLevel(args: { name: string }): Level;
 createRoom(args: { name: string; levelId: string }): Room;
 createGroup(args: { name: string; roomId: string }): Group;
-updateLevel(id: string, patch: { name?: string }): Level;
-updateRoom(id: string, patch: { name?: string; levelId?: string }): Room;
-updateGroup(id: string, patch: { name?: string; roomId?: string }): Group;
-removeLevel(id: string): void;
-removeRoom(id: string): void;
-removeGroup(id: string): void;
+updateLevel(args: { id: string; patch: { name?: string } }): Level;
+updateRoom(args: { id: string; patch: { name?: string; levelId?: string } }): Room;
+updateGroup(args: { id: string; patch: { name?: string; roomId?: string } }): Group;
+removeLevel(args: { id: string }): void;
+removeRoom(args: { id: string }): void;
+removeGroup(args: { id: string }): void;
 attachRemote(args: { remoteId: string; node: 'level' | 'room' | 'group'; id: string; under?: string }): Level | Room | Group;   // id: the node's id on the remote; under: the local level/room it goes in
-detachRemote(id: string): void;        // the local id of an attached node
+detachRemote(args: { id: string }): void;        // the local id of an attached node
 ```
 
 `userLabels` are not here: they are written through the device's own `userLabels` field, by a human or by an api.
@@ -427,13 +461,13 @@ detachRemote(id: string): void;        // the local id of an attached node
 Every method validates before anything is persisted or bound, and answers `domain-error` (05a §3.5) — never a throw — since a human in the Inspector UI or the Home UI is exactly the caller this is for. `errorKinds`:
 
 - `unknown-device-type`, `unknown-template`, `unknown-device`, `unknown-node`, `unknown-remote`, `duplicate-remote`, `unknown-level`, `unknown-room`, `unknown-group`.
-- `invalid-sources` — a required role missing, an unknown role named, or a source whose driver's current introspection fails `matchesDeviceType` against the role's `type` (05a §4a). A device is never created against a source nobody has seen; once created, a missing source only makes it unreachable (§4.2).
-- `invalid-settings` — `settings` fails the template's own codec.
+- `invalid-sources` — the form's `sources` fail its codec (a role missing or unknown, a count outside `min`–`max`), or a source fails `home.source`'s `has` (§2.4): its driver isn't in `config.local`, or its current introspection fails `matchesDeviceType` against every one of the role's `types` (05a §4a). A device is never created against a source nobody has seen; once created, a missing source only makes it unreachable (§4.2).
+- `invalid-settings` — `settings` fail the form's `settings`.
 - `read-only` — `updateDevice` on a `remote` device with anything but `overrides`; `overrides` on a non-`remote` one; `sources`/`settings` on a non-`local` one; `removeDevice` on a present `matter`/`remote` one; any change to an attached node (§6) or to what's in it.
 - `in-use` — removing a level, room or group something still references.
 - `pairing-failed` — `commission` couldn't pair: bad or expired code, device not found on the network.
 
-Each method is bound on its own management tail, `manage.<method>` — `manage.createDevice`, `manage.listHierarchy`. Every one is reachable through the WS API (15) and its Inspector UI. The Home API relays a subset, for the Home UI:
+Every method is reachable through the WS API (15) and its Inspector UI. The Home API relays a subset, for the Home UI:
 
 | Methods | Home API |
 |---|---|
@@ -443,6 +477,7 @@ Each method is bound on its own management tail, `manage.<method>` — `manage.c
 | `addRemote`, `removeRemote`, `listRemotes` | — |
 | hierarchy | yes |
 | rules (12b §8) | yes |
+| `$refs` (§2.4) | yes |
 
 The Home API itself is designed in M3.11 (18).
 
@@ -476,13 +511,13 @@ house PLC:   attachRemote({ remoteId: 'garden', node: 'room', id: <Terrace>, und
 Tier 1, against fixture drivers (no hardware) that each expose a handful of `bindDevice`'d devices the same way a real `unipi`/`dali` driver would; `matter` and `remote` cases against an in-process matter.js test node and a fixture WS API server:
 
 - A template's `assemble()` wires its returned handlers to the fixture source devices it was handed — a `channel` written through the assembled device reaches the fixture source's own `onSet`, never a copy; a `GET` answers the last value the source emitted without a round trip.
-- Every assembled device binds every `CommonFields` member except `identify`; `identify` is bound exactly when the template's `indicator` role is, and otherwise appears in the device's `unbound` (05a §4).
+- Every assembled device binds every `CommonFields` member except `identify`; `identify` is bound exactly when the template's `indicator` role has a source, and otherwise appears in the device's `unbound` (05a §4).
 - A template returning handlers for a `CommonKey` other than `identify` is rejected when the template is resolved.
 - `SET` on `name`/`userLabels` persists the `DeviceRecord` before the reply; after a restart, `GET` returns the written value.
 - `GET` with `returnFields: '*'` on an assembled device returns every readable field in one response, with no `'@'` key.
 - `GenericSwitch` from a fixture `unipi.di`: two identical short presses produce two `switch` values with consecutive `seq`; a long press produces `press` → `longPress` → `longRelease`; a double press ends with `multiPressComplete`, `count: 2`; `multiPressMax` reflects the device's `settings`.
 - `reachable`: false while a source's driver isn't up, true once it binds a matching device, false again when that driver re-binds the tail under a different kind or drops it, and false while the template has `markStale(true)`; emits only on a flip.
-- `createDevice` with a required role missing, an unknown role, a source of the wrong kind, or a source no driver currently has, answers `invalid-sources` before any `DeviceRecord` is written or anything is bound; bad `settings` answer `invalid-settings`.
+- `createDevice` with a required role missing, an unknown role, a source of the wrong kind, a source no driver currently has, or a source whose driver isn't in `config.local`, answers `invalid-sources` before any `DeviceRecord` is written or anything is bound; bad `settings` answer `invalid-settings`.
 - A `DeviceRecord` restored from a KV fixture at `configure()` binds whether or not its sources' drivers are up yet — exercised the same way 12 §12 exercises stored-gear replay.
 - `updateDevice` changing `sources` or `settings` re-binds under the same tail and kind; changing only `name`/labels/tags never re-binds.
 - `removeDevice` unbinds the device and deletes its `DeviceRecord`; a later `configure()` never re-creates it.
@@ -499,3 +534,7 @@ Tier 1, against fixture drivers (no hardware) that each expose a handful of `bin
 - `DimmableLight` from a fixture source: `move` up raises `level` until `stop`, and stops on its own at 254.
 - `Timer` on a fake `Clock`: `start` → after `seconds`, `running` is false and `elapsed.seq` +1; `start` while running restarts the count; `cancel` never emits `elapsed`; after a restart every timer is stopped.
 - A template with no roles binds a device that is `reachable` at once.
+- Forms: `listTemplates` answers a `form` whose `sources` hold one ref array per role, kinds taken from `types`, and whose `settings` carry the template's defaults; `createDevice` without `settings` stores every default; a 0–1 role may be omitted.
+- `$refs`: `home.device` lists only devices of the filtered kinds, with `name` and hierarchy path; `home.source` lists only devices of `config.local` drivers.
+- Several sources: a 1–4 role accepts 1–4 addresses and answers `invalid-sources` for 0 or 5; `reachable` is false while any source is down; a `SET` with one source unreachable answers `unreachable`, and the other source keeps the write.
+- `manage` is one bound device of kind `home.Manage`; each method answers at `home:manage.<method>` and takes one args struct.

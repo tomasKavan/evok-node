@@ -183,4 +183,4 @@ type LocalizedText = string | Readonly<Record<LanguageTag, string>>;    // a pla
 function resolveText(text: LocalizedText, lang: LanguageTag): string;  // lang → its primary subtag → 'en'
 ```
 
-Which language to ask for is the UI's choice. A module never picks one.
+Which language to ask for is the UI's choice. A module never picks one: `LocalizedText` travels in full, every language, inside the daemon, and the WS API resolves it for the session's language at the edge (15). A value that is itself such text has the schema format `text` (05a §3.1a).

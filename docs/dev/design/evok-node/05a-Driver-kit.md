@@ -31,9 +31,18 @@ type PrimitiveFormat =
   | 'uint8' | 'uint16' | 'uint32' | 'uint64'
   | 'float32' | 'float64'
   | 'timestamp'          // uint32 epoch seconds on the wire — same convention as readAt below — decodes to Date
-  | 'tlv8' | 'json';     // json is the closed vocabulary's own escape hatch — 06 is the first user
+  | 'tlv8' | 'json'      // json is the closed vocabulary's own escape hatch — 06 is the first user
+  | 'text'               // a LocalizedText value (04 §7), resolved to one language at the edge (15) — §3.1a
+  | 'schema';            // a ValueSchema value, e.g. a template's form (12a §2.4) — §3.1a
 
-interface Semantics {
+interface Annotations {                                // for a human form — §3.1a; advisory, like Semantics
+  readonly label?: LocalizedText;                      // 04 §7
+  readonly hint?: LocalizedText;
+  readonly default?: Value;                            // a struct member a caller may omit; decode fills it in
+  readonly optional?: boolean;                         // a struct member a caller may omit; decode leaves it absent
+}
+
+interface Semantics extends Annotations {
   readonly unit?: string;                            // 'mV' | 'uA' | '%' ... — descriptive only, never enforced by validate()
   readonly min?: number;
   readonly max?: number;
@@ -41,14 +50,17 @@ interface Semantics {
   readonly maxLength?: number;                       // string/bytes length, or array length
   readonly enumValues?: readonly (string | number)[];
   readonly scaler?: number;                          // engineering value = raw wire number * scaler; omitted ⇒ 1
+  readonly enumLabels?: Readonly<Record<string, LocalizedText>>;      // §3.1a — one per enumValues entry
+  readonly ref?: { readonly type: string; readonly filter?: Value };  // §3.10 — the value is an object's id
 }
 
-type ValueSchema = PrimitiveSchema | ArraySchema | StructSchema | UnionSchema;
+type ValueSchema = PrimitiveSchema | ArraySchema | StructSchema | UnionSchema | VoidSchema;
 
 interface PrimitiveSchema extends Semantics { readonly type: 'primitive'; readonly format: PrimitiveFormat; }
 interface ArraySchema     extends Semantics { readonly type: 'array'; readonly items: ValueSchema; }
-interface StructSchema                      { readonly type: 'struct'; readonly fields: Readonly<Record<string, ValueSchema>>; }
-interface UnionSchema                       { readonly type: 'union'; readonly tag: string; readonly variants: Readonly<Record<string, ValueSchema>>; }
+interface StructSchema    extends Annotations { readonly type: 'struct'; readonly fields: Readonly<Record<string, ValueSchema>>; }
+interface UnionSchema     extends Annotations { readonly type: 'union'; readonly tag: string; readonly variants: Readonly<Record<string, ValueSchema>>; }
+interface VoidSchema                        { readonly type: 'void'; }   // a method's result only — §3.1a
 ```
 
 `Semantics` is advisory only — `min`/`max`/`step`/`enumValues` are for a generic consumer to render a control correctly (§3.4's `AO`/`DO`), never a second validation layer a driver author has to keep in sync with limits the hardware already enforces itself. `int64`/`uint64` decode to `bigint`, never `number`: `Value` (03 §2) has no `bigint` arm, so their wire form is a decimal string, the same JSON-safe shape as everything else on this boundary — `BigInt(str)` is the whole decode, no big-number library needed. `timestamp` costs nothing new either: it reuses `readAt`'s own existing epoch-seconds convention, just typed as `Date` instead of a raw number callers had to interpret themselves.
@@ -74,8 +86,11 @@ const Codecs: {
   readonly timestamp: (s?: Semantics) => TypedCodec<Date>;
   readonly tlv8: (s?: Semantics) => TypedCodec<Uint8Array>;
   readonly json: (s?: Semantics) => TypedCodec<unknown>;
-  readonly void: TypedCodec<void>;   // a `method` with nothing meaningful to return on success
-  struct<F extends Record<string, TypedCodec<unknown>>>(fields: F): TypedCodec<{ readonly [K in keyof F]: Infer<F[K]> }>;
+  readonly void: TypedCodec<void>;   // a `method` with nothing meaningful to return on success — schema { type: 'void' }
+  readonly text: (s?: Semantics) => TypedCodec<LocalizedText>;
+  readonly schema: (s?: Semantics) => TypedCodec<ValueSchema>;
+  optional<T>(c: TypedCodec<T>): TypedCodec<T | undefined>;   // sets the member's `optional` — §3.1a
+  struct<F extends Record<string, TypedCodec<unknown>>>(fields: F, a?: Annotations): TypedCodec<{ readonly [K in keyof F]: Infer<F[K]> }>;
   array<T>(items: TypedCodec<T>, s?: Semantics): TypedCodec<readonly T[]>;
   union<V extends Record<string, TypedCodec<unknown>>>(tag: string, variants: V): TypedCodec<UnionOf<V>>;   // UnionOf<V> tags each Infer<V[K]> with { [tag]: K } — mechanical, omitted here
 };
@@ -123,6 +138,31 @@ type EndpointType<T = unknown, TSet = T, E extends string = never> = ReadingType
 ```
 
 A `channel`'s `SET` always returns exactly what it was given — `TSet` — never something narrower or nothing at all. A bus that can't confirm a write still trivially has the value it was just asked to set.
+
+### 3.1a. Forms — annotations, defaults, optional members
+
+A schema also describes what a human fills in, so any UI renders an input for a method's arguments, a template's settings or a rule's options (12a §2.4) from the schema alone:
+
+```ts
+store: method('mutates', Codecs.void, Codecs.struct({
+  romId: Codecs.string({ label: 'Sensor', ref: { type: 'onewire.candidate' } }),        // §3.10
+  label: Codecs.string({ maxLength: 32, default: '', label: { en: 'Label', cs: 'Popis' } }),
+  note:  Codecs.optional(Codecs.string({ label: 'Note' })),
+})),
+```
+
+| Struct member | Caller may omit it | After decode |
+|---|---|---|
+| `Codecs.bool()` | no | as sent |
+| `Codecs.bool({ default: false })` | yes | `false` |
+| `Codecs.optional(Codecs.bool())` | yes | absent |
+
+- Annotations are advisory, like `Semantics`: `validate` checks shape; `default` and `optional` only decide what a caller may omit.
+- `default` and `optional` mean something only on a struct member. Both on one member is a packaging mistake, rejected when the codec is built.
+- `optional` here is a value a caller may omit. `optional()` on a `DeviceType` field (§3.3) is an endpoint a device may not have — a different thing.
+- `enumLabels` has exactly the keys of `enumValues`.
+- `LocalizedText` travels in full, every language; the WS API resolves it for the session's language (15). A value that is itself user-facing text has format `text`; a value that is itself a schema (a template's form) has format `schema`, so the edge finds the text inside it too.
+- `{ type: 'void' }` is `Codecs.void`'s schema — a method's result only, on the wire a success with no body. Never a struct member, an array item, or a reading's or channel's schema.
 
 ### 3.2. Building one without repeating the type
 
@@ -283,6 +323,8 @@ interface DriverKit {
   attach(): void;                              // §3.8
   remote<E extends EndpointType>(address: Address, field: E): RemoteEndpoint<E>;                                                       // sugar over module-sdk's own remote(ctx, ...) — §3.8a
   remoteDevice<F extends Record<string, EndpointType | OptionalEndpointType>>(address: Address, type: DeviceType<F>): RemoteDevice<F>;  // sugar over remoteDevice(ctx, ...) — §3.8a
+  registerRefType(type: string, ref: RefType): void;                                          // §3.10 — a duplicate type is fatal
+  checkRefs(schema: ValueSchema, value: Value): readonly { path: string; detail: string }[];  // §3.10 — empty ⇒ every ref resolves
 }
 ```
 
@@ -437,6 +479,38 @@ function remoteDevice<F extends Record<string, EndpointType | OptionalEndpointTy
 `DriverKit.remote`/`.remoteDevice` (§3.5) are forwarding sugar only — `kit.remote(address, field)` is exactly `remote(ctx, address, field)` with the `ctx` a driver already has in scope closed over, the same convenience `attach()` already is over a bare `ctx.messaging.onRequest` call.
 
 ### 3.9. REMOVED
+
+### 3.10. Refs — picking an object by id
+
+A `ref` (§3.1a) marks a value as the id of an object of one type — a home device, a 1-Wire candidate. On the wire it stays a plain `string` or number, never an enum: the objects change at runtime, while a kind's schema is written once (§4). Several are an `array` of it, with `min`/`max`.
+
+A ref type is registered by the driver that consumes the selection — the one that later acts on the stored id — and is named in its own namespace, like a kind:
+
+```ts
+// @evok-node/driver-kit
+interface RefChoice { readonly id: string | number; readonly label: LocalizedText; readonly path?: string }   // path, e.g. 'Ground / Hall'
+interface RefType {
+  list(filter: Value | undefined): Promise<readonly RefChoice[]>;
+  has?(id: string | number, filter: Value | undefined): boolean;   // omitted ⇒ id is in list(filter)
+}
+
+kit.registerRefType('onewire.candidate', {
+  list: async () => candidates.map(c => ({ id: c.romId, label: `${c.family} · ${c.adopted ? 'adopted' : 'new'}` })),
+});
+```
+
+- **Listing.** driver-kit answers `CALL <driverId>:$refs { type, filter? } → RefChoice[]` (03 §3) from `list`. An unknown `type` is `bad-payload`.
+- **Validation** is two steps. The codec checks shape only — `validate` is stateless. Then `kit.checkRefs(schema, value)` walks the schema and calls `has` for every `ref` it meets, returning the failures; the handler answers them — `bad-payload`, or its own domain error (12a §5's `invalid-sources`).
+- A stored id whose object later disappears is the consumer's business (12b §7's `device-removed`), never the schema's.
+
+```
+UI   → CALL ow1:$refs { type: 'onewire.candidate' }   → [ { id: '28-0316a2794bff', label: 'DS18B20 · new' } ]
+UI   → CALL ow1:store { romId: '28-0316a2794bff' }
+ow1  → codec ✓ → checkRefs → has ✓ → adopt
+UI   → CALL ow1:store { romId: '28-ffff' }             → bad-payload "romId: unknown onewire.candidate '28-ffff'"
+```
+
+A filter that depends on another field of the same form — a DALI gear on the bus picked above it — is not designed yet (M3.9).
 
 ## 4. Introspection payload
 
@@ -600,3 +674,5 @@ Tier 1 (unit; `basics/03-Testing.md`), against `driver-kit`'s own fixtures — a
 - `isDriverKitIntrospection`/`isDriverKitChange`/`isDeviceRef`/`isFieldEntry`/`matchesDeviceType` (§4a): each guard rejects a malformed or foreign-shaped body without throwing; `isDriverKitIntrospection` rejects a `DeviceRef` whose `kind` is missing from `kinds`; `matchesDeviceType` flags a ref whose `kind` matches but whose kind's field `schema` doesn't, one whose `kind` disagrees outright, and one listing a field the type requires in `unbound`.
 - `followIntrospection` (§4b): delivers a `full` first, then each `change` in order; against a fixture source that drops a change, it calls `get(since)` and delivers the merged `change`; after a fixture restart (new epoch), it delivers a `full`.
 - `watchDevice` (§4b): calls `onResult` once, immediately; again exactly once when a later answer flips `check`'s result; never re-runs `check` for a `change` that doesn't name its tail.
+- Forms (§3.1a): a struct member with `default` may be omitted and decodes to it; an `optional` one decodes absent; omitting a plain member fails `validate`; `default` with `optional` is rejected when the codec is built; `Codecs.void`'s schema reaches the wire as `{ type: 'void' }`.
+- Refs (§3.10): `$refs` answers `list(filter)`; an unknown type is `bad-payload`; `checkRefs` reports every unresolved ref inside nested structs and arrays, and nothing for a valid value; with `has` omitted it falls back to `list`; registering one type twice is fatal.

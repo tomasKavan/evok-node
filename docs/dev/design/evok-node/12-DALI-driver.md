@@ -263,7 +263,7 @@ const DaliGear = device('dali.gear', {
 //   stop(): cancels it
 ```
 
-`DaliLevelSetCodec = Codecs.struct({ intensity: Codecs.uint8({min:0,max:254}), instant: Codecs.bool() })` — `instant` omitted ⇒ `false`.
+`DaliLevelSetCodec = Codecs.struct({ intensity: Codecs.uint8({min:0,max:254}), instant: Codecs.bool({ default: false }) })`.
 
 ### 9.2. `intensity` — 0 is categorically off, never "a low level"
 
