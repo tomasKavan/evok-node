@@ -12,6 +12,7 @@
 | File | Types |
 |---|---|
 | [`12c-01-Lights.md`](12c-Home-main-devices/12c-01-Lights.md) | `OnOffLight`, `DimmableLight`, `ColorTemperatureLight`, `ExtendedColorLight` |
+| [`12c-02-Plug-in-units.md`](12c-Home-main-devices/12c-02-Plug-in-units.md) | `OnOffPlugInUnit` |
 
 **Job:** one section per home `DeviceType`: fields, built-in templates and Matter mapping, in full.
 12a holds what every type shares; this file holds what one type adds.
@@ -55,7 +56,7 @@ resolution vs Matter (0.01 °C, Percent100ths, log lux), the moving-device patte
 | `DimmableLight` | Dimmable Light | |
 | `ColorTemperatureLight` | Color Temperature Light | |
 | `ExtendedColorLight` | Extended Color Light | one template, `tunable-rgbw-4dali` |
-| `OnOffPlugInUnit` | On/Off Plug-in Unit | a relay load that isn't a light: socket, pump, fan |
+| `OnOffPlugInUnit` | On/Off Plug-in Unit | |
 | `TimerRelay` | — | today `Timer` (12a §2.2). Name, and separate device vs `onFor` on outputs, decided here |
 | `WindowCovering` | Window Covering | % direction (Matter: 0 = open); tilt for venetian blinds; position from travel time on two relays |
 | `DoorLock` | Door Lock | PIN and assurance level → 13a (M3.6) |

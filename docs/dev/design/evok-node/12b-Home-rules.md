@@ -44,8 +44,8 @@ None of them has options.
 
 | Kind | Triggers | Actions | Does |
 |---|---|---|---|
-| `toggle-on-press` | `buttons`: `GenericSwitch`, 1–n | `lights`: `OnOffLight`, `DimmableLight`, `ColorTemperatureLight`, 1–n | A short press: if any light is on, all go off; otherwise all go on. |
-| `dimmer-on-longpress` | `buttons`: `GenericSwitch`, 1–n | `lights`: `DimmableLight`, `ColorTemperatureLight`, 1–n | `longPress` → `move` in the current direction; `longRelease` → `stop`. The direction toggles on every long press. |
+| `toggle-on-press` | `buttons`: `GenericSwitch`, 1–n | `lights`: `OnOffLight`, `DimmableLight`, `ColorTemperatureLight`, `ExtendedColorLight`, 1–n | A short press: if any light is on, all go off; otherwise all go on. |
+| `dimmer-on-longpress` | `buttons`: `GenericSwitch`, 1–n | `lights`: `DimmableLight`, `ColorTemperatureLight`, `ExtendedColorLight`, 1–n | `longPress` → `move` in the current direction; `longRelease` → `stop`. The direction toggles on every long press. |
 | `one-button-window-cover` | `buttons`: `GenericSwitch`, 1–n | `covers`: `WindowCovering`, 1–n | A short press → `goTo` the end in the current direction. `longPress` → `goTo` that end; `longRelease` → `stop`. The direction toggles on every press. |
 
 The direction lives in the rule's state (§5.5). With no state yet, it points to the end farther from the current `level` or `position.current`. A button with short-press toggle and long-press dimming is two rules on the same button: `toggle-on-press` and `dimmer-on-longpress`.

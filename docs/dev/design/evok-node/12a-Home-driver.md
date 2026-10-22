@@ -92,6 +92,7 @@ No home `DeviceType` declares `'@'` — every field is named. The whole device i
 | `DimmableLight` | Dimmable Light | 12c-01 §2 |
 | `ColorTemperatureLight` | Color Temperature Light | 12c-01 §2 |
 | `ExtendedColorLight` | Extended Color Light | 12c-01 §2 |
+| `OnOffPlugInUnit` | On/Off Plug-in Unit | 12c-02 §2 |
 | `WindowCovering` | Window Covering | `position` reading `{current, target, motion}` (%) · `goTo` method `{percent}` · `stop` method |
 | `DoorLock` | Door Lock | `state` reading `locked`/`unlocked`/`jammed`/`unknown` · `lock` method · `unlock` method |
 | `ContactSensor` | Contact Sensor | `contact` reading\<bool\> |
@@ -205,21 +206,28 @@ type Sources<R extends Record<string, Role>> = {
                           : readonly SourceOf<R[K]>[];                                            // otherwise an array
 };
 
-interface AssemblyContext<R extends Record<string, Role>, S> {
+interface AssemblyContext<R extends Record<string, Role>, S, St = never> {
   readonly sources: Sources<R>;
   readonly settings: S;
+  readonly state: TemplateState<St>;   // below
   markStale(stale: boolean): void;   // §4.2 — for a source that is present and well-shaped but reports its own data stale
 }
 
-interface AssemblyTemplate<F extends Record<string, EndpointType | OptionalEndpointType>, R extends Record<string, Role>, S> {
+interface TemplateState<St> {
+  readonly value: St | undefined;    // the last saved value; undefined when none, or when it no longer decodes
+  save(value: St): void;             // debounced: written at most every 5 s, flushed on stop/drain (01 §4)
+}
+
+interface AssemblyTemplate<F extends Record<string, EndpointType | OptionalEndpointType>, R extends Record<string, Role>, S, St = never> {
   readonly kind: string;               // 'dimmable-from-dali', 'dimmable-from-ao', 'switch-from-di', 'timer', ... — must equal the manifest's templateKind
   readonly deviceType: DeviceType<F>;   // the exported home DeviceType object (05a §3.5: one kind, one object)
   readonly label: LocalizedText;     // 04 §7
   readonly hint?: LocalizedText;
   readonly roles: R;                 // e.g. { gear: { types: [DaliGear], min: 1, max: 1, label: 'Gear' } }, { relays: { types: [UnipiRo, UnipiDo], min: 1, max: 4, label: 'Relays' } }
   readonly settings?: TypedCodec<S>; // annotated, defaults included (05a §3.1a); absent ⇒ no settings
-  product?(ctx: AssemblyContext<R, S>): Promise<Infer<typeof Product> | undefined>;   // §2.1 — read once, when the device is created
-  assemble(ctx: AssemblyContext<R, S>):
+  readonly state?: TypedCodec<St>;   // what the template persists — below; absent ⇒ nothing
+  product?(ctx: AssemblyContext<R, S, St>): Promise<Infer<typeof Product> | undefined>;   // §2.1 — read once, when the device is created
+  assemble(ctx: AssemblyContext<R, S, St>):
     { readonly [K in Exclude<keyof F, CommonKey>]?: BindHandlers<…> } & { readonly identify?: BindHandlers<…> };
 }
 ```
@@ -233,6 +241,12 @@ A role with `max` above 1 takes several sources that together make **one** physi
 - How the sources combine into one value — on only when both relays are, an average — is the template's, and it states it.
 
 A template may declare no roles: its device is virtual, assembled from nothing — the built-in `timer` template for `Timer` (§2.2) — and is always `reachable` (§4.2).
+
+**After a restart, a template restores its device's state.** How is the template's: an `OnOffLight` on relays saves `{ onOff }` and applies its `startUp` setting from it; one on a DALI gear reads the gear, which kept its own. A template persists only through `ctx.state` — never the KV driver directly:
+
+- The value is opaque to this driver, checked by the template's `state` codec. One that no longer decodes — after a plugin upgrade, say — is `undefined`.
+- `save` is debounced, so a light dimmed by `move` doesn't write KV on every step.
+- `updateDevice` keeps it; `removeDevice` removes it (§4.1).
 
 Handlers answer from memory, the way every driver does (01): `assemble()` subscribes to the source fields it needs and emits on its own bound fields as they change, so `onGet` reads the last known value, never a round trip. A `switch-from-di` template turns `input`'s edges into `SwitchState` values using its own settings (long-press threshold, multi-press window, `multiPressMax`); a `dimmable-from-dali` template's `level` reads `gear`'s own `intensity` (12 §9.1) and its `onSet` forwards a write to it (12c-01 §3.4).
 
@@ -280,6 +294,8 @@ interface DeviceRecord {
 ```
 
 On a `remote` device, `name`, labels, tags, `product`, `exposed` and `controllable` hold the last values the link delivered, so the device answers before the link is up.
+
+A `local` device's template state (§3) is stored beside its record, under the same tail, and removed with it.
 
 Tails are `device.<origin>.<origin-specific>`:
 

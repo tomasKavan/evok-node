@@ -22,6 +22,8 @@ Home, Google Home, …) can control them.
   endpoint number loses the device's rooms and automations in the controller. Stored in `api.<id>`
   (06), secrets as sensitive keys (06 §5a).
 - **Discrete events** (Generic Switch) rebuilt from 12a's `switch.lastEvent` sequence (12a §2.2).
+- **HS colour.** Home keeps CIE xy (12c-01 §2). If a controller needs HueSaturation (Apple Home?), this
+  api converts HS ↔ xy.
 - **Writes to an unreachable device:** 12a answers `unreachable` (12a §3); which Matter status that
   becomes.
 
@@ -44,6 +46,7 @@ FixedLabel and UserLabel.
 | `DimmableLight` | Dimmable Light `0x0101` | OnOff, LevelControl |
 | `ColorTemperatureLight` | Color Temperature Light `0x010C` | OnOff, LevelControl, ColorControl |
 | `ExtendedColorLight` | Extended Color Light `0x010D` | OnOff, LevelControl, ColorControl |
+| `OnOffPlugInUnit` | On/Off Plug-in Unit `0x010A` | OnOff |
 | `WindowCovering` | Window Covering `0x0202` | WindowCovering |
 | `DoorLock` | Door Lock `0x000A` | DoorLock |
 | `ContactSensor` | Contact Sensor `0x0015` | BooleanState |

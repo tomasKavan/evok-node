@@ -69,7 +69,6 @@ No product certified as Mounted On/Off Control was found; hardwired relays on th
 - **P2 — light vs load.** A relay that switches only a light is better an `OnOffLight` (Google's advice, §4); `OnOffPlugInUnit` is for loads that aren't lights — socket, pump, fan, heater.
 - **P3 — timed on.** LT makes `OnWithTimedOff` mandatory on a bridged unit (§2). Input for the `TimerRelay` / `onFor` decision: Matter already has "on for N" on every on/off unit, max ≈ 109 min. Either matter.js runs the countdown (16a sees only `SET onOff`), or 16a maps it to evok-node's own timer.
 - **P4 — `StartUpOnOff`.** Mandatory attribute; a candidate for a template setting (12a §2.3), exposed read-only. Ecosystems mostly don't edit it (§4).
-- **[GAP]** What a Unipi relay (`unipi.ro`, `unipi.do` in bool mode) does after PLC power-up and after an evok-node restart — needed to answer `StartUpOnOff` truthfully.
 
 ## 7. Sources
 

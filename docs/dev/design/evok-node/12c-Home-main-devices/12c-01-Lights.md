@@ -15,7 +15,7 @@ Four home `DeviceType`s for luminaires, each a superset of the one before — th
 
 **Not for:**
 
-- A load that isn't a light — a socket, a pump: `OnOffPlugInUnit`.
+- A load that isn't a light — a socket, a pump: `OnOffPlugInUnit` (12c-02).
 - Scenes and effects. Matter's `OffWithEffect` is a plain off; scenes, groups and colour loop are not home features. 16a holds what Matter needs of them.
 - Warm dimming (Matter `CoupleColorTempToLevel`).
 
@@ -57,13 +57,17 @@ const Behavior = Codecs.struct({            // settings a consumer must see (12a
   moveRate:         Codecs.uint8({ min: 1, unit: 'level/s' }),
 });
 
-const LightFields = {                       // every light
+export const OnOffFields = {               // every light, and OnOffPlugInUnit (12c-02)
   onOff:          channel(Codecs.bool(), { subscribe: true }),
   onFor:          method('mutates', Codecs.void, Codecs.struct({
                     seconds:    Codecs.uint32({ min: 1 }),
                     onlyWhenOn: Codecs.bool({ default: false }) })),   // Matter AcceptOnlyWhenOn: ignored while off
   onForRemaining: reading(Codecs.uint32({ unit: 's' }), { subscribe: true }),   // 0 ⇒ not timed; emits once a second while running
-  behavior:       reading(Behavior, { subscribe: true }),
+};
+
+const LightFields = {                       // every light
+  ...OnOffFields,
+  behavior: reading(Behavior, { subscribe: true }),
 };
 
 const LevelFields = {                       // dimmable and up
@@ -114,7 +118,8 @@ export const ExtendedColorLight    = device('home.ExtendedColorLight',    { ...C
 ### 3.1. Rules every light template follows
 
 - **Settings → `behavior`.** A template fills `behavior` from its settings, and only `manage` changes them (12a §2.3). A setting a source can't honour is not in that template's form — DALI has one fade, so its templates have no `onTransitionMs`.
-- **`startUp`** is stored in the device record's settings. At daemon start the template applies it to its sources: `off`, `on` (at `startUpLevel`, else the last level), `toggle` (the opposite of the last state), `previous`. A DALI template also mirrors it into the gear (`powerOnLevel`, `systemFailureLevel`, 12 §9.1), so the gear does the same after its own power loss; DALI has no `toggle`, so DALI templates don't offer it.
+- **State** (12a §3). Every light template saves `{ onOff, level, colorTemp, color, colorMode }` — whichever its type has — through `ctx.state`, so "the last level" survives a restart. A timed `onFor` is saved as off.
+- **`startUp`** is a setting. A relay or AO template applies it at daemon start from the saved state: `off`, `on` (at `startUpLevel`, else the last level), `toggle` (the opposite of the last state), `previous`. A DALI template doesn't — the gear kept its state — but mirrors `startUp` into its gear or group (`powerOnLevel`, `systemFailureLevel`, 12 §9.1, §9.4), so the gear does the same after its own power loss. DALI has no `toggle`, so DALI templates don't offer it.
 - **Its own echoes.** A source value equal to what the template just wrote is its own echo: no re-derivation, no emit. Any other source change — a wall switch, another DALI master — is re-derived into the device's fields and emitted.
 - **Ramps** — a fade the source can't do itself — run on `scheduleRepeating` (04 §5.2, `'skip'`), cancelled by `stop` or any later write.
 - **Identify** blinks: on/off once a second for `seconds`, then back to the state before.
@@ -268,7 +273,7 @@ Part of the mapping table (16a, `driver-home/matter-map`). Values per research/m
 | `ColorMode`, `EnhancedColorMode` | `colorMode`; always `colorTemp` on a `ColorTemperatureLight` |
 
 - Writes to the attributes backed by `behavior` are refused by 16a: settings change through `manage` only (12a §2.3).
-- `ExtendedColorLight` exposes XY and CT, Matter's mandatory features — no HS.
+- `ExtendedColorLight` exposes XY and CT, Matter's mandatory features. If a controller needs HS, 16a converts HS ↔ xy; home keeps xy.
 - Matter `TransitionTime` on `MoveToColor…` is not nullable: 0 there means instant, never the default fade.
 
 ## 5. Moving and target
@@ -279,9 +284,3 @@ Part of the mapping table (16a, `driver-home/matter-map`). Values per research/m
 | `move`, `moveColorTemp` | each step as it happens; 16a reports at most once a second |
 | a source changed elsewhere, fading on its own | each value the source reports |
 | `onFor` | `onOff` true at once; `onForRemaining` counts down |
-
-## 6. Open
-
-- **Template state.** `startUp: previous`, `toggle` and "the last level" need the last state across a restart. A DALI gear keeps its own (`powerOnLevel` 255); a relay or an AO does not. Proposal: `AssemblyContext` gets an opaque persisted state, as 12b §5.5, saved at most every few seconds. Needs a 12a §3 change.
-- **`startUp` with a `dali.group` source.** A `DaliGroup` has no `powerOnLevel` (12 §9.4), so it can't be mirrored.
-- **HS for Apple Home.** Which colour commands Apple sends is unknown (research/matter/01 §7). If it needs HS, 16a converts HS ↔ xy.

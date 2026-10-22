@@ -15,7 +15,7 @@
 
 ## In progress
 
-**M3 — design.** Tasks in [`milestones/M3-design.md`](milestones/M3-design.md). M3.1 done in docs: compat API retired, goals and non-goals revised, broken paths fixed. Hardware capture from stock EVOK is out of scope; the baseline is part of M3.20. M3.2 done: 12a has no Open — what is left is deferred to M3.3, M3.6, M3.9 and M3.11; 16a holds the Matter mapping table. M3.3 underway: device list fixed in M3-design; 12c has its memo and becomes the index of `12c-Home-main-devices/` as the last step; lights designed in `12c-01-Lights.md` (three Open left); 12a §2.2 points there for lights.
+**M3 — design.** Tasks in [`milestones/M3-design.md`](milestones/M3-design.md). M3.1 done in docs: compat API retired, goals and non-goals revised, broken paths fixed. Hardware capture from stock EVOK is out of scope; the baseline is part of M3.20. M3.2 done: 12a has no Open — what is left is deferred to M3.3, M3.6, M3.9 and M3.11; 16a holds the Matter mapping table. M3.3 underway: device list fixed in M3-design; 12c has its memo and becomes the index of `12c-Home-main-devices/` as the last step; lights designed in `12c-01-Lights.md`, plug-in units in `12c-02-Plug-in-units.md`, both no Open; 12a §2.2 and 16a's table point there. 12a §3 adds persisted template state (`ctx.state`); 12 §9.4 gives `DaliGroup` `powerOnLevel`/`systemFailureLevel`. **Not yet scaffolded** — coder work, not started.
 
 - **Compat API retired — code not cleaned yet.** `packages/api-compat` and its entries in `tsconfig.json`, `.dependency-cruiser.cjs`, `vitest.config.ts` and `package-lock.json` still exist; `package.json` description still says drop-in replacement. Coder work, not started.
 
