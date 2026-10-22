@@ -65,7 +65,7 @@ Who binds what:
 | `reachable` | this driver | computed — §4.2 |
 | `origin` | this driver | `DeviceRecord.origin.kind` (§4.1) |
 | `exposed`, `controllable` | this driver | `DeviceRecord.exposed`/`controllable`, written through `manage` only. `remote`: the remote's, changed by `overrides` (§4b) |
-| `identify` | the origin | `local`: when its template's `indicator` role has a source (§3). `matter`: when the endpoint has the Identify cluster (§4a). `remote`: when the remote device has it bound (§4b). Otherwise left unbound and listed in the device's `unbound` (05a §4) |
+| `identify` | the origin | `local`: when its template's `indicator` role has a source (§3), or the template identifies through the device itself — every light (12c-01 §2). `matter`: when the endpoint has the Identify cluster (§4a). `remote`: when the remote device has it bound (§4b). Otherwise left unbound and listed in the device's `unbound` (05a §4) |
 | everything else | the origin | `local`: `assemble()` (§3). `matter`: the mapping table (§4a). `remote`: the remote device's own fields (§4b) |
 
 Two flags say who else may use a device. Neither hides it from this PLC's rules (12b) or from the Inspector UI, which controls every device:
@@ -88,9 +88,10 @@ No home `DeviceType` declares `'@'` — every field is named. The whole device i
 | DeviceType | Matter counterpart (16a) | Fields beyond `CommonFields` |
 |---|---|---|
 | `GenericSwitch` | Generic Switch | `switch` reading `{position, lastEvent}` · `multiPressMax` reading |
-| `OnOffLight` | On/Off Light | `onOff` channel\<bool\> |
-| `DimmableLight` | Dimmable Light | `onOff` · `level` channel\<uint8, 0–254\> · `move` method `{direction}` · `stop` method |
-| `ColorTemperatureLight` | Color Temperature Light | `onOff` · `level` · `move` · `stop` · `colorTemp` channel\<uint16, mired\> · `colorTempRange` reading `{min, max}` |
+| `OnOffLight` | On/Off Light | 12c-01 §2 |
+| `DimmableLight` | Dimmable Light | 12c-01 §2 |
+| `ColorTemperatureLight` | Color Temperature Light | 12c-01 §2 |
+| `ExtendedColorLight` | Extended Color Light | 12c-01 §2 |
 | `WindowCovering` | Window Covering | `position` reading `{current, target, motion}` (%) · `goTo` method `{percent}` · `stop` method |
 | `DoorLock` | Door Lock | `state` reading `locked`/`unlocked`/`jammed`/`unknown` · `lock` method · `unlock` method |
 | `ContactSensor` | Contact Sensor | `contact` reading\<bool\> |
@@ -102,7 +103,7 @@ No home `DeviceType` declares `'@'` — every field is named. The whole device i
 | `RoomAirConditioner` | Room Air Conditioner | `onOff` · `mode` channel `off`/`cool`/`heat`/`auto`/`fan`/`dry` · `setpoint` channel\<float32, °C\> · `temperature` reading · `fanMode` channel `auto`/`low`/`medium`/`high` |
 | `Timer` | — (16a ignores it) | `running` reading\<bool\> · `remaining` reading\<uint32, s\> · `elapsed` reading `{seq, at}` · `start` method `{seconds}` · `cancel` method |
 
-Every reading and channel above is `subscribe: true`. A source's own staleness never appears per field — it folds into `reachable` (§4.2). Two in full; the rest follow the same shape:
+Every reading and channel above is `subscribe: true`. A source's own staleness never appears per field — it folds into `reachable` (§4.2). One in full; the rest follow the same shape, lights in 12c-01 §2:
 
 ```ts
 const SwitchState = Codecs.struct({
@@ -120,24 +121,9 @@ export const GenericSwitch = device('home.GenericSwitch', {
   switch:        reading(SwitchState, { subscribe: true }),
   multiPressMax: reading(Codecs.uint8({ min: 2 })),   // `local`: the template's setting (§2.3), exposed read-only; `matter`: the device's own
 });
-
-const onOffField = channel(Codecs.bool(), { subscribe: true });   // shared by every light and RoomAirConditioner
-const levelField = channel(Codecs.uint8({ min: 0, max: 254 }), { subscribe: true });
-const moveField  = method('mutates', Codecs.void, Codecs.struct({ direction: Codecs.string({ enumValues: ['up', 'down'] }) }));   // shared by both dimmable lights
-const stopField  = method('mutates', Codecs.void, Codecs.void);
-
-export const DimmableLight = device('home.DimmableLight', {
-  ...CommonFields,
-  onOff: onOffField,
-  level: levelField,
-  move:  moveField,
-  stop:  stopField,
-});
 ```
 
 `lastEvent` carries a full press/release/long-press/multi-press sequence as consecutive values — a short press is `press` → `release`, a long one `press` → `longPress` → `longRelease`, a double press ends `multiPressComplete` with `count: 2` — so a consumer that needs discrete events (16a) can rebuild each one from a subscription, and a gap in `seq` tells it one was coalesced away (03 §6.3).
-
-`move` changes `level` until `stop` or the end of the range. How — a DALI gear's own `UP`/`DOWN`, a ramp on the `Clock` (04 §4) — and how fast are the template's (§3, §2.3). It lets a rule dim on a long press without waiting itself (12b §2.1).
 
 `Timer` is a virtual device: its template has no roles (§3). It is how a rule waits, since rules never do (12b §1). `start` (re)starts it for `seconds`; when it runs out, `running` turns false and `elapsed` emits with `seq` +1; `cancel` stops it without `elapsed`. Timers are not persistent: after a restart every timer is stopped.
 
@@ -226,7 +212,7 @@ interface AssemblyContext<R extends Record<string, Role>, S> {
 }
 
 interface AssemblyTemplate<F extends Record<string, EndpointType | OptionalEndpointType>, R extends Record<string, Role>, S> {
-  readonly kind: string;               // 'dimmable-from-dali', 'dimmable-from-pwm', 'switch-from-di', 'timer', ... — must equal the manifest's templateKind
+  readonly kind: string;               // 'dimmable-from-dali', 'dimmable-from-ao', 'switch-from-di', 'timer', ... — must equal the manifest's templateKind
   readonly deviceType: DeviceType<F>;   // the exported home DeviceType object (05a §3.5: one kind, one object)
   readonly label: LocalizedText;     // 04 §7
   readonly hint?: LocalizedText;
@@ -248,11 +234,11 @@ A role with `max` above 1 takes several sources that together make **one** physi
 
 A template may declare no roles: its device is virtual, assembled from nothing — the built-in `timer` template for `Timer` (§2.2) — and is always `reachable` (§4.2).
 
-Handlers answer from memory, the way every driver does (01): `assemble()` subscribes to the source fields it needs and emits on its own bound fields as they change, so `onGet` reads the last known value, never a round trip. A `switch-from-di` template turns `input`'s edges into `SwitchState` values using its own settings (long-press threshold, multi-press window, `multiPressMax`); a `dimmable-from-dali` template's `level` reads `gear`'s own `intensity` (12 §9.1) and its `onSet` forwards a write to it.
+Handlers answer from memory, the way every driver does (01): `assemble()` subscribes to the source fields it needs and emits on its own bound fields as they change, so `onGet` reads the last known value, never a round trip. A `switch-from-di` template turns `input`'s edges into `SwitchState` values using its own settings (long-press threshold, multi-press window, `multiPressMax`); a `dimmable-from-dali` template's `level` reads `gear`'s own `intensity` (12 §9.1) and its `onSet` forwards a write to it (12c-01 §3.4).
 
 A `SET` forwarded to a source that can't take it — not up, not answering — throws `SourceUnreachable` (05a §3.5) and is answered `unreachable`. It is never queued and replayed later.
 
-Each built-in `DeviceType` (§2) ships with the templates its own built-in source drivers warrant — `dali`- and relay templates for the lights, a single-`unipi.di` template for `GenericSwitch`, the role-less `timer` for `Timer` — and a template is itself a manifest-loaded, `kind`-resolved module (01 §10; `{ "kind": "home-template", "templateKind": "dimmable-from-dali", … }`), so a driver plugin for hardware this driver doesn't know about yet can ship its own template for an existing `DeviceType` without touching this package. It imports that `DeviceType` from `@evok-node/driver-home`; it never rebuilds one under the same kind (05a §3.5).
+Each built-in `DeviceType` (§2) ships with the templates its own built-in source drivers warrant — the light templates of 12c-01 §3, a single-`unipi.di` template for `GenericSwitch`, the role-less `timer` for `Timer` — and a template is itself a manifest-loaded, `kind`-resolved module (01 §10; `{ "kind": "home-template", "templateKind": "dimmable-from-dali", … }`), so a driver plugin for hardware this driver doesn't know about yet can ship its own template for an existing `DeviceType` without touching this package. It imports that `DeviceType` from `@evok-node/driver-home`; it never rebuilds one under the same kind (05a §3.5).
 
 ## 4. Device storage and lifecycle
 

@@ -42,13 +42,14 @@ Deep dive per device type. Per type: intro (what it is for, what not), fields, t
 their workflow, Matter mapping (part of the mapping table), what a `SET` reports while the
 device moves to its target. Matter research per type in `research/matter/`.
 Types: `GenericSwitch`, `OnOffLight`, `DimmableLight`, `ColorTemperatureLight`,
-`ExtendedColorLight` (Matter origin only, no templates), `OnOffPlugInUnit`, `TimerRelay`
+`ExtendedColorLight`, `OnOffPlugInUnit`, `TimerRelay`
 (name decided in its step), `WindowCovering`, `DoorLock`, `WaterValve`, `ContactSensor`,
 `WaterLeakDetector`, `TemperatureSensor`, `HumiditySensor`, `AirQualitySensor`,
 `OccupancySensor`, `LightSensor`, `RoomAirConditioner`.
 Decided in their step: `Thermostat` (vs temperature sensor + valve), `Fan` (fit for heat
 recovery units), `Pump`. A type with no built-in source driver (AC): an extension-driver
 device or a new driver.
+One file per type group under `12c-Home-main-devices/`; 12c itself becomes their index as the last step.
 **Done when:** 12c covers every listed type; 12a §2.2, 16a's mapping table and 12b agree
 with it; `research/matter/` holds a note per type with a Matter counterpart.
 **Refs:** 12a §2–§4a · 12b §2 · 16a · research/matter

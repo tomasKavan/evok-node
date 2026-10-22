@@ -3,6 +3,15 @@
 > **Memo, not content.** What belongs in this file, and what it gets written from. Written during
 > [M3](../../plan/roadmap.md); do not implement against a memo. Content is written below this memo,
 > section by section; the memo is removed when M3.3 closes.
+>
+> **Last step of M3.3:** replace this memo with the index of `12c-Home-main-devices/` and §1 common
+> conventions.
+
+**Files** — one per type group, in [`12c-Home-main-devices/`](12c-Home-main-devices/):
+
+| File | Types |
+|---|---|
+| [`12c-01-Lights.md`](12c-Home-main-devices/12c-01-Lights.md) | `OnOffLight`, `DimmableLight`, `ColorTemperatureLight`, `ExtendedColorLight` |
 
 **Job:** one section per home `DeviceType`: fields, built-in templates and Matter mapping, in full.
 12a holds what every type shares; this file holds what one type adds.
@@ -45,7 +54,7 @@ resolution vs Matter (0.01 °C, Percent100ths, log lux), the moving-device patte
 | `OnOffLight` | On/Off Light | |
 | `DimmableLight` | Dimmable Light | |
 | `ColorTemperatureLight` | Color Temperature Light | |
-| `ExtendedColorLight` | Extended Color Light | no templates — `matter` origin only |
+| `ExtendedColorLight` | Extended Color Light | one template, `tunable-rgbw-4dali` |
 | `OnOffPlugInUnit` | On/Off Plug-in Unit | a relay load that isn't a light: socket, pump, fan |
 | `TimerRelay` | — | today `Timer` (12a §2.2). Name, and separate device vs `onFor` on outputs, decided here |
 | `WindowCovering` | Window Covering | % direction (Matter: 0 = open); tilt for venetian blinds; position from travel time on two relays |

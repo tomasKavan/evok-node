@@ -10,7 +10,10 @@ One file per device group, numbered as they are written. Each covers: how the sp
 
 | File | Contents |
 |---|---|
-| — | none yet |
+| [`01-lights.md`](01-lights.md) | On/Off, Dimmable, Color Temperature, Extended Color Light |
+| [`02-plug-in-units.md`](02-plug-in-units.md) | On/Off Plug-in Unit, Mounted On/Off Control; dimmable variants for comparison |
+| [`03-generic-switch.md`](03-generic-switch.md) | Generic Switch, Switch cluster: features, event sequences, timing, matter.js, controllers, multi-button tags |
+| [`04-sensors.md`](04-sensors.md) | Contact, Light, Occupancy, Temperature, Humidity, Air Quality Sensor: encodings, occupancy hold time, concentration clusters, multi-sensor composition, Apple Home limits |
 
 ## 2. Apple Home support
 
@@ -20,8 +23,9 @@ Apple publishes no complete list; this one is collected per type. "no" means App
 |---|---|---|---|
 | On/Off Light `0x0100`, Dimmable Light `0x0101`, Color Temperature Light `0x010C`, Extended Color Light `0x010D` | 1.0 | yes [V] | S2 |
 | On/Off Plug-in Unit `0x010A`, Dimmable Plug-in Unit `0x010B` | 1.0 | yes [V] | S2 |
+| Mounted On/Off Control `0x010F`, Mounted Dimmable Load Control `0x0110` | 1.4 | [GAP] — not in S2's list; spec recommends also listing the Plug-in Unit type | S2 |
 | Generic Switch `0x000F` | 1.0 | yes, momentary only [V] | S2 |
-| Contact, Light, Occupancy, Temperature, Humidity Sensor; Air Quality Sensor `0x002C` | 1.0 / 1.2 | yes [V] | S2 |
+| Contact, Light, Occupancy, Temperature, Humidity Sensor; Air Quality Sensor `0x002C` | 1.0 / 1.2 | yes [V]; limits per reading and endpoint shape — [`04-sensors.md`](04-sensors.md) §6, §8 | S2 |
 | Door Lock `0x000A`, Window Covering `0x0202` | 1.0 | yes [V] | S2 |
 | Thermostat `0x0301`, Heating/Cooling Unit `0x0300` | 1.0 | yes [V] | S2 |
 | Fan `0x002B`, Air Purifier `0x002D` | 1.2 | yes [V] | S2 |

@@ -43,6 +43,7 @@ FixedLabel and UserLabel.
 | `OnOffLight` | On/Off Light `0x0100` | OnOff |
 | `DimmableLight` | Dimmable Light `0x0101` | OnOff, LevelControl |
 | `ColorTemperatureLight` | Color Temperature Light `0x010C` | OnOff, LevelControl, ColorControl |
+| `ExtendedColorLight` | Extended Color Light `0x010D` | OnOff, LevelControl, ColorControl |
 | `WindowCovering` | Window Covering `0x0202` | WindowCovering |
 | `DoorLock` | Door Lock `0x000A` | DoorLock |
 | `ContactSensor` | Contact Sensor `0x0015` | BooleanState |
