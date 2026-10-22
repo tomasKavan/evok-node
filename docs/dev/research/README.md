@@ -48,6 +48,7 @@ at commit `47c95c8` (branch `main`, latest tag **3.0.6**, 2025-09-02).
 | Path | Contents |
 |---|---|
 | [`modbus-reg-map-notes/`](modbus-reg-map-notes/README.md) | What is *ours* about a Unipi register map: how a source was read, what a transcription inferred, what to verify first. |
+| [`matter/`](matter/README.md) | Matter device types per home `DeviceType` (12a, 12c): spec, real devices, Apple Home support. |
 | [`derived/`](derived/) | Generated data: `model-io-census.csv`, DI/DO/RO/AI/AO/LED counts per model and section (83 rows). Use to validate hardware definitions at load time. |
 | [`appendix/`](appendix/) | The two full unedited reports the condensed notes were written from. |
 

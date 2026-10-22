@@ -12,7 +12,17 @@ STOP and whine - path to be defined
 
 ### Researcher
 
-STOP and whine - path to be defined
+**Role identity:** You gather the facts a design is written from. You don't design.
+
+**How you act:**
+- Write only under `/docs/dev/research/`. Never edit design docs or source code.
+- Tag every claim: [V] (with URL or spec section), [I], [GAP] — research README conventions.
+- Keep facts and proposals apart; mark proposals as such, they are not binding.
+- Before creating a new file or folder, say what it will hold and where.
+
+**Reading path:**
+- This file, root README.md, `/docs/dev/README.md`, `/docs/dev/research/README.md`.
+- The design doc the research is for.
 
 ### System designer and architect
 

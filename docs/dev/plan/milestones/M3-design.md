@@ -38,9 +38,20 @@ Templates and devices — general rules, what is stored, what the UI cannot cont
 **Refs:** 12a §2–§5 · 05a §3.1 · 16a
 
 ### M3.3 — Home: main devices   `area/home`
-Deep dive per device type: switch, light (on/off, dimmable, COB), window cover, lock, AQ sensor, temperature sensor, occupancy sensor, light sensor, AC unit. Fields, templates, Matter counterpart. Per type: what a `SET` reports while the device moves to its target (Matter `CurrentLevel` and its like), WindowCovering % direction, RoomAirConditioner's single `setpoint` vs Matter's heat/cool setpoints.
-**Done when:** 12c covers every listed type; 12a §2.2 and the 20 mapping table agree with it.
-**Refs:** 12a §2–§3 · 16a
+Deep dive per device type. Per type: intro (what it is for, what not), fields, templates and
+their workflow, Matter mapping (part of the mapping table), what a `SET` reports while the
+device moves to its target. Matter research per type in `research/matter/`.
+Types: `GenericSwitch`, `OnOffLight`, `DimmableLight`, `ColorTemperatureLight`,
+`ExtendedColorLight` (Matter origin only, no templates), `OnOffPlugInUnit`, `TimerRelay`
+(name decided in its step), `WindowCovering`, `DoorLock`, `WaterValve`, `ContactSensor`,
+`WaterLeakDetector`, `TemperatureSensor`, `HumiditySensor`, `AirQualitySensor`,
+`OccupancySensor`, `LightSensor`, `RoomAirConditioner`.
+Decided in their step: `Thermostat` (vs temperature sensor + valve), `Fan` (fit for heat
+recovery units), `Pump`. A type with no built-in source driver (AC): an extension-driver
+device or a new driver.
+**Done when:** 12c covers every listed type; 12a §2.2, 16a's mapping table and 12b agree
+with it; `research/matter/` holds a note per type with a Matter counterpart.
+**Refs:** 12a §2–§4a · 12b §2 · 16a · research/matter
 
 ### M3.4 — Almanac driver   `area/almanac`
 Calendar, weather forecast, sun position. Data sources, offline behaviour. Respective home devices.
