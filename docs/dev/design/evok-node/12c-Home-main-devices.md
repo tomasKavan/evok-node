@@ -14,6 +14,7 @@
 | [`12c-01-Lights.md`](12c-Home-main-devices/12c-01-Lights.md) | `OnOffLight`, `DimmableLight`, `ColorTemperatureLight`, `ExtendedColorLight` |
 | [`12c-02-Plug-in-units.md`](12c-Home-main-devices/12c-02-Plug-in-units.md) | `OnOffPlugInUnit` |
 | [`12c-03-Generic-switch.md`](12c-Home-main-devices/12c-03-Generic-switch.md) | `GenericSwitch` |
+| [`12c-04-Sensors.md`](12c-Home-main-devices/12c-04-Sensors.md) | `ContactSensor`, `OccupancySensor`, `TemperatureSensor`, `HumiditySensor`, `LightSensor`, `AirQualitySensor` |
 
 **Job:** one section per home `DeviceType`: fields, built-in templates and Matter mapping, in full.
 12a holds what every type shares; this file holds what one type adds.
@@ -62,13 +63,13 @@ resolution vs Matter (0.01 °C, Percent100ths, log lux), the moving-device patte
 | `WindowCovering` | Window Covering | % direction (Matter: 0 = open); tilt for venetian blinds; position from travel time on two relays |
 | `DoorLock` | Door Lock | PIN and assurance level → 13a (M3.6) |
 | `WaterValve` | Water Valve | irrigation zones; Matter auto-close (`OpenDuration`); not supported by Apple Home |
-| `ContactSensor` | Contact Sensor | |
+| `ContactSensor` | Contact Sensor | one template, `contact-from-di` |
 | `WaterLeakDetector` | Water Leak Detector | |
-| `TemperatureSensor` | Temperature Sensor | |
-| `HumiditySensor` | Humidity Sensor | |
-| `AirQualitySensor` | Air Quality Sensor | enum only, or concentrations (CO₂, PM2.5, TVOC) too |
-| `OccupancySensor` | Occupancy Sensor | |
-| `LightSensor` | Light Sensor | |
+| `TemperatureSensor` | Temperature Sensor | `unipi.temp` (1-Wire, xG18, IAQ) or `unipi.ai` (Pt1000, linear) |
+| `HumiditySensor` | Humidity Sensor | `unipi.humidity` or `unipi.ai` |
+| `AirQualitySensor` | Air Quality Sensor | level derived from CO₂ / VOC index; optional `co2`, `pm25`, `vocIndex`, `temperature`, `humidity`; IAQ as a bundle (`iaq-unipi`) |
+| `OccupancySensor` | Occupancy Sensor | one template, `occupancy-from-di`; `HoldTime` read-only — Open, M3.13 |
+| `LightSensor` | Light Sensor | `unipi.lux` or `unipi.ai` |
 | `RoomAirConditioner` | Room Air Conditioner | one `setpoint` vs Matter's heat/cool setpoints; source: extension-driver device or a new Modbus driver; Apple Home support unverified |
 
 **Decided in their own section:** `Thermostat` — what it adds over `TemperatureSensor` +

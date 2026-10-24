@@ -10,7 +10,8 @@ Home, Google Home, …) can control them.
 
 - **Projection only.** One home `DeviceType` → one Matter device type, from the fields 12a
   shapes for it (12a §1, §2): cluster mapping, Descriptor/Identify/label clusters, semantic tags
-  from 12a's tags, Matter-side length limits.
+  from 12a's tags, Matter-side length limits. Devices that are one product are composed under one
+  bridged node — below.
 - **What is exposed is 12a's decision, not this api's.** Only devices with `exposed: true`
   (12a §2.1), never a device of unknown type (12a §4a). Bridged endpoints are added and removed as
   12a's devices and their `exposed` change.
@@ -37,7 +38,9 @@ Home, Google Home, …) can control them.
 **Mapping table.** One table, implemented once in `@evok-node/driver-home/matter-map` and imported by
 12a §4a and by this api — never copied. Device level below; field ↔ attribute, command or event per
 type is 12c's (M3.3). Every endpoint also carries Descriptor, Identify, BridgedDeviceBasicInformation,
-FixedLabel and UserLabel.
+FixedLabel and UserLabel — on a composed device, BridgedDeviceBasicInformation sits on the parent only (below).
+A device with `battery` bound (12a §2.1) also carries Power Source with the battery feature: `BatChargeLevel`,
+`BatPercentRemaining` = `percent × 2` (null when absent), `BatReplacementNeeded`, `BatReplaceability` unspecified.
 
 | Home `DeviceType` | Matter device type | Clusters |
 |---|---|---|
@@ -50,13 +53,49 @@ FixedLabel and UserLabel.
 | `WindowCovering` | Window Covering `0x0202` | WindowCovering |
 | `DoorLock` | Door Lock `0x000A` | DoorLock |
 | `ContactSensor` | Contact Sensor `0x0015` | BooleanState |
-| `AirQualitySensor` | Air Quality Sensor `0x002C` | AirQuality |
+| `AirQualitySensor` | Air Quality Sensor `0x002C` | AirQuality; CarbonDioxideConcentrationMeasurement, Pm25ConcentrationMeasurement when bound (12c-04 §4) |
 | `TemperatureSensor` | Temperature Sensor `0x0302` | TemperatureMeasurement |
 | `HumiditySensor` | Humidity Sensor `0x0307` | RelativeHumidityMeasurement |
 | `OccupancySensor` | Occupancy Sensor `0x0107` | OccupancySensing |
 | `LightSensor` | Light Sensor `0x0106` | IlluminanceMeasurement |
 | `RoomAirConditioner` | Room Air Conditioner `0x0072` | OnOff, Thermostat, FanControl |
 | `Timer` | — | ignored |
+
+**Composed bridged devices.** One bridge, always: one Matter node with an Aggregator, and one bridged
+device per exposed home device — or per product, when several home devices are one. A product is
+composed as a parent bridged-node endpoint with one child endpoint per member device:
+
+```
+ep1  Aggregator
+├─ ep2  Bridged node "Hall light"         ← one device, one endpoint
+│        Dimmable Light
+└─ ep3  Bridged node "Living room"        ← bundle iaq-unipi (12c-04 §3.10)
+     ├─ ep4  Temperature Sensor            "Living room – Temperature"
+     ├─ ep5  Humidity Sensor               "Living room – Humidity"
+     ├─ ep6  Light Sensor                  "Living room – Light"
+     └─ ep7  Air Quality Sensor            "Living room – Air quality"
+```
+
+| Product link | Members | Parent's name |
+|---|---|---|
+| `bundle.id` (12a §3a, §4.1) — `local` | the bundle's devices | the bundle's `name` |
+| `origin.nodeId` (12a §4.1) — `matter` | the node's devices | its devices' `product.name` (from Basic Information, 12a §4a) |
+| none — `remote`, or a device on its own | — | flat, one endpoint |
+
+- Only exposed members are children. A product with one exposed member is flat.
+- The parent carries BridgedDeviceBasicInformation (`NodeLabel`, `reachable` = every child's
+  `reachable`), and Power Source when a member has `battery` — a Matter node's battery is the same for
+  every member (12a §2.1). Children carry their own device type, clusters, Descriptor, Identify and labels.
+- **Apple Home needs one reading per endpoint** (research/matter/04 §6). An `AirQualitySensor` with
+  `temperature` or `humidity` bound — a `matter` ALPSTUGA — gets them as child Temperature Sensor /
+  Humidity Sensor endpoints under its parent, not as clusters on its own endpoint. Re-bridged this way,
+  such a device's temperature reaches Apple Home where the device's own endpoint does not.
+- **Endpoint numbers stay.** The parent is keyed `bundle:<id>` or `node:<nodeId>`, children by their
+  tail (and `:temperature`/`:humidity` for split-out readings), all in the tail → endpoint map. A member
+  added or removed adds or removes a child; the parent keeps its number, so the controller keeps its room.
+- A product turning flat (one exposed member left), or flat turning composed, re-creates its endpoints:
+  controllers re-read them, rooms may be lost. The admin's to avoid, like `exposed` itself.
+- SmartThings ignores child endpoints (research/matter/04 §6) — a known limit, not worked around.
 
 **matter.js: behaviours, not servers, for device clusters.** Home owns how a device behaves —
 templates, `onFor`, fades, press gestures (12c). A matter.js `…Server` brings that logic again,

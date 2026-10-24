@@ -310,10 +310,18 @@ All `unipi.`-prefixed. Every `reading`-shaped field below is built with `polled(
 | Kind | Fields | Used by |
 |---|---|---|
 | `unipi.temp` | `@`: reading\<float32, °C\>, subscribe · `valid`: optional reading\<bool\> · `intervalS`: optional channel\<uint16\> | IAQ (bare) and xG18 (`valid` + `intervalS` bound, 8 instances) — one shared kind; the `int16×0.01` vs `float32` wire difference is a §5 `encoding`/`scale` concern, not a schema concern |
-| `unipi.humidity` / `unipi.dewPoint` / `unipi.absHumidity` / `unipi.co2` / `unipi.vocIndex` / `unipi.vocAccuracy` / `unipi.vocCo2Eq` / `unipi.lux` / `unipi.pressure` / `unipi.uptime` | `@`: reading\<float32\>, subscribe | IAQ only. `co2`/`vocIndex`/`vocAccuracy`/`vocCo2Eq` bound only on the `THC` variant — which fields split per variant is still open (research, not this file) |
+| `unipi.humidity` / `unipi.dewPoint` / `unipi.absHumidity` / `unipi.co2` / `unipi.vocIndex` / `unipi.vocAccuracy` / `unipi.vocCo2Eq` / `unipi.lux` / `unipi.pressure` / `unipi.uptime` | `@`: reading\<float32\>, subscribe | IAQ only. `co2` bound only on the `THC` variants; every other one, VOC included, on all four (research/matter/04 §8a.2) |
 | `unipi.ledLevel` | `@`: channel\<uint16, 1–100%\> | IAQ's own status LED — distinct from `unipi.led` because the value type differs (level, not bool) |
 
 IAQ's digital output reuses `unipi.ro` as-is — a plain bool channel, no new kind.
+
+### 10.4 Unit type — one per unit, from config
+
+| Kind | Fields | Bound by |
+|---|---|---|
+| `unipi.unitType` | `@`: reading `{definition: string, vendor: string, device: string, name: string}` — the configured definition's id and header | `bindUnitType` (§12), at `configure()`, before any handshake; no register behind it, never stale |
+
+09 binds one per configured unit at `<unit>.type` (09 §3a). 08 binds none.
 
 `unipi.ro` (EMO-R8's 8 relays) stays blocked: no register map exists yet anywhere (§11).
 
@@ -348,7 +356,9 @@ interface HwModbusKit {
   resolveKindBinder(kind: string): Promise<ModbusKindBinder>;                     // §7 — manifest-declared, lazy: ctx.plugins.resolve('modbus-kind-binder', kind)
   resolveHandshake(name: string): Promise<HandshakeFn>;                           // §9 — manifest-declared, lazy: ctx.plugins.resolve('modbus-handshake', name)
   handshake(def: UnresolvedDefinition): Promise<HandshakeResult>;                  // §9 — always before bindDefinition; checks registerHandshake's table, then resolveHandshake
-  bindDefinition(def: ResolvedDefinition, rates: RateTable): BoundDefinition;      // §6/§7/§8 combined — the one call 08 and 09 share
+  bindDefinition(def: ResolvedDefinition, rates: RateTable,
+                 opts?: { tailPrefix?: string }): BoundDefinition;                // §6/§7/§8 combined — the one call 08 and 09 share; 09 passes `tailPrefix: '<unit>'` (09 §3a)
+  bindUnitType(tail: string, def: UnresolvedDefinition): void;                    // §10.4 — config facts only, no wire call
 }
 
 function createHwModbusKit(

@@ -46,6 +46,24 @@ Units are declared, never discovered. There is no bus-scan mode, deliberately: a
 - **A collision** — two configured units claiming the same `unit` — is `§2`'s config-parse check; it never reaches a handshake attempt.
 - **A silent unit** — a configured `unit` nothing answers, or something else entirely answers at census/hardware-ID level — is a handshake failure (§5), and `§8` states what this driver does about it: never fatal, never mistaken for a healthy unit reading zero.
 
+## 3a. Tails and the unit's type
+
+Every tail a unit binds starts with its `unit` number, so two units on one line never collide — two IAQ sensors both have a `temp`. After the prefix, the tail is the definition's own (07a):
+
+```
+EXT:1.DI.01   EXT:1.RO.01   …     # unit 1, an xS11
+EXT:7.temp    EXT:7.co2     …     # unit 7, an IAQ
+EXT:7.type                         # unit 7's type
+```
+
+Each configured unit also has one `unipi.unitType` device at `<unit>.type` (07a §10.4): which definition the config names for it. It is bound at `configure()` from config alone, so it answers while the unit is down or before its handshake (§8) — a consumer can tell what a unit is without it answering. It is never stale.
+
+```json
+GET EXT:7.type → { "definition": "modbus/unipi/iaq-thc", "vendor": "unipi", "device": "iaq-thc", "name": "Unipi IAQ RW-THC" }
+```
+
+A consumer finds a unit's devices by the prefix and their kind — `EXT:7.*` of kind `unipi.co2` — never by assuming the name after the prefix. A home template bundle does exactly that (12a §3a).
+
 ## 4. Serial timing and the shared-bus budget
 
 Wire time dominates here in a way it never does for `08`'s Modbus-TCP-to-loopback case, and that difference is this driver's own to manage, not `07`'s or `07a`'s. Per research/08: a 10-register block at the Unipi default of 19200 baud, 8N1 costs ~17 ms of wire time plus t3.5's own ~2 ms of mandatory inter-frame silence — already handled by `07`'s `ModbusTransport`, never reimplemented here. What `07`'s per-line mutex does *not* do is add up: with M units sharing one line, `cycle time ≈ Σ (transaction + t3.5)` over every scanned block on that line — four `xS11`s at 19200 baud round-robin to ~77 ms; eight to ~154 ms.
@@ -98,4 +116,5 @@ Tier 1 (`design/basics/03-Testing.md`), against the simulator — no hardware:
 - Runtime-degraded isolation: one fixture unit whose simulator handshake fails never starts a scan loop and never contributes to the line's cycle time, while a sibling unit on the same line handshakes and binds normally, unaffected.
 - Extensions vs accessories: a fixture accessory-shaped definition (sensor kinds only) binds with no `unipi.sectionWatchdog` present; a fixture `xG18`-shaped definition (extension unit, accessory kinds) binds identically to any other accessory.
 - Bring-your-own, end to end: a fixture custom unit using a manifest-declared `ModbusKindBinder` aliasing to a real fixture kind, and a manifest-declared `HandshakeFn`, handshakes and binds correctly, and a `GET`/`SET` round-trip reaches the real, aliased kind's own handlers.
+- Tails: two units of the same fixture definition on one line bind without a duplicate-tail fatal, each under its own `<unit>.` prefix; `<unit>.type` answers the configured definition while its unit's handshake is still failing.
 - One full run against two simulated units on one line, of different kinds, end to end: `configure()` → per-unit `handshake()` → `bindDefinition()` → a `GET`/`SET` round-trip against at least one channel on each.

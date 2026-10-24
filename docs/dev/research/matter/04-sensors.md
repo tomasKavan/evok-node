@@ -138,6 +138,37 @@ Aqara FP300 (presence, light, temperature, humidity) shows each as its own page 
 | Tasmota, MH-Z19B CO₂ as Air Quality Sensor (2024-12) | Apple Home showed air quality "Unknown"; fixed in firmware, after which air quality showed. CO₂ value in Apple Home not confirmed [V S14] |
 | esp-matter, CO₂ cluster added to an Air Quality Sensor | not shown in Apple Home; in Home Assistant the value froze until a data-type fix ("Wrong TLV type") [V S15] |
 
+### 7.1. Endpoint layout of real products
+
+How IKEA's Matter sensors are built, from matter-survey.org's per-device reports (S24) [V S24]:
+
+| Product | Endpoints (device type: server clusters) | Power |
+|---|---|---|
+| MYGGBETT door/window | ep1 Contact Sensor: Boolean State | battery, replaceable |
+| MYGGSPRAY motion | ep1 Light Sensor: Illuminance · ep2 Occupancy Sensor: Occupancy Sensing, feature `PIR` only | battery, replaceable |
+| TIMMERFLOTTE temperature/humidity | ep1 Temperature Sensor · ep2 Humidity Sensor | battery, replaceable |
+| ALPSTUGA air quality | ep1 Air Quality Sensor: Air Quality (no `FAIR`/`MOD`/`VPOOR`/`XPOOR`), Temperature, Relative Humidity, CO₂ and PM2.5 concentration (`MEA` + `LEV`), On/Off (`DeadFrontBehavior` — the display) | mains, no Power Source |
+
+- One product type per endpoint is the common shape. ALPSTUGA is the exception: temperature and humidity sit on the air-quality endpoint — the shape Apple Home does not show (§6), which matches the user reports in §7.
+- None of the four has Boolean State Configuration, `HoldTime` or `Tolerance` listed.
+- The battery products have Power Source on the root endpoint (ep0) and are ICD sleepy devices (ICD Management cluster) [V S24].
+
+### 7.2. Power Source cluster `0x002F`
+
+Not a sensor cluster, but on every battery sensor [V-src S2]:
+
+| Element | Facts |
+|---|---|
+| Features | `WIRED`, `BAT`; `RECHG`, `REPLC` need `BAT` |
+| `Status`, `Order`, `Description` | mandatory |
+| `BatChargeLevel` | `OK`, `Warning`, `Critical`; mandatory with `BAT` |
+| `BatReplacementNeeded`, `BatReplaceability` | mandatory with `BAT` |
+| `BatPercentRemaining` | optional, nullable, **half-percent units 0–200** (48 = 24 %), reported at most every 10 s [V-src S3] |
+| `BatVoltage` | optional, mV, nullable |
+| `EndpointList` | mandatory: the endpoints this source powers; **empty = the whole node** [V-src S3] |
+
+So a node-level battery on ep0 with an empty `EndpointList` belongs to every endpoint of the node [I from S3]. Apple Home may show a stale `BatPercentRemaining` — it doesn't keep subscription updates of it [V S5].
+
 ## 8. Apple Home
 
 | Topic | Finding |
@@ -194,6 +225,19 @@ Variants RW-TH, RLW-TH, RW-THC, RLW-THC; `L` = LoRaWAN. All have Modbus RTU (RS-
 | Dew point, absolute humidity | all | — | computed |
 
 - **VOC index** is relative, not a concentration: ~25 = clean, 250 = polluted; it adapts to the room over the last 4 days. `VOC accuracy` 0–3: 0 = invalid (after power-up), 3 = stable. `VOC CO₂ equivalent` (ppm) "does not represent the CO₂ concentration" [V S18 §4, §4.2].
+- **Which VOC scale** [I]: the IAQ's quantities — VOC index 0–500 with accuracy 0–3, a CO₂ equivalent, pressure, ~4 days of history — match Bosch's BME68x with its BSEC library. BSEC's index classes [V S25]:
+
+  | IAQ index | BSEC class |
+  |---|---|
+  | 0–50 | excellent |
+  | 51–100 | good |
+  | 101–150 | lightly polluted |
+  | 151–200 | moderately polluted |
+  | 201–250 | heavily polluted |
+  | 251–350 | severely polluted |
+  | > 351 | extremely polluted |
+
+  Unipi's own words fit the same scale: ~25 clean, 250 polluted [V S18 §4.2]. The chip is not named in Unipi's manual — [GAP].
 - **CO₂** needs several minutes after power-up. Automatic calibration every 7 days needs fresh air at least 1 h a day; it overwrites a manual calibration [V S18 §4.1].
 - **Averaging**: a moving average, set per interface; for Modbus configurable, 0 = off [V S18 §4.3].
 - **Unset value**: HTTP sends `null` [V S18 §6.4]; Modbus `float32` has no null and the map doesn't say — [GAP], already owed in `modbus-reg-map-notes/accessory-iaq.md`.
@@ -212,9 +256,7 @@ Variants RW-TH, RLW-TH, RW-THC, RLW-THC; `L` = LoRaWAN. All have Modbus RTU (RS-
 | Humidity Sensor | IAQ, 1-Wire DS2438 + HIH, `unipi.ai` + transmitter | 1W-TH-IB2: 11–89 % only [V S19] |
 | Air Quality Sensor | IAQ (THC: CO₂ + VOC index; TH: VOC index only) | CO₂ → CO₂ concentration cluster in ppm. VOC index has no Matter home: TVOC is a concentration with a unit (§5.2), the index is unitless. So the `AirQuality` level must be derived from CO₂ and/or the VOC index. `VOC CO₂ equivalent` is not a CO₂ value. Pressure → Matter Pressure Sensor, not shown by Apple (§6). Dew point and absolute humidity: no Matter cluster |
 
-### 8a.4. Conflict with our own docs
-
-- 07a §10.3 says `vocIndex`/`vocAccuracy`/`vocCo2Eq` are bound only on the THC variant. The IAQ manual lists VOC on all four variants; only CO₂ differs [V S18 §1]. This also answers part of `accessory-iaq.md`'s "which quantities exist on which variant".
+### 8a.4. REMOVED
 
 ## 9. Gaps
 
@@ -226,7 +268,7 @@ Variants RW-TH, RLW-TH, RW-THC, RLW-THC; `L` = LoRaWAN. All have Modbus RTU (RS-
 ## 10. Sources
 
 - S1 — connectedhomeip `data_model/1.5/device_types/` (ContactSensor, LightSensor, OccupancySensor, TemperatureSensor, HumiditySensor, AirQualitySensor .xml), commit `660c022`: https://github.com/project-chip/connectedhomeip/tree/660c0227dd4a206f05ba1696830bfd1e267d4cee/data_model/1.5/device_types
-- S2 — connectedhomeip `data_model/1.5/clusters/` (BooleanState, BooleanStateConfiguration, IlluminanceMeasurement, OccupancySensing, TemperatureMeasurement, WaterContentMeasurement, AirQuality, ConcentrationMeasurement .xml): https://github.com/project-chip/connectedhomeip/tree/660c0227dd4a206f05ba1696830bfd1e267d4cee/data_model/1.5/clusters
+- S2 — connectedhomeip `data_model/1.5/clusters/` (PowerSourceCluster, BooleanState, BooleanStateConfiguration, IlluminanceMeasurement, OccupancySensing, TemperatureMeasurement, WaterContentMeasurement, AirQuality, ConcentrationMeasurement .xml): https://github.com/project-chip/connectedhomeip/tree/660c0227dd4a206f05ba1696830bfd1e267d4cee/data_model/1.5/clusters
 - S3 — matter.js generated cluster definitions with spec text (`boolean-state`, `illuminance-measurement`, `occupancy-sensing`, `temperature-measurement`, `relative-humidity-measurement`, `air-quality`, `concentration-measurement`), commit `d2804e5`: https://github.com/matter-js/matter.js/tree/d2804e5c9846e2d9503f4bc988c558b9a2d11958/packages/types/src/clusters
 - S4 — Home Assistant Matter Hub (matter.js bridge), commit `664575a`: `packages/backend/src/matter/behaviors/` (illuminance, occupancy, concentration servers), `…/endpoints/legacy/sensor/devices/co2-sensor.ts`, `…/services/bridges/bridge-registry.ts`, `packages/common/src/entity-mapping.ts` (controller matrix): https://github.com/RiDDiX/home-assistant-matter-hub/tree/664575af68bd467508b2be2c0043a78e4d1565a7
 - S5 — HA Matter Hub docs, Supported Device Types: https://riddix.github.io/home-assistant-matter-hub/supported-device-types
@@ -248,3 +290,5 @@ Variants RW-TH, RLW-TH, RW-THC, RLW-THC; `L` = LoRaWAN. All have Modbus RTU (RS-
 - S21 — Unipi KB, analog sensors (PTS Pt1000): https://kb.unipi.technology/en:hw:05-sensors:analog
 - S22 — Unipi KB, connection of digital inputs: https://kb.unipi.technology/_export/raw/en:hw:connection-of-di-hidden
 - S23 — Unipi KB, sensors index (1-Wire, analog, IAQ only): https://kb.unipi.technology/en:hw:05-sensors
+- S24 — matter-survey.org device reports (2026-10): ALPSTUGA https://matter-survey.org/device/alpstuga-air-quality-monitor-4476-12289 · MYGGSPRAY https://matter-survey.org/device/myggspray-wrlss-mtn-sensor-4476-12288 · TIMMERFLOTTE https://matter-survey.org/device/timmerflotte-temp-hmd-sensor-4476-32773 · MYGGBETT https://matter-survey.org/device/myggbett-door-window-sensor-4476-32775
+- S25 — ESPHome, BME68x via BSEC2, IAQ index classes: https://esphome.io/components/sensor/bme68x_bsec2/

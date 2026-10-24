@@ -42,6 +42,11 @@ Every home `DeviceType` spreads one shared set of fields. Reuse is a plain TypeS
 const Label   = Codecs.struct({ label: Codecs.string(), value: Codecs.string() });
 const Tag     = Codecs.struct({ key: Codecs.string(), value: Codecs.string() });   // e.g. { key: 'position', value: 'left' }, { key: 'index', value: '2' }
 const Product = Codecs.struct({ vendor: Codecs.string(), name: Codecs.string(), serial: Codecs.string() });   // '' = not known
+const Battery = Codecs.struct({
+  level:   Codecs.string({ enumValues: ['ok', 'warning', 'critical'] }),
+  percent: Codecs.optional(Codecs.uint8({ min: 0, max: 100 })),   // absent ⇒ not known
+  replace: Codecs.bool(),                                          // the battery needs replacing
+});
 
 export const CommonFields = {
   name:         channel(Codecs.string(), { subscribe: true }),
@@ -52,6 +57,7 @@ export const CommonFields = {
   exposed:      reading(Codecs.bool(), { subscribe: true }),
   controllable: reading(Codecs.bool(), { subscribe: true }),
   identify:     optional(method('mutates', Codecs.void, Codecs.struct({ seconds: Codecs.uint16() }))),   // seconds: 0 stops
+  battery:      optional(reading(Battery, { subscribe: true })),
 };
 export type CommonKey = keyof typeof CommonFields;
 ```
@@ -66,6 +72,7 @@ Who binds what:
 | `origin` | this driver | `DeviceRecord.origin.kind` (§4.1) |
 | `exposed`, `controllable` | this driver | `DeviceRecord.exposed`/`controllable`, written through `manage` only. `remote`: the remote's, changed by `overrides` (§4b) |
 | `identify` | the origin | `local`: when its template's `indicator` role has a source (§3), or the template identifies through the device itself — every light (12c-01 §2). `matter`: when the endpoint has the Identify cluster (§4a). `remote`: when the remote device has it bound (§4b). Otherwise left unbound and listed in the device's `unbound` (05a §4) |
+| `battery` | the origin | `matter`: when the node has a Power Source with the battery feature — Matter's `BatChargeLevel`, `BatPercentRemaining / 2`, `BatReplacementNeeded`. A source on the root endpoint with an empty `EndpointList` powers the whole node: every device of the node binds it (research/matter/04 §7.2). `remote`: when the remote device has it bound. `local`: unbound — no built-in source has a battery |
 | everything else | the origin | `local`: `assemble()` (§3). `matter`: the mapping table (§4a). `remote`: the remote device's own fields (§4b) |
 
 Two flags say who else may use a device. Neither hides it from this PLC's rules (12b) or from the Inspector UI, which controls every device:
@@ -95,16 +102,16 @@ No home `DeviceType` declares `'@'` — every field is named. The whole device i
 | `OnOffPlugInUnit` | On/Off Plug-in Unit | 12c-02 §2 |
 | `WindowCovering` | Window Covering | `position` reading `{current, target, motion}` (%) · `goTo` method `{percent}` · `stop` method |
 | `DoorLock` | Door Lock | `state` reading `locked`/`unlocked`/`jammed`/`unknown` · `lock` method · `unlock` method |
-| `ContactSensor` | Contact Sensor | `contact` reading\<bool\> |
-| `AirQualitySensor` | Air Quality Sensor | `airQuality` reading `good`/`fair`/`moderate`/`poor`/`veryPoor`/`extremelyPoor`/`unknown` |
-| `TemperatureSensor` | Temperature Sensor | `temperature` reading\<float32, °C\> |
-| `HumiditySensor` | Humidity Sensor | `humidity` reading\<float32, %\> |
-| `OccupancySensor` | Occupancy Sensor | `occupied` reading\<bool\> |
-| `LightSensor` | Light Sensor | `illuminance` reading\<float32, lx\> |
+| `ContactSensor` | Contact Sensor | 12c-04 §2 |
+| `AirQualitySensor` | Air Quality Sensor | 12c-04 §2 |
+| `TemperatureSensor` | Temperature Sensor | 12c-04 §2 |
+| `HumiditySensor` | Humidity Sensor | 12c-04 §2 |
+| `OccupancySensor` | Occupancy Sensor | 12c-04 §2 |
+| `LightSensor` | Light Sensor | 12c-04 §2 |
 | `RoomAirConditioner` | Room Air Conditioner | `onOff` · `mode` channel `off`/`cool`/`heat`/`auto`/`fan`/`dry` · `setpoint` channel\<float32, °C\> · `temperature` reading · `fanMode` channel `auto`/`low`/`medium`/`high` |
 | `Timer` | — (16a ignores it) | `running` reading\<bool\> · `remaining` reading\<uint32, s\> · `elapsed` reading `{seq, at}` · `start` method `{seconds}` · `cancel` method |
 
-Every reading and channel above is `subscribe: true`. A source's own staleness never appears per field — it folds into `reachable` (§4.2). The types in full: lights in 12c-01 §2, plug-in units in 12c-02 §2, the switch in 12c-03 §2; the rest follow the same shape.
+Every reading and channel above is `subscribe: true`. A source's own staleness never appears per field — it folds into `reachable` (§4.2). The types in full: lights in 12c-01 §2, plug-in units in 12c-02 §2, the switch in 12c-03 §2, the sensors in 12c-04 §2; the rest follow the same shape.
 
 `Timer` is a virtual device: its template has no roles (§3). It is how a rule waits, since rules never do (12b §1). `start` (re)starts it for `seconds`; when it runs out, `running` turns false and `elapsed` emits with `seq` +1; `cancel` stops it without `elapsed`. Timers are not persistent: after a restart every timer is stopped.
 
@@ -234,6 +241,46 @@ A `SET` forwarded to a source that can't take it — not up, not answering — t
 
 Each built-in `DeviceType` (§2) ships with the templates its own built-in source drivers warrant — the light templates of 12c-01 §3, `switch-from-di` for `GenericSwitch` (12c-03 §3), the role-less `timer` for `Timer` — and a template is itself a manifest-loaded, `kind`-resolved module (01 §10; `{ "kind": "home-template", "templateKind": "dimmable-from-dali", … }`), so a driver plugin for hardware this driver doesn't know about yet can ship its own template for an existing `DeviceType` without touching this package. It imports that `DeviceType` from `@evok-node/driver-home`; it never rebuilds one under the same kind (05a §3.5).
 
+## 3a. Template bundles
+
+A **template bundle** creates several devices in one step, from one source the user picks — the **anchor**. Its code finds every other source from the anchor and hands each member template its own. A Unipi IAQ sensor is one unit on an extension line and four home devices (12c-04 §3.9):
+
+```
+anchor  EXT:7.type        unipi.unitType { definition: 'modbus/unipi/iaq-thc' }   (09 §3a)
+  → temperature   temperature-from-sensor   { probes: ['EXT:7.temp'] }
+  → humidity      humidity-from-sensor      { input:  ['EXT:7.humidity'] }
+  → light         light-from-sensor         { input:  ['EXT:7.lux'] }
+  → airQuality    air-quality-from-iaq      { co2: ['EXT:7.co2'], voc: ['EXT:7.vocIndex'], vocAccuracy: ['EXT:7.vocAccuracy'] }
+```
+
+```ts
+// @evok-node/driver-home
+interface BundleContext<S> {
+  readonly anchor: Address;
+  readonly anchorDevice: RemoteDevice<FieldsOf<…>>;           // the anchor, typed by `anchor.types`
+  readonly settings: S;
+  find(args: { prefix: Address; kind: string }): readonly Address[];   // devices of `config.local` drivers under `prefix`, from introspection
+}
+
+interface TemplateBundle<S = unknown> {
+  readonly kind: string;                          // 'iaq-unipi' — must equal the manifest's bundleKind
+  readonly label: LocalizedText;                  // 04 §7
+  readonly hint?: LocalizedText;
+  readonly anchor: Selection;                     // §2.4, always 1–1 — e.g. { types: [UnipiUnitType], min: 1, max: 1, label: 'Sensor' }
+  readonly members: Readonly<Record<string, { readonly templateKind: string; readonly label: LocalizedText }>>;
+  readonly settings?: TypedCodec<S>;              // annotated, defaults included; absent ⇒ none
+  resolve(ctx: BundleContext<S>): Promise<
+    | { readonly ok: true; readonly members: Readonly<Record<string, { sources: Value; settings?: Value } | null>> }   // null ⇒ this member is not created
+    | { readonly ok: false; readonly reason: LocalizedText }>;                                                      // the anchor isn't one this bundle takes
+}
+```
+
+- **The user picks only the anchor**, from `$refs` (`home.source`, filtered by `anchor.types`), plus a name and the bundle's settings. Members' sources are never in the form.
+- **Each member is validated as `createDevice` validates it** (§5): its template's form, `home.source`'s `has`. A bundle is created whole or not at all — one failing member fails the call, nothing is persisted.
+- **After creation each member is an ordinary `local` device**, with `bundle` set (§4.1): edited and removed on its own, its template's settings changed through `updateDevice`. Only the bundle's name and membership are the bundle's.
+- **A `matter` node needs no bundle**: its devices are already one product, linked by `origin.nodeId` (§4.1). 16a uses either link the same way (16a).
+- A bundle is a manifest-loaded, `kind`-resolved module, like a template (§3): `{ "kind": "home-bundle", "bundleKind": "iaq-unipi", … }`.
+
 ## 4. Device storage and lifecycle
 
 ### 4.1. Device record
@@ -270,12 +317,24 @@ interface DeviceRecord {
   readonly tags: readonly { key: string; value: string }[];           // backs CommonFields.info
   readonly product: { vendor: string; name: string; serial: string };  // backs CommonFields.info
   readonly groupId?: string;           // §6
+  readonly bundle?: { readonly id: string; readonly key: string };   // §3a — `local` only: the bundle and this device's member key
+}
+
+interface BundleRecord {               // §3a
+  readonly id: string;                 // from its own counter, never reused
+  readonly bundleKind: string;
+  readonly name: string;
+  readonly anchor: Address;
+  readonly settings: Value;            // the bundle's `settings`, defaults filled
+  readonly members: Readonly<Record<string, string>>;   // member key → device tail; a member not created or removed is absent
 }
 ```
 
 On a `remote` device, `name`, labels, tags, `product`, `exposed` and `controllable` hold the last values the link delivered, so the device answers before the link is up.
 
 A `local` device's template state (§3) is stored beside its record, under the same tail, and removed with it.
+
+A bundle and its members are written in one KV `batch` (06). Removing a member removes it from `members`; removing the last one removes the bundle. A bundle is never re-resolved: after creation, its members' sources are theirs (§3a).
 
 Tails are `device.<origin>.<origin-specific>`:
 
@@ -408,6 +467,24 @@ updateDevice(args: { tail: string; patch: {
 removeDevice(args: { tail: string }): void;
 listDevices(): readonly (DeviceRecord & { status: DeviceStatus })[];
 
+// bundles (§3a)
+listBundleKinds(): readonly {
+  kind: string; label: LocalizedText; hint?: LocalizedText;
+  form: ValueSchema;                   // { anchor: ref (home.source, filtered by anchor.types), settings }
+  members: Readonly<Record<string, { templateKind: string; label: LocalizedText }>>;
+}[];
+createBundle(args: {
+  bundleKind: string;
+  name: string;                        // members are named "<name> – <member label>"
+  anchor: Address;
+  settings?: Value;                    // omitted ⇒ every default
+  exposed?: boolean;                   // every member; omitted ⇒ true
+  controllable?: boolean;              // every member; omitted ⇒ true
+}): { bundle: BundleRecord; devices: readonly DeviceRecord[] };
+updateBundle(args: { id: string; patch: { name?: string } }): BundleRecord;   // members keep their own names
+removeBundle(args: { id: string; devices: 'remove' | 'keep' }): void;         // keep ⇒ members stay, `bundle` cleared
+listBundles(): readonly BundleRecord[];
+
 // Matter (§4a)
 commission(args: { pairingCode: string }): { nodeId: string; devices: readonly DeviceRecord[] };   // unknown types included
 unpair(args: { nodeId: string }): { decommissioned: boolean };   // false ⇒ removed locally only; the device may need a factory reset
@@ -442,8 +519,9 @@ detachRemote(args: { id: string }): void;        // the local id of an attached 
 
 Every method validates before anything is persisted or bound, and answers `domain-error` (05a §3.5) — never a throw — since a human in the Inspector UI or the Home UI is exactly the caller this is for. `errorKinds`:
 
-- `unknown-device-type`, `unknown-template`, `unknown-device`, `unknown-node`, `unknown-remote`, `duplicate-remote`, `unknown-level`, `unknown-room`, `unknown-group`.
-- `invalid-sources` — the form's `sources` fail its codec (a role missing or unknown, a count outside `min`–`max`), or a source fails `home.source`'s `has` (§2.4): its driver isn't in `config.local`, or its current introspection fails `matchesDeviceType` against every one of the role's `types` (05a §4a). A device is never created against a source nobody has seen; once created, a missing source only makes it unreachable (§4.2).
+- `unknown-device-type`, `unknown-template`, `unknown-device`, `unknown-node`, `unknown-remote`, `duplicate-remote`, `unknown-level`, `unknown-room`, `unknown-group`, `unknown-bundle-kind`, `unknown-bundle`.
+- `invalid-anchor` — `createBundle`'s anchor fails `home.source`'s `has`, or `resolve` answers `ok: false`; `detail` carries its `reason`.
+- `invalid-sources` — the form's `sources` fail its codec (a role missing or unknown, a count outside `min`–`max`), or a source fails `home.source`'s `has` (§2.4): its driver isn't in `config.local`, or its current introspection fails `matchesDeviceType` against every one of the role's `types` (05a §4a). A device is never created against a source nobody has seen; once created, a missing source only makes it unreachable (§4.2). For a bundle, `detail` names the failing member.
 - `invalid-settings` — `settings` fail the form's `settings`.
 - `read-only` — `updateDevice` on a `remote` device with anything but `overrides`; `overrides` on a non-`remote` one; `sources`/`settings` on a non-`local` one; `removeDevice` on a present `matter`/`remote` one; any change to an attached node (§6) or to what's in it.
 - `in-use` — removing a level, room or group something still references.
@@ -456,6 +534,8 @@ Every method is reachable through the WS API (15) and its Inspector UI. The Home
 | `listDeviceTypes`, `listTemplates`, `createDevice`, `removeDevice`, `listDevices` | — the Home UI lists devices from introspection (05a §4) and `listHierarchy` |
 | `updateDevice` | yes, except `sources` and `settings` |
 | `commission`, `unpair`, `listNodes` | yes |
+| `listBundleKinds`, `createBundle`, `removeBundle` | — as `createDevice` |
+| `updateBundle`, `listBundles` | yes |
 | `addRemote`, `removeRemote`, `listRemotes` | — |
 | hierarchy | yes |
 | rules (12b §8) | yes |
@@ -517,6 +597,8 @@ Tier 1, against fixture drivers (no hardware) that each expose a handful of `bin
 - `Timer` on a fake `Clock`: `start` → after `seconds`, `running` is false and `elapsed.seq` +1; `start` while running restarts the count; `cancel` never emits `elapsed`; after a restart every timer is stopped.
 - A template with no roles binds a device that is `reachable` at once.
 - Forms: `listTemplates` answers a `form` whose `sources` hold one ref array per role, kinds taken from `types`, and whose `settings` carry the template's defaults; `createDevice` without `settings` stores every default; a 0–1 role may be omitted.
+- Bundles: `createBundle` on a fixture `iaq-unipi` anchor creates one device per non-null member, each with `bundle` set, in one KV `batch`; a member failing its form creates nothing; an anchor the bundle refuses answers `invalid-anchor`; removing the last member removes the bundle; `removeBundle` with `keep` clears `bundle` on every member.
+- `battery`: bound on every device of a fixture Matter node whose root endpoint has a battery Power Source with an empty `EndpointList`; `percent` is `BatPercentRemaining / 2`; unbound on every `local` device.
 - `$refs`: `home.device` lists only devices of the filtered kinds, with `name` and hierarchy path; `home.source` lists only devices of `config.local` drivers.
 - Several sources: a 1–4 role accepts 1–4 addresses and answers `invalid-sources` for 0 or 5; `reachable` is false while any source is down; a `SET` with one source unreachable answers `unreachable`, and the other source keeps the write.
 - `manage` is one bound device of kind `home.Manage`; each method answers at `home:manage.<method>` and takes one args struct.
