@@ -117,7 +117,9 @@ Zero onboard sections (the Gate) is legal — `devices: []`.
 
 ## 8. Binding and rates
 
-Delegated entirely to [`hw-modbus-kit`](07a-Hw-modbus-kit.md): this driver opens one `ModbusTransport` per instance, calls `handshake()` then `bindDefinition(def, rates)` once per unit (§2, §5), and holds whatever `BoundDefinition` comes back until `stop()`.
+Delegated entirely to [`hw-modbus-kit`](07a-Hw-modbus-kit.md): this driver opens one `ModbusTransport` per instance, calls `handshake()` then `bindDefinition(unit, def, rates)` once per unit (§2, §5), and holds whatever `BoundDefinition` comes back until `stop()`.
+
+The unit is the section, so it is the first tail segment — `PLC:1.unipi.di.01`, `PLC:2.unipi.ro.01` (07a §3a). Each configured unit also gets `<unit>.typeInfo` (07a §10.4), bound by `bindTypeInfo()` at `configure()` from config alone, so it answers before the unit's handshake succeeds.
 
 This driver's own built-in `RateTable` defaults — the names the shipped catalog's `blocks[].rate` actually uses — are `{ fast: 100, medium: 500, slow: 5000 }`. Config's `rates:` (§2) only overrides names it names; everything else keeps the built-in value.
 
@@ -136,4 +138,5 @@ Tier 1 (`design/basics/03-Testing.md`), against the simulator — no hardware:
 - Definition-resolution fatal: a `devices:` entry naming an id with no matching file anywhere (shipped or custom) rejects `configure()`, naming the id — asserted before any `ModbusTransport.open()` call.
 - Reachability, not fatal: a fixture unit whose simulator handshake fails (census mismatch) is still listed in introspection; a `GET` against it answers `unreachable`; a later simulator fix that lets handshake succeed brings it to a normal bound state without a restart.
 - Rate resolution: a fixture definition naming a `rate` this driver has no built-in default for and no config override for is fatal at `configure()`, naming the rate.
+- Tails: two units whose definitions share a kind bind without a duplicate-tail fatal, each under its own `<unit>.` prefix; `<unit>.typeInfo` answers while that unit's handshake is still failing.
 - One full run against a simulated board `00` end to end: `configure()` → `handshake()` → `bindDefinition()` → a `GET`/`SET` round-trip against at least one `unipi.di` and one `unipi.do` channel.

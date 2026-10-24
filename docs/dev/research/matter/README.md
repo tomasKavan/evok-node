@@ -14,6 +14,7 @@ One file per device group, numbered as they are written. Each covers: how the sp
 | [`02-plug-in-units.md`](02-plug-in-units.md) | On/Off Plug-in Unit, Mounted On/Off Control; dimmable variants for comparison |
 | [`03-generic-switch.md`](03-generic-switch.md) | Generic Switch, Switch cluster: features, event sequences, timing, matter.js, controllers, multi-button tags |
 | [`04-sensors.md`](04-sensors.md) | Contact, Light, Occupancy, Temperature, Humidity, Air Quality Sensor: encodings, occupancy hold time, concentration clusters, multi-sensor composition, Apple Home limits; Unipi sources (DI, AI, 1-Wire, xG18, IAQ) |
+| [`05-timer-relay.md`](05-timer-relay.md) | No Matter timer device type; countdown elements in other clusters and their reporting; controllers (Apple, Google, Home Assistant `timer`); timer-relay functions in PLCs, KNX, DIN-rail relays, Node-RED, Shelly; behaviour across a restart; EVOK's software timed output |
 
 ## 2. Apple Home support
 

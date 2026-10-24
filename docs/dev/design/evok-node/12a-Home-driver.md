@@ -166,14 +166,14 @@ A form is the dynamic part of a call. The static part is the method's own `argsS
 Name             [ Hall switch      ]          ← manage.createDevice argsSchema
 Exposed          [x]   Controllable [x]
 — Switch from digital input —                  ← listTemplates(...).form
-Input            [ ext1:DI.01 ▾ ]              ← CALL home:$refs { type: 'home.source', filter: { kinds: ['unipi.di'] } }
+Input            [ EXT:1.unipi.di.01 ▾ ]              ← CALL home:$refs { type: 'home.source', filter: { kinds: ['unipi.di'] } }
 Indicator LED    [ — ▾ ]           (optional)
 Long press after [  800 ] ms
 ```
 
 ```json
 CALL home:manage.createDevice { "deviceType": "home.GenericSwitch", "templateKind": "switch-from-di",
-  "name": "Hall switch", "sources": { "input": ["ext1:DI.01"] }, "settings": { "longPressMs": 800 } }
+  "name": "Hall switch", "sources": { "input": ["EXT:1.unipi.di.01"] }, "settings": { "longPressMs": 800 } }
 ```
 
 The driver decodes the form (defaults filled), runs `checkRefs`, and answers `invalid-sources`, `invalid-settings` (§5), `invalid-slots` or `invalid-options` (12b §8) before anything is persisted.
@@ -246,11 +246,11 @@ Each built-in `DeviceType` (§2) ships with the templates its own built-in sourc
 A **template bundle** creates several devices in one step, from one source the user picks — the **anchor**. Its code finds every other source from the anchor and hands each member template its own. A Unipi IAQ sensor is one unit on an extension line and four home devices (12c-04 §3.9):
 
 ```
-anchor  EXT:7.type        unipi.unitType { definition: 'modbus/unipi/iaq-thc' }   (09 §3a)
-  → temperature   temperature-from-sensor   { probes: ['EXT:7.temp'] }
-  → humidity      humidity-from-sensor      { input:  ['EXT:7.humidity'] }
-  → light         light-from-sensor         { input:  ['EXT:7.lux'] }
-  → airQuality    air-quality-from-iaq      { co2: ['EXT:7.co2'], voc: ['EXT:7.vocIndex'], vocAccuracy: ['EXT:7.vocAccuracy'] }
+anchor  EXT:7.typeInfo    modbus.typeInfo { definition: 'modbus/unipi/iaq-thc' }  (09 §3a)
+  → temperature   temperature-from-sensor   { probes: ['EXT:7.unipi.temp.01'] }
+  → humidity      humidity-from-sensor      { input:  ['EXT:7.unipi.humidity.01'] }
+  → light         light-from-sensor         { input:  ['EXT:7.unipi.lux.01'] }
+  → airQuality    air-quality-from-iaq      { co2: ['EXT:7.unipi.co2.01'], voc: ['EXT:7.unipi.vocIndex.01'], vocAccuracy: ['EXT:7.unipi.vocAccuracy.01'] }
 ```
 
 ```ts

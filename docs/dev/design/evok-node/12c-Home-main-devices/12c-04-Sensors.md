@@ -208,7 +208,7 @@ A Unipi IAQ sensor (RW-TH, RLW-TH, RW-THC, RLW-THC) on an extension line, as fou
 
 | | |
 |---|---|
-| Anchor | `unipi.unitType`, 1 — the unit's `<unit>.type` (09 §3a). Taken only when its `vendor` is `unipi` and its `device` names an IAQ definition; otherwise `invalid-anchor` |
+| Anchor | `modbus.typeInfo`, 1 — the unit's `<unit>.typeInfo` (09 §3a). Taken only when its `vendor` is `unipi` and its `device` names an IAQ definition; otherwise `invalid-anchor` |
 | Settings | none |
 
 `resolve` finds each source under the anchor's unit prefix by kind (`ctx.find({ prefix: 'EXT:7.', kind })`):
@@ -221,7 +221,7 @@ A Unipi IAQ sensor (RW-TH, RLW-TH, RW-THC, RLW-THC) on an extension line, as fou
 | `airQuality` | `air-quality-from-iaq` | `co2`: the `unipi.co2` — absent on a TH unit · `voc`: the `unipi.vocIndex` · `vocAccuracy`: the `unipi.vocAccuracy` |
 
 ```json
-CALL home:manage.createBundle { "bundleKind": "iaq-unipi", "name": "Living room", "anchor": "EXT:7.type" }
+CALL home:manage.createBundle { "bundleKind": "iaq-unipi", "name": "Living room", "anchor": "EXT:7.typeInfo" }
 → devices "Living room – Temperature", "– Humidity", "– Light", "– Air quality"
 ```
 

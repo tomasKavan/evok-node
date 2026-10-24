@@ -12,7 +12,7 @@ Everything that crosses the boundary is one of three kinds — a **request**, a 
 type DriverId  = Brand<string, 'DriverId'>;
 type ApiId     = Brand<string, 'ApiId'>;
 type Tail      = Brand<string, 'Tail'>;       // the part after the colon — a driver's own namespace, never valid outside it
-type Address   = Brand<string, 'Address'>;    // "PLC:DI.2.01" — driverId:tail, tail opaque past the colon (01 §6)
+type Address   = Brand<string, 'Address'>;    // "PLC:2.unipi.di.01" — driverId:tail, tail opaque past the colon (01 §6)
 type Seq       = Brand<number, 'Seq'>;
 type MessageId = Brand<string, 'MessageId'>;
 type Value     = string | number | boolean | null | readonly Value[] | { readonly [key: string]: Value };

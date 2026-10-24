@@ -48,21 +48,21 @@ Units are declared, never discovered. There is no bus-scan mode, deliberately: a
 
 ## 3a. Tails and the unit's type
 
-Every tail a unit binds starts with its `unit` number, so two units on one line never collide — two IAQ sensors both have a `temp`. After the prefix, the tail is the definition's own (07a):
+Every tail a unit binds starts with its `unit` number, so two units on one line never collide — two IAQ sensors both have a `unipi.temp.01`. The grammar is 07a §3a's:
 
 ```
-EXT:1.DI.01   EXT:1.RO.01   …     # unit 1, an xS11
-EXT:7.temp    EXT:7.co2     …     # unit 7, an IAQ
-EXT:7.type                         # unit 7's type
+EXT:1.unipi.di.01     EXT:1.unipi.ro.01    …   # unit 1, an xS11
+EXT:7.unipi.temp.01   EXT:7.unipi.co2.01   …   # unit 7, an IAQ
+EXT:7.typeInfo                                  # unit 7's type info
 ```
 
-Each configured unit also has one `unipi.unitType` device at `<unit>.type` (07a §10.4): which definition the config names for it. It is bound at `configure()` from config alone, so it answers while the unit is down or before its handshake (§8) — a consumer can tell what a unit is without it answering. It is never stale.
+Each configured unit also has one `modbus.typeInfo` device at `<unit>.typeInfo` (07a §10.4): which definition the config names for it. It is bound at `configure()` from config alone, so it answers while the unit is down or before its handshake (§8) — a consumer can tell what a unit is without it answering. It is never stale.
 
 ```json
-GET EXT:7.type → { "definition": "modbus/unipi/iaq-thc", "vendor": "unipi", "device": "iaq-thc", "name": "Unipi IAQ RW-THC" }
+GET EXT:7.typeInfo → { "definition": "modbus/unipi/iaq-thc", "vendor": "unipi", "device": "iaq-thc", "name": "Unipi IAQ RW-THC" }
 ```
 
-A consumer finds a unit's devices by the prefix and their kind — `EXT:7.*` of kind `unipi.co2` — never by assuming the name after the prefix. A home template bundle does exactly that (12a §3a).
+A consumer finds a unit's devices by the prefix and their kind — under `EXT:7.`, of kind `unipi.co2` — never by parsing the tail. A home template bundle does exactly that (12a §3a).
 
 ## 4. Serial timing and the shared-bus budget
 
@@ -88,7 +88,7 @@ One driver, one config shape, one handshake/bind path for both — the model nev
 
 The practical path for a device this driver's own authors never heard of, and its limits. Namespace: `custom/modbus/<vendor>/<device>.yaml` (`13 §1`) — `acme`'s `wm-3f` sharing a line with ordinary Unipi units (§2's example) is the concrete shape. Past the definition file itself, three things a custom device may need, each already covered by `07a`'s own mechanism rather than anything specific to this driver:
 
-- **An unknown `kind`.** Resolved the same way as any other — `resolveDeviceKind` (05a §3.5) — whether that kind is a plain, already-real `DeviceType` a third-party package ships, or an alias bound through a `ModbusKindBinder` whose `targetKind` is a real kind underneath (`07a §7`'s `acme.wm-relay` → `unipi.ro` example is exactly this case). Either way the type itself must already exist and be resolvable — a binder never fabricates one.
+- **An unknown `kind`.** Resolved the same way as any other — `resolveDeviceKind` (05a §3.5) — to a real `DeviceType` a third-party package ships, `<vendor>.<name>`-shaped like every kind (07a §3a). The type itself must already exist and be resolvable — a binder never fabricates one.
 - **A register layout the generic walk can't express.** The same `ModbusKindBinder`, registered either directly (a driver-extension bundle statically depending on `acme`'s package, full typing, no manifest involved) or as a `kind: "modbus-kind-binder"` manifest entry resolved lazily the first time this line's `configure()` needs it (`07a §7`).
 - **An identity check that isn't Unipi's.** A `handshake` name registered the identical two ways (`07a §9`) — direct `registerHandshake()`, or a `kind: "modbus-handshake"` manifest entry — or `none` when the device has no identity block to check at all.
 
@@ -104,7 +104,7 @@ Same two-class split `08 §6` already establishes, restated at the level a share
 
 ## 9. Binding and rates
 
-Delegated entirely to `hw-modbus-kit`, identically to `08 §8`: this driver opens one `ModbusTransport` per instance, calls `handshake()` then `bindDefinition(def, rates)` once per unit (§5), and holds whatever `BoundDefinition` comes back until `stop()`. The built-in `RateTable` defaults are §4's `{ fast: 200, slow: 5000 }`; config's `rates:` (§2) overrides only the names it names.
+Delegated entirely to `hw-modbus-kit`, identically to `08 §8`: this driver opens one `ModbusTransport` per instance, calls `handshake()` then `bindDefinition(unit, def, rates)` once per unit (§5), and holds whatever `BoundDefinition` comes back until `stop()`. The built-in `RateTable` defaults are §4's `{ fast: 200, slow: 5000 }`; config's `rates:` (§2) overrides only the names it names.
 
 ## 10. Testing
 
@@ -115,6 +115,6 @@ Tier 1 (`design/basics/03-Testing.md`), against the simulator — no hardware:
 - Cycle-time budget: a fixture line with several units' worth of fixture blocks computes the expected cycle time; a fixture whose sum exceeds 25% of the shortest fixture unit's factory-default MWD timeout warns (or refuses, past the harder threshold) at `configure()`, before any handshake runs.
 - Runtime-degraded isolation: one fixture unit whose simulator handshake fails never starts a scan loop and never contributes to the line's cycle time, while a sibling unit on the same line handshakes and binds normally, unaffected.
 - Extensions vs accessories: a fixture accessory-shaped definition (sensor kinds only) binds with no `unipi.sectionWatchdog` present; a fixture `xG18`-shaped definition (extension unit, accessory kinds) binds identically to any other accessory.
-- Bring-your-own, end to end: a fixture custom unit using a manifest-declared `ModbusKindBinder` aliasing to a real fixture kind, and a manifest-declared `HandshakeFn`, handshakes and binds correctly, and a `GET`/`SET` round-trip reaches the real, aliased kind's own handlers.
-- Tails: two units of the same fixture definition on one line bind without a duplicate-tail fatal, each under its own `<unit>.` prefix; `<unit>.type` answers the configured definition while its unit's handshake is still failing.
+- Bring-your-own, end to end: a fixture custom unit of its own fixture kind, using a manifest-declared `ModbusKindBinder` and a manifest-declared `HandshakeFn`, handshakes and binds correctly, and a `GET`/`SET` round-trip reaches the binder's own handlers.
+- Tails: two units of the same fixture definition on one line bind without a duplicate-tail fatal, each under its own `<unit>.` prefix; `<unit>.typeInfo` answers the configured definition while its unit's handshake is still failing.
 - One full run against two simulated units on one line, of different kinds, end to end: `configure()` → per-unit `handshake()` → `bindDefinition()` → a `GET`/`SET` round-trip against at least one channel on each.

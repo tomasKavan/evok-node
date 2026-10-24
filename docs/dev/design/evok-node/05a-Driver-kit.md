@@ -286,6 +286,7 @@ interface BoundEndpoint<T, E extends string = never> {
 interface BoundDevice<F extends Record<string, EndpointType | OptionalEndpointType> = Record<string, EndpointType>> {
   readonly tail: Tail;
   readonly kind: string;                                              // DeviceType.kind
+  readonly label?: string;                                            // BindOptions.label, as bound
   readonly fields: { readonly [K in keyof F]?: BoundEndpoint<...> };  // only fields actually bound — an unbound optional() field is absent
 }
 
@@ -306,11 +307,16 @@ interface BindHandlers<T, TSet, E extends string = never> {
   onCall?(payload: TSet, req: Request): Promise<CallOutcome<T, E>>;
 }
 
+interface BindOptions {
+  readonly label?: string;   // name printed on the hardware, e.g. "RO2.1" — introspection only (§4)
+}
+
 interface DriverKit {
   bindDevice<F extends Record<string, EndpointType | OptionalEndpointType>>(
     tail: Tail,
     type: DeviceType<F>,
-    handlers: { readonly [K in keyof F]?: BindHandlers<...> }   // one entry per field actually being bound; omit an optional() field entirely to leave it unbound
+    handlers: { readonly [K in keyof F]?: BindHandlers<...> },  // one entry per field actually being bound; omit an optional() field entirely to leave it unbound
+    opts?: BindOptions
   ): BoundDevice<F>;
   unbindDevice(tail: Tail): void;
   resolveDeviceKind(kind: string): Promise<DeviceType>;    // for a driver that only has a string, e.g. a definition-declared kind it never imported directly — see below
@@ -365,6 +371,8 @@ pluginRegistry.registerKindGuard('device', isDeviceType);
 A `DeviceType` gaining a new required field in a later package version is, by the second rule above, a breaking change for anything still calling `bindDevice` without it — there's no separate versioning mechanism; the same fatal check just starts firing for drivers that haven't caught up. Wrapping a newly-added field in `optional()` instead keeps old callers working unchanged.
 
 `unbindDevice` tears down whatever the dispatcher was holding for the device's own tail — every field, active subscriptions included, the same discipline `$getCallProgress.<id>` already applies to itself the moment its own call resolves (03 §6.4) — and bumps the introspection generation (§3.8) the same way `bindDevice` does.
+
+`opts.label` is the device's human name — what is printed on the hardware (`RO2.1`), not its tail. It is a description, not a value: no endpoint answers it, it travels on `DeviceRef` (§4) only, and it is fixed for the binding — a new label is an unbind plus a bind.
 
 Every handler's final argument is the `Request` it's answering — `origin`, `deadline`, `id`, the lot — for a handler that genuinely needs more than its own payload; 06's `get`/`has`/`set`/`delete` are the first to use it, reading `origin` to resolve a caller's namespace. A handler that doesn't need it just doesn't declare the parameter; nothing about the type requires touching it.
 
@@ -537,6 +545,7 @@ interface KindEntry {
 interface DeviceRef {
   readonly tail: Tail;
   readonly kind: string;                  // the DeviceType's own kind (§3.3) — key into `kinds`
+  readonly label?: string;                // BindOptions.label (§3.5), absent when none was given
   readonly unbound?: readonly string[];   // optional() fields this device left unbound
 }
 
@@ -577,7 +586,7 @@ Each kind's schema is written once per payload, never once per device: one kind 
     }
   },
   "devices": [
-    { "tail": "DI.01", "kind": "DI", "unbound": ["directSwitch"] },
+    { "tail": "DI.01", "kind": "DI", "label": "DI1", "unbound": ["directSwitch"] },
     { "tail": "DI.02", "kind": "DI" }
   ]
 }
@@ -668,6 +677,7 @@ Tier 1 (unit; `basics/03-Testing.md`), against `driver-kit`'s own fixtures — a
 - `RejectedPayload` (§3.5): a fixture `onSet` throwing it answers `bad-payload`, never `internal-error`; a fixture `onSet` throwing `SourceUnreachable` answers `unreachable`; any other thrown error from `onGet`/`onSet` still answers `internal-error`, unchanged.
 - `DeviceType`/`bindDevice` (§3.3/§3.5): a `primitive`/`array`-shaped `@` declared alongside any sibling field is rejected when the `DeviceType` is built, before any driver binds it; a required field missing from `bindDevice`'s `handlers` is fatal, while the same `DeviceType` binds successfully with only some `optional()` fields supplied; a second `bindDevice()` whose tail falls inside an already-bound device's namespace, outside its declared fields, is fatal; every field handle in one `bindDevice()` call's `BoundDevice` is independently addressable, and `unbindDevice`ing the device's own tail doesn't silently leave a sibling field bound.
 - `list`/`find` (§3.5): `list()` returns one `BoundDevice` per bound device, with only bound fields in `fields`; `find()` on a field tail returns `undefined`; typed `find(tail, type)` with a `type` whose `kind` differs from the bound device's throws.
+- Label (§3.5, §4): a `label` given to `bindDevice` appears on that device's `DeviceRef` in both `full` and `change`; a device bound without one has no `label` key.
 - Wildcard over a device (§6): a `DI.*` subscription against a fixture device with `@` plus one subscribeable sibling field delivers events for both, each carrying its own concrete tail, never the device's bare tail or the pattern.
 - `returnFields` (§3.5a): a strict array naming an unknown field, or a `CALL`-only field, is `bad-payload`; `'*'` on a device with a mixed `GET`/`CALL` sibling set returns every GET-able field and silently skips the `CALL`-only one; `options.returnFields` on `CALL`/`SUBSCRIBE`/`UNSUBSCRIBE` is `bad-payload`; a `SET` naming a sibling echoes its current value in the response without the sibling's own handler ever firing. On a fixture device with no `'@'`: `GET` with `returnFields` returns only the named fields; `GET` without it, and any `SET`, answer `unknown-address`.
 - `RemoteEndpoint`/`RemoteDevice` (§3.8a): `remote`/`remoteDevice` against a fixture driver's own bound device round-trips `get`/`set`/`call` through `field`'s `codec`, never a cast; a `RemoteMethod`'s `call` surfaces a fixture `onCall`'s `domain-error`/`unreachable`/`timeout` arms unchanged; `getFields`/`getAll` issue exactly one request each, via `returnFields`, never one per field, and `getAll`'s result omits a method-shaped field entirely rather than typing it `never`. Compile-time only, never run: a `RemoteDevice<F>` fixture whose `F` has no `'@'` key fails to typecheck on `.get()`, asserted the same way `basics/03-Testing.md` asserts any other type-level contract.

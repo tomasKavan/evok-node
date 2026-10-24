@@ -4,13 +4,13 @@
 
 The shared binder 08 and 09 both call: turns a `hw-definitions`-resolved definition into bound `driver-kit` devices, over this same package's own `ModbusTransport`, without either onboard or extension driver touching register arithmetic or `bindDevice` directly. It lives inside `packages/modbus` — the `hw-modbus-kit` subpath of what 01 §11 calls `modbus-kit` — not a separate npm package; §9 states what that costs and buys.
 
-For the common case — every per-channel Unipi kind (`unipi.di`, `unipi.do`, `unipi.ro`, `unipi.led`, `unipi.ai`, `unipi.ao`) and every plain sensor kind (`unipi.temp`, `unipi.humidity`, …) — this file needs zero kind-specific code: a single schema-walking algorithm (§5) binds any `reading`/`channel`-shaped `DeviceType` from its own `ValueSchema` plus the YAML's own field addresses. The registry (§7) is for what that walk genuinely cannot do, and it's never about building a new `DeviceType` — every `DeviceType` this file ever binds against already exists and is independently resolvable (05a §3.5); a registered binder only ever supplies *how* to talk to one. Two distinct reasons a `kind` needs one: `unipi.sectionWatchdog`'s `saveConfig`/`reset` are `method`-shaped, and a `CALL` isn't a value with an address, so the real `unipi.sectionWatchdog` `DeviceType` needs its own `bind()` instead of the generic walk; or a YAML `kind` is a stand-in for a different, already-real kind entirely — a device with a register layout the generic walk can't express, bound as an ordinary `unipi.di` underneath once its own binder translates for it. Both are the worked examples in §7.
+For the common case — every per-channel Unipi kind (`unipi.di`, `unipi.do`, `unipi.ro`, `unipi.led`, `unipi.ai`, `unipi.ao`) and every plain sensor kind (`unipi.temp`, `unipi.humidity`, …) — this file needs zero kind-specific code: a single schema-walking algorithm (§5) binds any `reading`/`channel`-shaped `DeviceType` from its own `ValueSchema` plus the YAML's own field addresses. The registry (§7) is for what that walk genuinely cannot do, and it's never about building a new `DeviceType` — every `DeviceType` this file ever binds against already exists and is independently resolvable (05a §3.5); a registered binder only ever supplies *how* to talk to one. A `kind` needs one when the walk has nothing to walk: `unipi.sectionWatchdog`'s `saveConfig`/`reset` are `method`-shaped, and a `CALL` isn't a value with an address, so the real `unipi.sectionWatchdog` `DeviceType` needs its own `bind()` (§7).
 
 ## 2. The kind↔`DeviceType` boundary
 
 `hw-definitions` (07's sibling package) parses, structurally validates, and resolves addresses; it never resolves a `kind` string against a real `DeviceType` — it has no `ctx`, and no legitimate reason to want one. Everything it hands this file is data: a `ResolvedDefinition` whose `features[].kind` is still just a string.
 
-This file is where that string becomes a bound device. `bindDefinition()` (§9) looks up `kind` against the registry (§7) first — a local `registerKind()` table, then, if absent there, `resolveKindBinder(kind)` (§7, §12) against the ambient manifest. If a binder is found, its `targetKind` (defaulting to `kind` itself) is what actually gets resolved to a real `DeviceType`, via `resolveDeviceKind` (05a §3.5); if no binder is found at all, `kind` itself is resolved the same way, and the device is built generically (§5) from whatever `ValueSchema` that `DeviceType` carries. Either path ends at the same `resolveDeviceKind` call, so a `kind` — or a binder's `targetKind` — that this file can't resolve fails exactly where an ordinary driver-authoring mistake already fails (05a §3.5), not somewhere new.
+This file is where that string becomes a bound device. `bindDefinition()` (§12) looks up `kind` against the registry (§7) first — a local `registerKind()` table, then, if absent there, `resolveKindBinder(kind)` (§7, §12) against the ambient manifest. Either way, `kind` itself is resolved to a real `DeviceType` via `resolveDeviceKind` (05a §3.5). With a binder, its `bind()` supplies the handlers; without one, the device is built generically (§6) from whatever `ValueSchema` that `DeviceType` carries. A `kind` this file can't resolve fails exactly where an ordinary driver-authoring mistake already fails (05a §3.5), not somewhere new.
 
 ## 3. The YAML↔schema contract
 
@@ -34,7 +34,7 @@ mode:
 
 When a value declares both `holdingReg` and `coil` (§5 has the worked resolution): `SET` always writes through `coil`, unconditionally — `writeSingleCoil` (FC5) is atomic per bit, where a bit-packed register write is read-modify-write and two concurrent single-channel writes clobber each other, exactly the bug class research/13 documents. `GET` follows whichever block (§6) actually has fresh cached data for that value — in practice almost always the register form, since AI/AO/counter values force a holding-register block to exist anyway and slicing one more bit out of an already-scanned word costs nothing.
 
-**A struct member named `polled` is never in the YAML.** It's a single reserved field, synthesized as a whole `{readAt: Date, stale: boolean}` unit by the scan cache (§6), for any `reading`-shaped endpoint bound through this file — every one of them, not a kind-by-kind choice, since every reading here is scan-cache-backed by construction. It is never legal on a `channel`'s `schema` or `setSchema`: `SET` always echoes exactly `TSet` (05a §3.1), and `readAt`/`stale` mean nothing on a value the caller just supplied. A `polled` member on a channel is a `bindDevice()`-time fatal, same tier as a duplicate tail (05a §3.5). §4 has the helper that makes this the default rather than something each kind re-derives by hand.
+**A struct member named `polled` is never in the YAML.** It's a single reserved field, synthesized as a whole `{readAt: Date, stale: boolean}` unit by the scan cache (§6), for any register-backed `reading`-shaped endpoint bound through this file — every one of them, not a kind-by-kind choice, since every such reading is scan-cache-backed by construction. It is never legal on a `channel`'s `schema` or `setSchema`: `SET` always echoes exactly `TSet` (05a §3.1), and `readAt`/`stale` mean nothing on a value the caller just supplied. A `polled` member on a channel is a `bindDevice()`-time fatal, same tier as a duplicate tail (05a §3.5). §4 has the helper that makes this the default rather than something each kind re-derives by hand.
 
 One consequence worth stating on its own: **there is no `perSection` attribute.** A register shared across every channel of a feature — a section-wide PWM prescaler/cycle, say — is never a sibling field of that per-channel feature. It's its own `kind`, bound with `count: 1` instead of `count: 4`. `unipi.pwmOpt` (§10) is the concrete, already-settled example:
 
@@ -53,6 +53,48 @@ One consequence worth stating on its own: **there is no `perSection` attribute.*
 ```
 `DOValue`'s `pwm` variant is correspondingly just `struct({ value: Codecs.uint16() })` — no `prescaler`/`cycle` inside it at all.
 
+## 3a. Tails and labels
+
+Every device a definition binds gets one tail:
+
+```
+<unit>.<kind>.<nn>      one per channel, every kind — <nn> even when count: 1
+<unit>.typeInfo         one per unit, from config (§10.4)
+```
+
+```
+PLC:2.unipi.ro.01        label "RO2.1"     # Patron M527, section 2
+PLC:2.unipi.pwmOpt.01                      # unit-level kind, still indexed
+EXT:7.unipi.temp.01                        # IAQ, count: 1
+EXT:7.typeInfo
+```
+
+- `<unit>` — the unit id `bindDefinition()` is called with (§12): the section on onboard (08), the Modbus address on an extension line (09). Two units never collide.
+- `<kind>` — the feature's YAML `kind`, verbatim, dots included. Every kind in a definition contains a dot (`<vendor>.<name>`), checked at load by `hw-definitions`. A segment after `<unit>.` without a dot is reserved for driver-level devices — today only `typeInfo` — so it never clashes with a kind.
+- `<nn>` — 1-based, at least two digits. Counted per kind across all features of that kind in one definition, in YAML order. Address strides and `options[].channels` still count within their own feature.
+
+  ```yaml
+  - kind: unipi.di      # → 2.unipi.di.01 … 2.unipi.di.04
+    count: 4
+  - kind: unipi.di      # → 2.unipi.di.05, 2.unipi.di.06
+    count: 2
+  ```
+
+A feature may give its channels a **label** — the name printed on the hardware — as a template or a list, never both:
+
+```yaml
+- kind: unipi.ro
+  count: 5
+  label: "RO{unit}.{n}"          # {unit}; {n} = <nn> without padding
+- kind: unipi.ai
+  count: 2
+  labels: ["AI2.1", "AI2.2"]     # length must equal count
+```
+
+`bindDefinition()` renders it per channel into `BindOptions.label` (05a §3.5). Consumers see it in introspection only (05a §4), never as an endpoint. A feature without one binds without a label. `{unit}` is what keeps one section-local board file valid in any slot (research/13 §2.3).
+
+Consumers find a unit's devices by the `<unit>.` prefix and the `kind` from introspection, never by parsing the tail (09 §3a).
+
 ## 4. `polled()` — the reading helper
 
 ```ts
@@ -64,9 +106,9 @@ function polled<F extends Record<string, TypedCodec<unknown>>>(
 }
 ```
 
-Every `reading`-shaped kind in the catalogue (§10) is built with this, never a bare `reading()` call — that's what makes §3's `polled` rule a fact about this file rather than a convention someone has to remember per field. `unipi.di`'s `@` field: `polled({ value: Codecs.bool(), counter: Codecs.uint32() }, { subscribe: true })`, decoding to `{ value: true, counter: 42, polled: { readAt: ..., stale: false } }`.
+Every register-backed `reading`-shaped kind in the catalogue (§10) is built with this, never a bare `reading()` call — that's what makes §3's `polled` rule a fact about this file rather than a convention someone has to remember per field. `unipi.di`'s `@` field: `polled({ value: Codecs.bool(), counter: Codecs.uint32() }, { subscribe: true })`, decoding to `{ value: true, counter: 42, polled: { readAt: ..., stale: false } }`.
 
-A driver not built on this file's scan cache — an event-native one, per 05 §4 — has no reason to use `polled()`; it stays module-sdk's plain `reading()`, and 05 §2's "the driver's own discretion" framing is exactly for that case. Inside `hw-modbus-kit`, there is no discretion: every reading is scan-cache-backed, so every reading uses `polled()`.
+A driver not built on this file's scan cache — an event-native one, per 05 §4 — has no reason to use `polled()`; it stays module-sdk's plain `reading()`, and 05 §2's "the driver's own discretion" framing is exactly for that case. Inside `hw-modbus-kit`, there is no discretion: every register-backed reading is scan-cache-backed, so it uses `polled()`. The one reading with no register, `modbus.typeInfo` (§10.4), is a plain `reading()`.
 
 ## 5. Wire value → Device value: four stages
 
@@ -131,49 +173,29 @@ A worked trace against §3's `unipi.do` feature, `onSet({ mode: 'pwm', value: { 
 // @evok-node/modbus — hw-modbus-kit
 interface ModbusKindBinder<F extends Record<string, EndpointType | OptionalEndpointType> = any> {
   readonly kind: string;          // matches ResolvedFeature.kind
-  readonly targetKind?: string;   // the real, resolvable DeviceType.kind to bind against — defaults to `kind` itself
   bind(ctx: WireBindCtx, feature: ResolvedFeature, deviceType: DeviceType<F>): { [K in keyof F]?: BindHandlers<any, any, any> };
 }
 ```
 
-A binder never builds a `DeviceType` — the type itself always already exists and is independently resolvable (05a §3.5); a binder only ever supplies *how* to talk to one over the wire. `targetKind` is what makes that distinction concrete, and it covers two genuinely different reasons a `kind` needs a binder at all, both resolved to a real `DeviceType` (via `resolveDeviceKind`, §12) before `bind()` ever runs:
+A binder never builds a `DeviceType` — the type `kind` names already exists, is independently resolvable (05a §3.5), and is resolved before `bind()` runs; a binder only supplies *how* to talk to it over the wire. It is for a kind the generic walk can't handle. `unipi.sectionWatchdog` is the built-in example: its `saveConfig`/`reset` fields are `method`-shaped, and a `CALL` isn't a value with an address, so there's nothing for §6's schema-walker to walk.
 
-- **Same kind, custom bind.** `targetKind` omitted (defaults to `kind`). The walk itself can't handle this kind — not an aliasing problem. `unipi.sectionWatchdog` is the built-in example: its `saveConfig`/`reset` fields are `method`-shaped, and a `CALL` isn't a value with an address, so there's nothing for §6's schema-walker to walk.
+```ts
+// @evok-node/modbus — hw-modbus-kit
+async function forceCoil(ctx: WireBindCtx, address: number): Promise<CallOutcome<void>> {
+  const r = await ctx.tx.writeSingleCoil({ unitId: ctx.unitId, address, value: true });
+  return r.ok ? { ok: true, result: undefined } : r;
+}
 
-  ```ts
-  // @evok-node/modbus — hw-modbus-kit
-  async function forceCoil(ctx: WireBindCtx, address: number): Promise<CallOutcome<void>> {
-    const r = await ctx.tx.writeSingleCoil({ unitId: ctx.unitId, address, value: true });
-    return r.ok ? { ok: true, result: undefined } : r;
-  }
+const sectionWatchdogBinder: ModbusKindBinder<SectionWatchdogFields> = {
+  kind: 'unipi.sectionWatchdog',
+  bind: (ctx, feature, deviceType) => ({
+    saveConfig: { onCall: () => forceCoil(ctx, feature.coils.saveConfig) },
+    reset:      { onCall: () => forceCoil(ctx, feature.coils.reset) },
+  }),
+};
+```
 
-  const sectionWatchdogBinder: ModbusKindBinder<SectionWatchdogFields> = {
-    kind: 'unipi.sectionWatchdog',              // targetKind omitted — SectionWatchdogDevice.kind is this same string
-    bind: (ctx, feature, deviceType) => ({
-      saveConfig: { onCall: () => forceCoil(ctx, feature.coils.saveConfig) },
-      reset:      { onCall: () => forceCoil(ctx, feature.coils.reset) },
-    }),
-  };
-  ```
-
-  `SectionWatchdogDevice` is a same-package built-in — `hw-modbus-kit` imports it directly, so resolving `targetKind` here is trivially cheap (05a §3.5's direct-import path), never a `PluginRegistry` round-trip.
-
-- **Alias — a different, already-real kind underneath.** `targetKind` names a kind genuinely different from `kind`. This is the shape a 09-style bring-your-own definition needs: a physical device with a register layout the generic walk can't express, whose channels are otherwise ordinary. A fictitious `acme.wm-relay` with a queer bit-packed coil layout, bound as nothing more exotic than `unipi.ro` underneath:
-
-  ```ts
-  const wmRelayBinder: ModbusKindBinder<RoFields> = {
-    kind: 'acme.wm-relay',
-    targetKind: 'unipi.ro',
-    bind: (ctx, feature, deviceType) => ({
-      '@': {
-        onGet: () => readWmPackedCoil(ctx, feature),      // acme's own translation, not §6's generic walk
-        onSet: (v) => writeWmPackedCoil(ctx, feature, v),
-      },
-    }),
-  };
-  ```
-
-  Every client still sees an ordinary `unipi.ro` — `deviceType` here is the real, resolved `RoDevice`, identical to what any other `unipi.ro` binds against; only the wire translation inside `bind()` is acme's own.
+`SectionWatchdogDevice` is a same-package built-in — `hw-modbus-kit` imports it directly, so resolving it is trivially cheap (05a §3.5's direct-import path), never a `PluginRegistry` round-trip.
 
 Registered one of two ways, same duality as every other kind `PluginRegistry` owns (02 §4): **direct**, a build-time-known binder — `registerKind(binder)` (§12), what `unipi.sectionWatchdog` itself uses, called once at this package's own load; or **manifest**, a binder whose identity is only a string in someone else's config — a `kind: "modbus-kind-binder"` `package.json` entry, resolved lazily via `resolveKindBinder(kind)` (§12):
 
@@ -189,7 +211,7 @@ Registered one of two ways, same duality as every other kind `PluginRegistry` ow
 }
 ```
 
-`deviceKind` — same field name a plain `device` entry uses, since both answer "what does this string resolve to," but a separate namespace (02 §4): `device` and `modbus-kind-binder` never collide on the same string, because a `ResolvedFeature.kind` is looked up against exactly one of them (§2), never both. `bindDefinition()` checks the local `registerKind()` table first, and only calls `resolveKindBinder` if nothing is found there — a plugin package pays the `PluginRegistry` round-trip once, memoized after (02 §4); a build-time-known binder, direct or third-party, never pays it at all.
+`deviceKind` — same field name a plain `device` entry uses, but a separate namespace (02 §4): `acme.wm-relay` has a `device` entry (its `DeviceType`) and a `modbus-kind-binder` entry (how to talk to it), and the two never collide. `bindDefinition()` checks the local `registerKind()` table first, and only calls `resolveKindBinder` if nothing is found there — a plugin package pays the `PluginRegistry` round-trip once, memoized after (02 §4); a build-time-known binder, direct or third-party, never pays it at all.
 
 Registering `isModbusKindBinder` itself as `'modbus-kind-binder'`'s own guard is this package's job, at its own module-load time — same tier as `driver-kit` registering `isDeviceType` for `'device'` (05a §3.5):
 
@@ -282,7 +304,7 @@ Registering `isHandshakeFn` as `'modbus-handshake'`'s own guard, at this package
 
 ## 10. The built-in kind catalogue
 
-All `unipi.`-prefixed. Every `reading`-shaped field below is built with `polled()` (§4) even where the table just says "reading" for brevity — the `polled` member is implied, never re-listed per field. A device with no `@` is a sibling-only bundle (05a §3.3 permits this — 07's own `MODBUS_RAW` is the existing example) — there is no single primary signal to root the tail on.
+All `unipi.`-prefixed. Every `reading`-shaped field below except §10.4's is built with `polled()` (§4) even where the table just says "reading" for brevity — the `polled` member is implied, never re-listed per field. A device with no `@` is a sibling-only bundle (05a §3.3 permits this — 07's own `MODBUS_RAW` is the existing example) — there is no single primary signal to root the tail on.
 
 ### 10.1 Per-channel I/O
 
@@ -295,7 +317,7 @@ All `unipi.`-prefixed. Every `reading`-shaped field below is built with `polled(
 | `unipi.ai` | `@`: reading `{value: union('mode', {off, voltage10, voltage2_5, current20, resistance3w, resistance2w})}`, subscribe | per-option `channels` restriction (Edge); `conversionTime` hint on a resistance option |
 | `unipi.ao` | `@`: channel, union `mode ∈ {voltage10, voltage2_5, current20, resistance}` | section-1 AOR (resistance-measure) is just the `resistance` option — no separate kind |
 
-### 10.2 Section-wide, `count: 1`, no channel index in the tail
+### 10.2 Section-wide, `count: 1`
 
 | Kind | Fields | Registers |
 |---|---|---|
@@ -315,13 +337,13 @@ All `unipi.`-prefixed. Every `reading`-shaped field below is built with `polled(
 
 IAQ's digital output reuses `unipi.ro` as-is — a plain bool channel, no new kind.
 
-### 10.4 Unit type — one per unit, from config
+### 10.4 Type info — one per unit, from config
 
 | Kind | Fields | Bound by |
 |---|---|---|
-| `unipi.unitType` | `@`: reading `{definition: string, vendor: string, device: string, name: string}` — the configured definition's id and header | `bindUnitType` (§12), at `configure()`, before any handshake; no register behind it, never stale |
+| `modbus.typeInfo` | `@`: reading `{definition: string, vendor: string, device: string, name: string}` — the configured definition's id and header | `bindTypeInfo` (§12), at `configure()`, before any handshake; no register behind it, never stale, no `polled` |
 
-09 binds one per configured unit at `<unit>.type` (09 §3a). 08 binds none.
+08 and 09 both bind one per configured unit at `<unit>.typeInfo` (§3a).
 
 `unipi.ro` (EMO-R8's 8 relays) stays blocked: no register map exists yet anywhere (§11).
 
@@ -356,9 +378,8 @@ interface HwModbusKit {
   resolveKindBinder(kind: string): Promise<ModbusKindBinder>;                     // §7 — manifest-declared, lazy: ctx.plugins.resolve('modbus-kind-binder', kind)
   resolveHandshake(name: string): Promise<HandshakeFn>;                           // §9 — manifest-declared, lazy: ctx.plugins.resolve('modbus-handshake', name)
   handshake(def: UnresolvedDefinition): Promise<HandshakeResult>;                  // §9 — always before bindDefinition; checks registerHandshake's table, then resolveHandshake
-  bindDefinition(def: ResolvedDefinition, rates: RateTable,
-                 opts?: { tailPrefix?: string }): BoundDefinition;                // §6/§7/§8 combined — the one call 08 and 09 share; 09 passes `tailPrefix: '<unit>'` (09 §3a)
-  bindUnitType(tail: string, def: UnresolvedDefinition): void;                    // §10.4 — config facts only, no wire call
+  bindDefinition(unitId: number, def: ResolvedDefinition, rates: RateTable): BoundDefinition;   // §3a/§6/§7/§8 combined — the one call 08 and 09 share; every tail starts with `<unitId>.`
+  bindTypeInfo(unitId: number, def: UnresolvedDefinition): void;                                // §10.4 — `<unitId>.typeInfo`, config facts only, no wire call
 }
 
 function createHwModbusKit(
@@ -380,10 +401,12 @@ Tier 1, against a fixture `ResolvedDefinition` and the simulator (`design/simula
 - Write-prefers-coil: a fixture value declaring both `holdingReg` and `coil` writes only through the coil on `SET`, asserted against the fixture transport's own call log — the register is never touched.
 - Channel restriction: a mode `onSet` naming a variant excluded by that channel's own `options[].channels` answers `bad-payload` via `RejectedPayload`, never reaches the transport.
 - Handshake dispatch: `handshake: none` never issues a wire call, asserted against the fixture transport's own call log, and skips firmware-variant selection along with identity; an unregistered `handshake` name is fatal before any wire traffic; a fixture manifest-declared `HandshakeFn` (`kind: "modbus-handshake"`) resolves and runs identically to a directly-`registerHandshake`d one.
-- Kind-binder resolution: a fixture alias binder (`targetKind` naming a different, real fixture `DeviceType`) binds through to that real type correctly — introspection reports the real kind, not the alias; a binder whose `targetKind` resolves to a `DeviceType` whose own `.kind` disagrees is fatal, before any wire traffic; a fixture manifest-declared binder (`kind: "modbus-kind-binder"`) resolves and binds identically to a directly-`registerKind`d one.
+- Kind-binder resolution: a fixture manifest-declared binder (`kind: "modbus-kind-binder"`) resolves and binds identically to a directly-`registerKind`d one.
 - Contiguous-struct batching: a struct value backed by contiguous registers writes as exactly one `writeMultipleRegisters` call — never split into per-field writes.
 - `unipi.pwmOpt` binds exactly once regardless of how many `unipi.do` channels the fixture definition declares.
 - Handshake refusal: a `census` mismatch, a `hardwareId` mismatch, and a board below every variant's `minFirmware` floor each answer a non-`ok` `HandshakeResult` naming the right `reason`, and `bindDefinition()` is never reached in any of the three.
+- Tails (§3a): two features of one kind in one fixture definition number `.01…` on across both, in YAML order; a `count: 1` feature still binds `.01`; a definition `kind` without a dot is rejected at load time.
+- Labels (§3a): a `label` template renders `{unit}`/`{n}` per channel into `DeviceRef.label`; `labels` whose length differs from `count`, or `label` and `labels` on one feature, is rejected at load time.
 - The registry (§7): a fixture `kind` with no registered `ModbusKindBinder` and no manifest-resolvable `DeviceType` fails at `bindDefinition()`, naming the kind; `unipi.sectionWatchdog`'s registered binder is used in preference to the generic walk for its `saveConfig`/`reset` fields, which the generic walk never attempts.
 
 ## 14. Open
@@ -391,3 +414,4 @@ Tier 1, against a fixture `ResolvedDefinition` and the simulator (`design/simula
 - **ForceOutput / the DirectSwitch write path.** No register named `ForceOutput` exists anywhere in the corpus; a `Synchronised DO/RO` + `Lock` register pair is the only candidate, and it's unverified on live hardware (research/06 §2.5). Not in the catalogue (§10) until confirmed.
 - **RS485 config / Modbus-address registers.** Deliberately not modeled as a Device at all yet — floats per model with no fixed offset, and writing your own Modbus address at runtime is self-disconnecting. Revisit once there's a concrete need.
 - **`unipi.ro` for EMO-R8.** No register map exists anywhere published for this extension. Blocked until one is sourced (EVOK's shipped `EMO-R8.yaml`, a different KB page, or measurement).
+- **Alias and vendor-neutral kinds.** A binder binds its own `kind` only — a third-party device can't be exposed as an existing kind (a foreign relay board as `unipi.ro`). Revisit together with vendor-neutral kind names, once a concrete device needs it.
