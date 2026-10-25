@@ -17,7 +17,7 @@ This driver assembles home-automation devices and exposes each on its own tail (
 
 | Origin | Composed from | Example |
 |---|---|---|
-| `local` | other drivers' devices in the same daemon, by a template (§3) — or none, for a virtual device such as `Timer` (§2.2) | a `unipi.ro` relay → `OnOffLight`, a `dali.gear` → `DimmableLight`, a `unipi.di` → `GenericSwitch` |
+| `local` | other drivers' devices in the same daemon, by a template (§3) — or none, for a virtual device such as `TimerRelay` (12c-05) | a `unipi.ro` relay → `OnOffLight`, a `dali.gear` → `DimmableLight`, a `unipi.di` → `GenericSwitch` |
 | `matter` | an endpoint of a Matter node paired to this driver's own controller (§4a) | a Matter contact sensor → `ContactSensor` |
 | `remote` | an `exposed` device of another evok-node's home driver (§4b) | the garden PLC's `OnOffLight` |
 
@@ -29,7 +29,7 @@ Devices are never declared in config. They are created, edited and removed at ru
 
 **Rules.** This driver also runs rules: a change on one of its devices controls others. They are designed in 12b.
 
-**Matter compatibility.** Not every `DeviceType` has a Matter counterpart — `Timer` (§2.2) has none — and the Matter bridge api (16a) ignores those that don't. Which `DeviceType` maps to which Matter device type is one table, designed in 16a and implemented once in `@evok-node/driver-home/matter-map`: this driver's controller (§4a) and 16a import it, each reading it from its own side. Each one that does is shaped so 16a can project it onto that Matter device type without holding device state of its own (13): every value a Matter attribute or event needs is present as a field, and every value a Matter controller may write has a field to land on. Cluster mapping, Descriptor/Identify/label clusters, semantic tags, Matter-side length limits and bridging are 16a's. This driver holds none of the bridge's data — the bridge's bindings, groups, scenes, ACLs, fabric tables and keys live in 16a (13's protocol identity state). What it does hold is its own controller's fabric (§4a): there this driver is the client, and that fabric is its user data.
+**Matter compatibility.** Not every `DeviceType` has a Matter counterpart — `TimerRelay` (12c-05) has none — and the Matter bridge api (16a) ignores those that don't. Which `DeviceType` maps to which Matter device type is one table, designed in 16a and implemented once in `@evok-node/driver-home/matter-map`: this driver's controller (§4a) and 16a import it, each reading it from its own side. Each one that does is shaped so 16a can project it onto that Matter device type without holding device state of its own (13): every value a Matter attribute or event needs is present as a field, and every value a Matter controller may write has a field to land on. Cluster mapping, Descriptor/Identify/label clusters, semantic tags, Matter-side length limits and bridging are 16a's. This driver holds none of the bridge's data — the bridge's bindings, groups, scenes, ACLs, fabric tables and keys live in 16a (13's protocol identity state). What it does hold is its own controller's fabric (§4a): there this driver is the client, and that fabric is its user data.
 
 ## 2. DeviceType catalogue
 
@@ -82,7 +82,7 @@ Two flags say who else may use a device. Neither hides it from this PLC's rules 
 | `exposed` | the device never leaves this PLC: 16a ignores it, and no peer imports it (§4b) |
 | `controllable` | the Home UI lists it and lets a user put it in rules, but offers no control for it |
 
-A hall `Timer` used only by rules: `exposed: false`, `controllable: false`. Both default to `true` (§5).
+A hall `TimerRelay` used only by rules: `exposed: false`, `controllable: false`. Both default to `true` (§5).
 
 `product` is the vendor, product name and serial number a Matter bridge reports for the device. A `matter` device's comes from its own Basic Information (§4a); a `local` one's from its template, when the template can read one (§3), or from `manage`; empty strings when nobody knows.
 
@@ -109,11 +109,9 @@ No home `DeviceType` declares `'@'` — every field is named. The whole device i
 | `OccupancySensor` | Occupancy Sensor | 12c-04 §2 |
 | `LightSensor` | Light Sensor | 12c-04 §2 |
 | `RoomAirConditioner` | Room Air Conditioner | `onOff` · `mode` channel `off`/`cool`/`heat`/`auto`/`fan`/`dry` · `setpoint` channel\<float32, °C\> · `temperature` reading · `fanMode` channel `auto`/`low`/`medium`/`high` |
-| `Timer` | — (16a ignores it) | `running` reading\<bool\> · `remaining` reading\<uint32, s\> · `elapsed` reading `{seq, at}` · `start` method `{seconds}` · `cancel` method |
+| `TimerRelay` | — (16a ignores it) | 12c-05 §2 |
 
-Every reading and channel above is `subscribe: true`. A source's own staleness never appears per field — it folds into `reachable` (§4.2). The types in full: lights in 12c-01 §2, plug-in units in 12c-02 §2, the switch in 12c-03 §2, the sensors in 12c-04 §2; the rest follow the same shape.
-
-`Timer` is a virtual device: its template has no roles (§3). It is how a rule waits, since rules never do (12b §1). `start` (re)starts it for `seconds`; when it runs out, `running` turns false and `elapsed` emits with `seq` +1; `cancel` stops it without `elapsed`. Timers are not persistent: after a restart every timer is stopped.
+Every reading and channel above is `subscribe: true`. A source's own staleness never appears per field — it folds into `reachable` (§4.2). The types in full: lights in 12c-01 §2, plug-in units in 12c-02 §2, the switch in 12c-03 §2, the sensors in 12c-04 §2, the timer in 12c-05 §2; the rest follow the same shape.
 
 A function a device type has no evok-node equivalent for yet is simply not a field — never a stub that answers nothing.
 
@@ -227,7 +225,7 @@ A role with `max` above 1 takes several sources that together make **one** physi
 - A `SET` goes to each. If any throws `SourceUnreachable`, the answer is `unreachable` and nothing is rolled back — the same as rules (12b §5.3).
 - How the sources combine into one value — on only when both relays are, an average — is the template's, and it states it.
 
-A template may declare no roles: its device is virtual, assembled from nothing — the built-in `timer` template for `Timer` (§2.2) — and is always `reachable` (§4.2).
+A template may declare no roles: its device is virtual, assembled from nothing — the built-in `timer` template for `TimerRelay` (12c-05 §3) — and is always `reachable` (§4.2).
 
 **After a restart, a template restores its device's state.** How is the template's: an `OnOffLight` on relays saves `{ onOff }` and applies its `startUp` setting from it; one on a DALI gear reads the gear, which kept its own. A template persists only through `ctx.state` — never the KV driver directly:
 
@@ -239,7 +237,7 @@ Handlers answer from memory, the way every driver does (01): `assemble()` subscr
 
 A `SET` forwarded to a source that can't take it — not up, not answering — throws `SourceUnreachable` (05a §3.5) and is answered `unreachable`. It is never queued and replayed later.
 
-Each built-in `DeviceType` (§2) ships with the templates its own built-in source drivers warrant — the light templates of 12c-01 §3, `switch-from-di` for `GenericSwitch` (12c-03 §3), the role-less `timer` for `Timer` — and a template is itself a manifest-loaded, `kind`-resolved module (01 §10; `{ "kind": "home-template", "templateKind": "dimmable-from-dali", … }`), so a driver plugin for hardware this driver doesn't know about yet can ship its own template for an existing `DeviceType` without touching this package. It imports that `DeviceType` from `@evok-node/driver-home`; it never rebuilds one under the same kind (05a §3.5).
+Each built-in `DeviceType` (§2) ships with the templates its own built-in source drivers warrant — the light templates of 12c-01 §3, `switch-from-di` for `GenericSwitch` (12c-03 §3), the role-less `timer` for `TimerRelay` (12c-05 §3) — and a template is itself a manifest-loaded, `kind`-resolved module (01 §10; `{ "kind": "home-template", "templateKind": "dimmable-from-dali", … }`), so a driver plugin for hardware this driver doesn't know about yet can ship its own template for an existing `DeviceType` without touching this package. It imports that `DeviceType` from `@evok-node/driver-home`; it never rebuilds one under the same kind (05a §3.5).
 
 ## 3a. Template bundles
 
@@ -594,7 +592,7 @@ Tier 1, against fixture drivers (no hardware) that each expose a handful of `bin
 - Remote, hierarchy: an attached room and its groups answer `read-only` to any change; an imported device in an attached group is listed there, otherwise under its `overrides.groupId`.
 - Tails: a removed device's number is never reused; tails are unchanged after a restart and after `updateDevice`.
 - `DimmableLight` from a fixture source: `move` up raises `level` until `stop`, and stops on its own at 254.
-- `Timer` on a fake `Clock`: `start` → after `seconds`, `running` is false and `elapsed.seq` +1; `start` while running restarts the count; `cancel` never emits `elapsed`; after a restart every timer is stopped.
+- `TimerRelay` on a fake `Clock`: every call in every state does what 12c-05 §1.1 lists; `toggle` and `cancel` never emit `elapsed`; `ms` over `maxMs` is clamped; `warning` turns true at `warnBeforeMs` and false on `idle`; not `persistent`: `idle` after a restart; `persistent`: `paused` and `elapsing` are restored with the saved `remainingMs`, and the restored countdown starts after the rule engine's baselines, so its `elapsed` triggers a rule.
 - A template with no roles binds a device that is `reachable` at once.
 - Forms: `listTemplates` answers a `form` whose `sources` hold one ref array per role, kinds taken from `types`, and whose `settings` carry the template's defaults; `createDevice` without `settings` stores every default; a 0–1 role may be omitted.
 - Bundles: `createBundle` on a fixture `iaq-unipi` anchor creates one device per non-null member, each with `bundle` set, in one KV `batch`; a member failing its form creates nothing; an anchor the bundle refuses answers `invalid-anchor`; removing the last member removes the bundle; `removeBundle` with `keep` clears `bundle` on every member.

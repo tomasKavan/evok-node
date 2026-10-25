@@ -59,7 +59,7 @@ A device with `battery` bound (12a §2.1) also carries Power Source with the bat
 | `OccupancySensor` | Occupancy Sensor `0x0107` | OccupancySensing |
 | `LightSensor` | Light Sensor `0x0106` | IlluminanceMeasurement |
 | `RoomAirConditioner` | Room Air Conditioner `0x0072` | OnOff, Thermostat, FanControl |
-| `Timer` | — | ignored |
+| `TimerRelay` | — | ignored |
 
 **Composed bridged devices.** One bridge, always: one Matter node with an Aggregator, and one bridged
 device per exposed home device — or per product, when several home devices are one. A product is

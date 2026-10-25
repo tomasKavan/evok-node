@@ -7,10 +7,10 @@ A **rule** controls home devices (12a §2) when another home device changes. Rul
 - Only home devices, of any origin (12a §1), `exposed: false` and `controllable: false` ones included (12a §2.1). Never a plain driver-kit device: a rule that switches a relay uses the `OnOffLight` assembled from it.
 - A rule runs on the PLC that stores it. A `remote` device can be in a rule here; the remote's own rules stay the remote's (12a §4b).
 - A user never writes code. They pick a **rule kind** (§2) and fill in its slots and options (§3), in the Inspector UI or the Home UI (§8).
-- A run is short: no delays, no timers, no scheduling inside a rule. Anything that needs time is a device — a `Timer` (12a §2.2):
+- A run is short: no delays, no timers, no scheduling inside a rule. Anything that needs time is a device — a `TimerRelay` (12c-05), as in the built-in pair `on-and-set-delay-off` and `delay-off` (§2.1):
 
 ```
-rule A:  hall switch short press  →  hall light on,  hall timer start(120)
+rule A:  hall switch short press  →  hall light on,  hall timer restart({ ms: 120000 })
 rule B:  hall timer elapsed       →  hall light off
 ```
 
@@ -40,13 +40,15 @@ A kind whose `kind` disagrees with its manifest entry, with no trigger slot or n
 
 ### 2.1. Built-in kinds
 
-Only `toggle-on-press` has options. The `buttons` slots set `fields: ['switch']` (§3), so a change of a switch's `features` never runs them.
+Only `toggle-on-press` and `on-and-set-delay-off` have options. The `buttons` slots set `fields: ['switch']` (§3), so a change of a switch's `features` never runs them.
 
 | Kind | Triggers | Actions | Does |
 |---|---|---|---|
 | `toggle-on-press` | `buttons`: `GenericSwitch`, 1–n | `lights`: `OnOffLight`, `DimmableLight`, `ColorTemperatureLight`, `ExtendedColorLight`, 1–n | The press chosen by `event` (below): if any light is on, all go off; otherwise all go on. |
 | `dimmer-on-longpress` | `buttons`: `GenericSwitch`, 1–n | `lights`: `DimmableLight`, `ColorTemperatureLight`, `ExtendedColorLight`, 1–n | `longPress` → `move` in the current direction; `longRelease` → `stop`. The direction toggles on every long press. |
 | `one-button-window-cover` | `buttons`: `GenericSwitch`, 1–n | `covers`: `WindowCovering`, 1–n | `shortRelease` → `goTo` the end in the current direction. `longPress` → `goTo` that end; `longRelease` → `stop`. The direction toggles on every press. |
+| `on-and-set-delay-off` | `buttons`: `GenericSwitch`, 1–n | `lights`: `OnOffLight`, `DimmableLight`, `ColorTemperatureLight`, `ExtendedColorLight`, 1–n · `timer`: `TimerRelay`, 1 | The press chosen by `event`: all lights on, and `method` (below) on the timer. With `method: 'toggle'` and the timer running (12c-05 §1.1): all lights off, then `toggle` — the timer goes `idle` without `elapsed`, so `delay-off` never sees it. |
+| `delay-off` | `timer`: `TimerRelay`, 1–n | `lights`: `OnOffLight`, `DimmableLight`, `ColorTemperatureLight`, `ExtendedColorLight`, 1–n | `elapsed` → all lights off. The slot sets `fields: ['elapsed']`. |
 
 `toggle-on-press` options:
 
@@ -67,6 +69,19 @@ Codecs.struct({
 A button that doesn't produce the chosen event — no multi-press, or no release (12c-03 §2) — never runs the rule.
 
 The direction lives in the rule's state (§5.5). With no state yet, it points to the end farther from the current `level` or `position.current`. A button with short-press toggle and long-press dimming is two rules on the same button: `toggle-on-press` and `dimmer-on-longpress`.
+
+`on-and-set-delay-off` options — `event` and `presses` as `toggle-on-press`, plus the timer call:
+
+```ts
+Codecs.struct({
+  event:   …,   // as toggle-on-press
+  presses: …,   // as toggle-on-press
+  method:  Codecs.string({ enumValues: ['start', 'restart', 'add', 'toggle'], default: 'restart',
+             label: { en: 'When running', cs: 'Když běží' } }),   // 12c-05 §1.1
+})
+```
+
+The delay is the timer's own `defaultMs` (12c-05 §3): one timer, one delay, whichever rules start it.
 
 ## 3. Slots and options
 
@@ -182,6 +197,7 @@ The kind's `limit`, overridden by `RuleRecord.limit`; `{ runs: 10, perMs: 1000 }
 
 - Subscriptions may coalesce (03 §6.3): a run may see a later value without the ones between. The function must tolerate it; `switch.lastEvent.seq` shows the gap (12c-03 §2).
 - The first value a subscription delivers is the baseline, never a trigger — so a restart triggers nothing.
+- A persistent `TimerRelay` resumes its countdown only after the engine has taken its baselines, so its expiry triggers even when little time was left (12c-05 §3).
 
 ## 6. Storage
 
@@ -285,4 +301,4 @@ Tier 1, against fixture home devices and a fake `Clock`:
 - Removing a device used by a rule succeeds, and the rule becomes `device-removed` and stops running; a `missing` device makes it `errored` until it returns.
 - Removing a RuleSet leaves its rules without a set.
 - `createRule` with a wrong slot count, a device of the wrong kind, or an unknown tail answers `invalid-slots` before anything is written.
-- Built-in kinds: `toggle-on-press` turns all lights off when one is on, and with `event: 'multiPressComplete', presses: 2` toggles on a double press only; `dimmer-on-longpress` sends `move` then `stop` and alternates direction; `one-button-window-cover` goes to the opposite end on each short press and stops on `longRelease`.
+- Built-in kinds: `toggle-on-press` turns all lights off when one is on, and with `event: 'multiPressComplete', presses: 2` toggles on a double press only; `dimmer-on-longpress` sends `move` then `stop` and alternates direction; `one-button-window-cover` goes to the opposite end on each short press and stops on `longRelease`; `on-and-set-delay-off` switches the lights on and calls its `method`, and with `toggle` on a running timer switches them off instead; `delay-off` switches the lights off on `elapsed` only, never on `toggle` or `cancel`.

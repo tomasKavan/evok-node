@@ -35,7 +35,7 @@ It follows Matter's On/Off and Level Control clusters (research/matter/01 §2–
 - **Fades.** A plain SET uses the template's default fade. `moveToLevel`, `moveToColorTemp` and `moveToColor` take an optional `transitionMs`, as Matter's commands do: absent ⇒ the default fade, `0` ⇒ as fast as the source can.
 - **Down to 1, never off.** `move` down and `moveToLevel(1)` stop at level 1; only `onOff` switches off — as DALI's `DOWN` (12 §9.3).
 - **`stop`** stops every movement of the light: level and colour.
-- **Timed on.** `onFor` is Matter's `OnWithTimedOff`, the timed relay built into every Matter light. A timed on is not persistent: after a restart the light comes up as if it had been off (§3.1). A separate timer for other uses is `TimerRelay`.
+- **Timed on.** `onFor` is Matter's `OnWithTimedOff`, the timed relay built into every Matter light. A timed on is not persistent: after a restart the light comes up as if it had been off (§3.1). A separate timer for other uses is `TimerRelay` (12c-05).
 
 ## 2. Fields
 

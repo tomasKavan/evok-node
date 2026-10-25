@@ -15,6 +15,7 @@
 | [`12c-02-Plug-in-units.md`](12c-Home-main-devices/12c-02-Plug-in-units.md) | `OnOffPlugInUnit` |
 | [`12c-03-Generic-switch.md`](12c-Home-main-devices/12c-03-Generic-switch.md) | `GenericSwitch` |
 | [`12c-04-Sensors.md`](12c-Home-main-devices/12c-04-Sensors.md) | `ContactSensor`, `OccupancySensor`, `TemperatureSensor`, `HumiditySensor`, `LightSensor`, `AirQualitySensor` |
+| [`12c-05-Timer-relay.md`](12c-Home-main-devices/12c-05-Timer-relay.md) | `TimerRelay` |
 
 **Job:** one section per home `DeviceType`: fields, built-in templates and Matter mapping, in full.
 12a holds what every type shares; this file holds what one type adds.
@@ -30,7 +31,7 @@ is written, so 12a never points at an empty section:
 |---|---|---|
 | §2.2 table | the "Fields beyond `CommonFields`" column | the list of types (kind → 12c section); the Matter counterpart is in 16a |
 | §2.2 code | `SwitchState`, `GenericSwitch`, `DimmableLight`, the shared `onOffField`/`levelField`/`moveField`/`stopField` | — |
-| §2.2 prose | the `lastEvent` press sequences, how `move` works, the `Timer` paragraph | the general rules: no `'@'`, one round trip, every reading/channel `subscribe: true`, staleness folds into `reachable`, no stub fields |
+| §2.2 prose | the `lastEvent` press sequences, how `move` works, the `Timer` paragraph (moved: 12c-05) | the general rules: no `'@'`, one round trip, every reading/channel `subscribe: true`, staleness folds into `reachable`, no stub fields |
 | §2.3 | — | the whole rule; `multiPressMax` stays as its example |
 | §3 | the list of built-in templates per type, the `switch-from-di` and `dimmable-from-dali` workflows | the template mechanism; roles in its examples stay as one-line illustrations |
 | §4a | — | the general binding rule; "only a field that moves on its own changes step by step" |
@@ -59,7 +60,7 @@ resolution vs Matter (0.01 °C, Percent100ths, log lux), the moving-device patte
 | `ColorTemperatureLight` | Color Temperature Light | |
 | `ExtendedColorLight` | Extended Color Light | one template, `tunable-rgbw-4dali` |
 | `OnOffPlugInUnit` | On/Off Plug-in Unit | |
-| `TimerRelay` | — | today `Timer` (12a §2.2). Name, and separate device vs `onFor` on outputs, decided here |
+| `TimerRelay` | — | virtual, no roles; rules start it and react to it; `onFor` stays on lights and plug-in units |
 | `WindowCovering` | Window Covering | % direction (Matter: 0 = open); tilt for venetian blinds; position from travel time on two relays |
 | `DoorLock` | Door Lock | PIN and assurance level → 13a (M3.6) |
 | `WaterValve` | Water Valve | irrigation zones; Matter auto-close (`OpenDuration`); not supported by Apple Home |
