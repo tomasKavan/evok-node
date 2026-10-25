@@ -46,7 +46,7 @@ Only `toggle-on-press` and `on-and-set-delay-off` have options. The `buttons` sl
 |---|---|---|---|
 | `toggle-on-press` | `buttons`: `GenericSwitch`, 1–n | `lights`: `OnOffLight`, `DimmableLight`, `ColorTemperatureLight`, `ExtendedColorLight`, 1–n | The press chosen by `event` (below): if any light is on, all go off; otherwise all go on. |
 | `dimmer-on-longpress` | `buttons`: `GenericSwitch`, 1–n | `lights`: `DimmableLight`, `ColorTemperatureLight`, `ExtendedColorLight`, 1–n | `longPress` → `move` in the current direction; `longRelease` → `stop`. The direction toggles on every long press. |
-| `one-button-window-cover` | `buttons`: `GenericSwitch`, 1–n | `covers`: `WindowCovering`, 1–n | `shortRelease` → `goTo` the end in the current direction. `longPress` → `goTo` that end; `longRelease` → `stop`. The direction toggles on every press. |
+| `one-button-window-cover` | `buttons`: `GenericSwitch`, 1–n | `covers`: `WindowCovering`, 1–n | `shortRelease` → `up` or `down`, the end in the current direction. `longPress` → the same; `longRelease` → `stop`. The direction toggles on every press. |
 | `on-and-set-delay-off` | `buttons`: `GenericSwitch`, 1–n | `lights`: `OnOffLight`, `DimmableLight`, `ColorTemperatureLight`, `ExtendedColorLight`, 1–n · `timer`: `TimerRelay`, 1 | The press chosen by `event`: all lights on, and `method` (below) on the timer. With `method: 'toggle'` and the timer running (12c-05 §1.1): all lights off, then `toggle` — the timer goes `idle` without `elapsed`, so `delay-off` never sees it. |
 | `delay-off` | `timer`: `TimerRelay`, 1–n | `lights`: `OnOffLight`, `DimmableLight`, `ColorTemperatureLight`, `ExtendedColorLight`, 1–n | `elapsed` → all lights off. The slot sets `fields: ['elapsed']`. |
 

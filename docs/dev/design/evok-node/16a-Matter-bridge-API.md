@@ -51,6 +51,7 @@ A device with `battery` bound (12a §2.1) also carries Power Source with the bat
 | `ExtendedColorLight` | Extended Color Light `0x010D` | OnOff, LevelControl, ColorControl |
 | `OnOffPlugInUnit` | On/Off Plug-in Unit `0x010A` | OnOff |
 | `WindowCovering` | Window Covering `0x0202` | WindowCovering |
+| `Closure` | Closure `0x0230`; Closure Panel `0x0231` child with a % (12c-07 §4) | ClosureControl; ClosureDimension on the panel |
 | `DoorLock` | Door Lock `0x000A` | DoorLock |
 | `ContactSensor` | Contact Sensor `0x0015` | BooleanState |
 | `AirQualitySensor` | Air Quality Sensor `0x002C` | AirQuality; CarbonDioxideConcentrationMeasurement, Pm25ConcentrationMeasurement when bound (12c-04 §4) |

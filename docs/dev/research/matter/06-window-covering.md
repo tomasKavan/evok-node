@@ -18,6 +18,7 @@ Input from Tomas (2026-10-25):
 - Level 2 thresholds are CLIMAX's wind-class speeds; level 1 is set below them. Width, height and guide per cover are set at commissioning.
 - Travel times up and down are measured end to end and include the tilt phase. Tilt time is measured on its own. All three are device settings.
 - Covers in use: CLIMAX, C type.
+- Gusts are the compared value: a level rises on the first gust over it and drops after a hold time below it.
 
 Spec data from the connectedhomeip data model, `data_model/1.0/`–`1.7/` (S1); spec prose from matter.js's generated cluster docs, which cite Matter 1.6.1 (S2); matter.js's server implementation (S3).
 
@@ -240,7 +241,6 @@ C-80 VENTAL on rails is one class higher than C-80 up to 4800 mm; on cables the 
   | `onRelease` | `none` \| `restore` \| `up` \| `down` | MDT: up / down / former position / none |
 
   - Level 1: down with slats closed ⇒ tilt open; tilt refused. Level 2: up; down refused (Tomas).
-  - **Level 1 vs CLIMAX:** the declared class holds for a blind "lowered and closed" (§4.5). Open slats are outside the tested state — to check with CLIMAX [I].
   - `level2` = the class speed for the cover's width and guide (§4.5), set at commissioning; `level1` below it (Tomas). A gust at `level2` reaches the blind before it is up — retraction takes about a minute (§4.6) [I].
   - The device shows the active level and why it refuses — on Matter, `SafetyStatus.Protection` [I].
 - **P7 — Matter projection.** `LF`, `TL`, `PA_LF`, `PA_TL`; encoder bits 0 (timer, §1.2); `Type` 8; `EndProductType` a setting (13 for an external venetian blind); `SafetyStatus.Protection` during a wind alarm; a refused command answered as matter.js answers maintenance (`BUSY`) [I]; `Mode.CalibrationMode` → reference. Window Covering, not Closure (§1.5).

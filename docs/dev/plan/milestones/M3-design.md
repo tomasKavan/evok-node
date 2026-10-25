@@ -42,7 +42,7 @@ Deep dive per device type. Per type: intro (what it is for, what not), fields, t
 their workflow, Matter mapping (part of the mapping table), what a `SET` reports while the
 device moves to its target. Matter research per type in `research/matter/`.
 Types: `GenericSwitch`, `OnOffLight`, `DimmableLight`, `ColorTemperatureLight`,
-`ExtendedColorLight`, `OnOffPlugInUnit`, `TimerRelay`, `WindowCovering`, `DoorLock`, `WaterValve`, `ContactSensor`,
+`ExtendedColorLight`, `OnOffPlugInUnit`, `TimerRelay`, `WindowCovering`, `Closure`, `DoorLock`, `WaterValve`, `ContactSensor`,
 `WaterLeakDetector`, `TemperatureSensor`, `HumiditySensor`, `AirQualitySensor`,
 `OccupancySensor`, `LightSensor`, `RoomAirConditioner`.
 Decided in their step: `Thermostat` (vs temperature sensor + valve), `Fan` (fit for heat
@@ -54,7 +54,7 @@ with it; `research/matter/` holds a note per type with a Matter counterpart.
 **Refs:** 12a §2–§4a · 12b §2 · 16a · research/matter
 
 ### M3.4 — Almanac driver   `area/almanac`
-Calendar, weather forecast, sun position. Data sources, offline behaviour. Respective home devices.
+Calendar, weather forecast, sun position. Data sources, offline behaviour. Respective home devices. A wind DeviceType — gusts in m/s with the time they apply to — for `WindowCovering`'s `wind` role (12c-06 §3.4).
 **Done when:** 12d designed; new device types added to 12c.
 **Refs:** 05a · 12a · 12b
 

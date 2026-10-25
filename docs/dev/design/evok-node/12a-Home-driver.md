@@ -100,7 +100,8 @@ No home `DeviceType` declares `'@'` — every field is named. The whole device i
 | `ColorTemperatureLight` | Color Temperature Light | 12c-01 §2 |
 | `ExtendedColorLight` | Extended Color Light | 12c-01 §2 |
 | `OnOffPlugInUnit` | On/Off Plug-in Unit | 12c-02 §2 |
-| `WindowCovering` | Window Covering | `position` reading `{current, target, motion}` (%) · `goTo` method `{percent}` · `stop` method |
+| `WindowCovering` | Window Covering | 12c-06 §2 |
+| `Closure` | Closure | 12c-07 §2 |
 | `DoorLock` | Door Lock | `state` reading `locked`/`unlocked`/`jammed`/`unknown` · `lock` method · `unlock` method |
 | `ContactSensor` | Contact Sensor | 12c-04 §2 |
 | `AirQualitySensor` | Air Quality Sensor | 12c-04 §2 |
@@ -111,7 +112,7 @@ No home `DeviceType` declares `'@'` — every field is named. The whole device i
 | `RoomAirConditioner` | Room Air Conditioner | `onOff` · `mode` channel `off`/`cool`/`heat`/`auto`/`fan`/`dry` · `setpoint` channel\<float32, °C\> · `temperature` reading · `fanMode` channel `auto`/`low`/`medium`/`high` |
 | `TimerRelay` | — (16a ignores it) | 12c-05 §2 |
 
-Every reading and channel above is `subscribe: true`. A source's own staleness never appears per field — it folds into `reachable` (§4.2). The types in full: lights in 12c-01 §2, plug-in units in 12c-02 §2, the switch in 12c-03 §2, the sensors in 12c-04 §2, the timer in 12c-05 §2; the rest follow the same shape.
+Every reading and channel above is `subscribe: true`. A source's own staleness never appears per field — it folds into `reachable` (§4.2). The types in full: lights in 12c-01 §2, plug-in units in 12c-02 §2, the switch in 12c-03 §2, the sensors in 12c-04 §2, the timer in 12c-05 §2, the cover in 12c-06 §2, the closure in 12c-07 §2; the rest follow the same shape.
 
 A function a device type has no evok-node equivalent for yet is simply not a field — never a stub that answers nothing.
 
@@ -182,7 +183,9 @@ A **template** is a named recipe for assembling one `DeviceType` from other driv
 
 ```ts
 // @evok-node/driver-home
-interface Role extends Selection {}   // §2.4 — `types` are the source drivers' own exported DeviceTypes, imported, never redeclared; a role is 1–1 unless it says otherwise
+interface Role extends Selection {    // §2.4 — `types` are the source drivers' own exported DeviceTypes, imported, never redeclared; a role is 1–1 unless it says otherwise
+  readonly reachable?: false;          // its sources don't count toward `reachable` (§4.2); the template follows them with `watchReachable`
+}
 
 type SourceOf<R extends Role> = RemoteDevice<FieldsOf<R['types'][number]>>;   // a union when `types` has several — narrowed by kind
 type Sources<R extends Record<string, Role>> = {
@@ -196,6 +199,8 @@ interface AssemblyContext<R extends Record<string, Role>, S, St = never> {
   readonly settings: S;
   readonly state: TemplateState<St>;   // below
   markStale(stale: boolean): void;   // §4.2 — for a source that is present and well-shaped but reports its own data stale
+  watchReachable(role: keyof R, onChange: (reachable: boolean) => void): void;   // roles with `reachable: false` only — the same check as §4.2
+  peer<F>(member: string, type: DeviceType<F>): RemoteDevice<F> | undefined;     // §3a — another member of this device's bundle
 }
 
 interface TemplateState<St> {
@@ -237,7 +242,7 @@ Handlers answer from memory, the way every driver does (01): `assemble()` subscr
 
 A `SET` forwarded to a source that can't take it — not up, not answering — throws `SourceUnreachable` (05a §3.5) and is answered `unreachable`. It is never queued and replayed later.
 
-Each built-in `DeviceType` (§2) ships with the templates its own built-in source drivers warrant — the light templates of 12c-01 §3, `switch-from-di` for `GenericSwitch` (12c-03 §3), the role-less `timer` for `TimerRelay` (12c-05 §3) — and a template is itself a manifest-loaded, `kind`-resolved module (01 §10; `{ "kind": "home-template", "templateKind": "dimmable-from-dali", … }`), so a driver plugin for hardware this driver doesn't know about yet can ship its own template for an existing `DeviceType` without touching this package. It imports that `DeviceType` from `@evok-node/driver-home`; it never rebuilds one under the same kind (05a §3.5).
+Each built-in `DeviceType` (§2) ships with the templates its own built-in source drivers warrant — the light templates of 12c-01 §3, `switch-from-di` for `GenericSwitch` (12c-03 §3), the role-less `timer` for `TimerRelay` (12c-05 §3), `cover-from-relays` for `WindowCovering` (12c-06 §3) — and a template is itself a manifest-loaded, `kind`-resolved module (01 §10; `{ "kind": "home-template", "templateKind": "dimmable-from-dali", … }`), so a driver plugin for hardware this driver doesn't know about yet can ship its own template for an existing `DeviceType` without touching this package. It imports that `DeviceType` from `@evok-node/driver-home`; it never rebuilds one under the same kind (05a §3.5).
 
 ## 3a. Template bundles
 
@@ -273,9 +278,10 @@ interface TemplateBundle<S = unknown> {
 }
 ```
 
-- **The user picks only the anchor**, from `$refs` (`home.source`, filtered by `anchor.types`), plus a name and the bundle's settings. Members' sources are never in the form.
+- **The user picks only the anchor**, from `$refs` (`home.source`, filtered by `anchor.types`), plus a name and the bundle's settings. Members' sources are never in the form — except in a bundle whose sources can't be found from one anchor (two products on one VELUX KLF 150, 12c-07 §3.2): its settings carry the other sources as `home.source` refs, and `resolve` hands them on.
 - **Each member is validated as `createDevice` validates it** (§5): its template's form, `home.source`'s `has`. A bundle is created whole or not at all — one failing member fails the call, nothing is persisted.
 - **After creation each member is an ordinary `local` device**, with `bundle` set (§4.1): edited and removed on its own, its template's settings changed through `updateDevice`. Only the bundle's name and membership are the bundle's.
+- **Members see each other.** `ctx.peer(member, type)` (§3) is a `RemoteDevice` (05a §3.8a) on another member's tail: its last values and its methods — how two members keep an interlock (12c-07 §3.2). `undefined` when the device is in no bundle, the member was not created or was removed, or its kind isn't `type`. A peer is never a source: it doesn't count toward `reachable`, and the template answers for it not being there.
 - **A `matter` node needs no bundle**: its devices are already one product, linked by `origin.nodeId` (§4.1). 16a uses either link the same way (16a).
 - A bundle is a manifest-loaded, `kind`-resolved module, like a template (§3): `{ "kind": "home-bundle", "bundleKind": "iaq-unipi", … }`.
 
@@ -352,7 +358,7 @@ Who writes a record depends on its origin: a `local` one through `createDevice`/
 Computed per origin; it emits only when the result flips:
 
 ```
-local:   every bound source passes its watchDevice check  &&  the template hasn't called markStale(true)
+local:   every bound source of a role without `reachable: false` passes its watchDevice check  &&  the template hasn't called markStale(true)
 matter:  node.subscriptionActive  &&  endpoint in the node's PartsList  &&  (BridgedDeviceBasicInformation.reachable ?? true)  &&  no mapped value reported null
 remote:  peer link up  &&  the remote device's own `reachable`
 ```
@@ -360,6 +366,8 @@ remote:  peer link up  &&  the remote device's own `reachable`
 For `local`, each bound device runs one `watchDevice` (05a §4b) per bound source, with `check = (ref, kind) => ref !== null && kind !== undefined && role.types.some(t => matchesDeviceType(ref, kind, t))` (05a §4a). This also covers a source driver reloaded with a table that no longer matches — a source that disappears or changes shape makes the device unreachable rather than broken, and it recovers on its own when a matching table returns.
 
 A `local` device with no roles has no source to check: it is always `reachable`.
+
+A role with `reachable: false` is one the device must keep working without — a `WindowCovering`'s wind source (12c-06 §3.4): losing it is the template's to handle, never a reason to stop answering.
 
 For `matter`, a sleepy device (ICD) is reachable while its subscription is alive — it is never expected to answer at once.
 

@@ -16,6 +16,8 @@
 | [`12c-03-Generic-switch.md`](12c-Home-main-devices/12c-03-Generic-switch.md) | `GenericSwitch` |
 | [`12c-04-Sensors.md`](12c-Home-main-devices/12c-04-Sensors.md) | `ContactSensor`, `OccupancySensor`, `TemperatureSensor`, `HumiditySensor`, `LightSensor`, `AirQualitySensor` |
 | [`12c-05-Timer-relay.md`](12c-Home-main-devices/12c-05-Timer-relay.md) | `TimerRelay` |
+| [`12c-06-Window-covering.md`](12c-Home-main-devices/12c-06-Window-covering.md) | `WindowCovering` |
+| [`12c-07-Closures.md`](12c-Home-main-devices/12c-07-Closures.md) | `Closure` |
 
 **Job:** one section per home `DeviceType`: fields, built-in templates and Matter mapping, in full.
 12a holds what every type shares; this file holds what one type adds.
@@ -61,7 +63,8 @@ resolution vs Matter (0.01 °C, Percent100ths, log lux), the moving-device patte
 | `ExtendedColorLight` | Extended Color Light | one template, `tunable-rgbw-4dali` |
 | `OnOffPlugInUnit` | On/Off Plug-in Unit | |
 | `TimerRelay` | — | virtual, no roles; rules start it and react to it; `onFor` stays on lights and plug-in units |
-| `WindowCovering` | Window Covering | % direction (Matter: 0 = open); tilt for venetian blinds; position from travel time on two relays |
+| `WindowCovering` | Window Covering | 0.01 % closed, as Matter; optional tilt; templates `cover-from-relays`, `cover-from-klf`; wind protection built in |
+| `Closure` | Closure | one type for windows, garage doors, gates (`kind` → Matter tags); template `closure-from-klf`, bundle `velux-klf` with `cover-from-klf`; garage-door template in its own step |
 | `DoorLock` | Door Lock | PIN and assurance level → 13a (M3.6) |
 | `WaterValve` | Water Valve | irrigation zones; Matter auto-close (`OpenDuration`); not supported by Apple Home |
 | `ContactSensor` | Contact Sensor | one template, `contact-from-di` |
