@@ -20,7 +20,7 @@ Spec data from the connectedhomeip data model, `data_model/1.0/`–`1.7/` (S1); 
 | `Boost(Duration)` | Water Heater Management | — | Water Heater [V-src S1] |
 
 - `StartActionWithDuration`: "after the specified Duration, the action will stop, and the action's state shall change to Inactive" [V S2]. Action states: Inactive, Active, Paused, Disabled; action types include Scene, Sequence, Automation [V-src S1].
-- Irrigation System `0x0040` exists in `data_model/1.5/` (all clusters optional: Identify, Operational State, Flow Measurement) [V-src S1]. This contradicts [README §2](README.md)'s "irrigation has no device type of its own" — to re-check there.
+- Irrigation System `0x0040` exists in `data_model/1.5/` (all clusters optional: Identify, Operational State, Flow Measurement) [V-src S1]. Its zones are Water Valve endpoints ([09 §1.3](09-water.md)).
 
 ### 1.1. How countdowns are reported
 

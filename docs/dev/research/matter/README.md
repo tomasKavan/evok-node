@@ -15,6 +15,10 @@ One file per device group, numbered as they are written. Each covers: how the sp
 | [`03-generic-switch.md`](03-generic-switch.md) | Generic Switch, Switch cluster: features, event sequences, timing, matter.js, controllers, multi-button tags |
 | [`04-sensors.md`](04-sensors.md) | Contact, Light, Occupancy, Temperature, Humidity, Air Quality Sensor: encodings, occupancy hold time, concentration clusters, multi-sensor composition, Apple Home limits; Unipi sources (DI, AI, 1-Wire, xG18, IAQ) |
 | [`05-timer-relay.md`](05-timer-relay.md) | No Matter timer device type; countdown elements in other clusters and their reporting; controllers (Apple, Google, Home Assistant `timer`); timer-relay functions in PLCs, KNX, DIN-rail relays, Node-RED, Shelly; behaviour across a restart; EVOK's software timed output |
+| [`06-window-covering.md`](06-window-covering.md) | Window Covering: lift/tilt features, positions (0 = open), commands, status and safety bits, 1.5 closures; controllers; time-based covers on two relays (travel, tilt, overrun, reverse pause, reference, drift) in KNX, Loxone, Shelly, ESPHome; wind thresholds, hysteresis, fail-safe, forecast vs anemometer |
+| [`07-garage-door.md`](07-garage-door.md) | Garage door: no type before 1.5; Closure `0x0230` with tag `GarageDoor`, Closure Control states, timed `MoveTo`, 1.7 Access feature; controllers and the Window Covering fallback; Hörmann UAP1-HCP on SupraMatic 4 (inputs, K01–K03, menu 30, drive safety); state from end contacts; ESPHome, Loxone, HomeKit; UL 325, EN 12453, open vs close access |
+| [`08-door-lock.md`](08-door-lock.md) | Door Lock: features (`USR`, `PIN`, `COTA`, `DPS`, `UBOLT`), unlock vs unbolt vs unlatch, remote PIN and lockout, events, users and credentials, auto-relock, matter.js `DoorLockServer`; controllers (Google needs a PIN for remote unlock, Apple has no unlatch); relay-driven locks (strikes fail-secure/fail-safe, motor locks, pulse vs hold); 2N Access Unit 2.0 / IP Verso 2.0 HTTP API (switches, door, `log/pull` events, access points, directory, Access Commander) |
+| [`09-water.md`](09-water.md) | Water Valve, Valve Configuration and Control (durations, level, faults), Irrigation System (1.5), Water Leak Detector, Rain, Freeze, Boolean State Configuration; controllers; solenoid and thermal actuators, irrigation sequencing, heating PWM and valve protection, tank filling, 3-way valves; leak modules on a DI, leak alarms |
 
 ## 2. Apple Home support
 
@@ -28,15 +32,18 @@ Apple publishes no complete list; this one is collected per type. "no" means App
 | Generic Switch `0x000F` | 1.0 | yes, momentary only [V] | S2 |
 | Contact, Light, Occupancy, Temperature, Humidity Sensor; Air Quality Sensor `0x002C` | 1.0 / 1.2 | yes [V]; limits per reading and endpoint shape — [`04-sensors.md`](04-sensors.md) §6, §8 | S2 |
 | Door Lock `0x000A`, Window Covering `0x0202` | 1.0 | yes [V] | S2 |
+| Closure `0x0230` (garage door, gate, …) | 1.5 | [GAP] — not found; SmartThings works, Home Assistant not yet ([`07-garage-door.md`](07-garage-door.md) §2) | — |
 | Thermostat `0x0301`, Heating/Cooling Unit `0x0300` | 1.0 | yes [V] | S2 |
 | Fan `0x002B`, Air Purifier `0x002D` | 1.2 | yes [V] | S2 |
 | Water Leak Detector `0x0043` | 1.3 | yes, iOS 18.4 [V] | S3 |
 | Room Air Conditioner `0x0072` | 1.0 | [GAP] — not in S2's list, which may be outdated | S2 |
-| Water Valve `0x0042` | 1.3 | no [V] — workaround seen: On/Off Plug-in Unit | S1 |
+| Water Valve `0x0042` | 1.3 | no [V] — workaround seen: On/Off Plug-in Unit; bridging doesn't help | S1, S6 |
+| Irrigation System `0x0040` | 1.5 | [GAP] — not in S2's list | — |
+| Rain Sensor `0x0044`, Water Freeze Detector `0x0041` | 1.3 | [GAP] — not in S2's list | — |
 | Pump `0x0303` | 1.0 | no [V] | S3 |
 | Soil Sensor | 1.5 | no [V] | S1 |
 
-Irrigation has no device type of its own [V]: Water Valve zones plus Soil Sensor (S4).
+Irrigation System `0x0040` (1.5) is composed of Water Valve zone endpoints; a master valve is not an endpoint ([09 §1.3](09-water.md)) [V].
 
 ## 3. Sources
 
@@ -45,3 +52,4 @@ Irrigation has no device type of its own [V]: Water Valve zones plus Soil Sensor
 - S3 — Matter Alpha, iOS 18.4 adds smoke, CO and water leak sensors; no pressure, flow sensors or pumps: https://www.matteralpha.com/manufacturer-news/ios-18-4-expands-matter-support-with-smoke-co-and-water-leak-sensors
 - S4 — CSA, Matter 1.5 announcement: https://csa-iot.org/newsroom/matter-1-5-introduces-cameras-closures-and-enhanced-energy-management-capabilities/
 - S5 — matter-smarthome.de, device types by Matter version: https://matter-smarthome.de/en/development/these-device-types-are-available-in-the-matter-standard/
+- S6 — Apple developer forum, "Home app rejects Matter device type 0x0042 (Water Valve) as 'not supported'" (Sep 2026): https://developer.apple.com/forums/thread/844646
