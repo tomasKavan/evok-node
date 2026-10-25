@@ -4,14 +4,14 @@
 
 | DeviceType | Adds | Matter (16a) |
 |---|---|---|
-| `Closure` | open / close / stop, optional % position, interlock and gating state | Closure `0x0230`, tags from `kind`; Closure Panel `0x0231` child for the % |
+| `Closure` | open / close / stop, optional % position, interlock and gating state | Closure `0x0230`, tags from `kind`; Closure Panel `0x0231` child for the %; access kinds not exposed for now (§4) |
 
 **For:** a motorised opening a person or a rule opens and closes — a roof or facade window, a garage door, a gate, a door. One type for all of them; `kind` tells them apart, as Matter's tags do (research/matter/10 §3).
 
 **Not for:**
 
 - A cover in front of a window: `WindowCovering` (12c-06). Apple supports Window Covering, not (as found) Closure; a window exported as a cover would open on "open all blinds" (research/matter/10 §3).
-- Locking. A lock is a `DoorLock`; it may gate a closure's opening (`blocked.open: 'locked'`, research/matter/07 P7) — designed with the garage-door template.
+- Locking. A lock is a `DoorLock` (12c-09). Who may open an access closure, and whether a lock gates it (`blocked.open: 'locked'`), is M3.6 (§6); no template sets `locked` yet.
 
 ### 1.1. Behaviour
 
@@ -70,7 +70,7 @@ export const Closure = device('home.Closure', {
 
 | `fault` | Means | Cleared by |
 |---|---|---|
-| `notCarriedOut` | a command got no confirmation in time (§3.1) | the next confirmed end |
+| `notCarriedOut` | a command got no confirmation in time (§3.1, §3.4) | the next confirmed end |
 | `travelTimeout` | no end reached within the travel time — templates with end contacts | the next confirmed end |
 | `endContacts` | both end contacts at once | the contacts disagreeing again |
 
@@ -83,8 +83,9 @@ export const Closure = device('home.Closure', {
 | Template | Roles |
 |---|---|
 | `closure-from-klf` (§3.1) | `open`: `unipi.ro`, 1 · `close`: `unipi.ro`, 1 · `feedback`: `unipi.di`, 0–1 |
+| `closure-from-uap` (§3.4) | `open`, `close`, `stop`: `unipi.ro` \| `unipi.do`, 1 each · `openEnd`, `closedEnd`: `unipi.di`, 1 each · `moving`: `unipi.di`, 0–1 |
 
-The bundle `velux-klf` (§3.2) creates a window and its cover together, with their interlock. The garage-door template comes with its own step (research/matter/07).
+The bundle `velux-klf` (§3.2) creates a window and its cover together, with their interlock.
 
 ### 3.1. `closure-from-klf`
 
@@ -177,6 +178,82 @@ What `closure-from-klf` and `cover-from-klf` need set in the KLF 150's software 
 
 Commissioning test, a stopwatch on each DI: `close` on a closed window, `close` on an open one, `open` with the rain sensor wet — pulse or none, and its delay. The templates assume: a pulse each time a command is carried out, at its end, and none when it isn't. `confirmFastMs` comes from the first test.
 
+### 3.4. `closure-from-uap`
+
+A Hörmann drive with a UAP1-HCP adapter board — a garage door (research/matter/07 §3). Three relays pulse the UAP's open, close and stop inputs; its relays K01 and K02 report the two ends, K03 optionally reports travel. Fits any drive with pulse inputs for open, close, stop and contacts at both ends.
+
+| Role | Types | UAP1-HCP |
+|---|---|---|
+| `open` | `unipi.ro` \| `unipi.do`, 1 | 15–20 |
+| `close` | `unipi.ro` \| `unipi.do`, 1 | 17–20 |
+| `stop` | `unipi.ro` \| `unipi.do`, 1 | stop input, NO |
+| `openEnd` | `unipi.di`, 1 | K01 |
+| `closedEnd` | `unipi.di`, 1 | K02 |
+| `moving` | `unipi.di`, 0–1 | K03, menu 30 = `09` (§3.5) |
+
+| Setting | Default | Note |
+|---|---|---|
+| `kind` | `garageDoor` | → `behavior` |
+| `openMs`, `closeMs` | required | full travel, measured |
+| `marginMs` | 5000 | added to travel before `travelTimeout` |
+| `startMs` | 3000 | time for a pulse to show; longer than the drive's pre-warning (menu 32) |
+| `pulseMs` | 500 | relay on; the UAP's minimum is not known (research/matter/07 §3.1) |
+| `reversePauseMs` | 1000 | between `stop` and the opposite pulse |
+| `openEndInvert`, `closedEndInvert`, `movingInvert` | `false` | `active = value XOR invert`, as `contact-from-di` (12c-04 §3.2) |
+
+`positioning` is `ends`: `current` stays absent, `target` is 0 or 10000. `goTo` and `confirm` are unbound — the end contacts prove the state all the time.
+
+**Drive:**
+
+| Call | Relays |
+|---|---|
+| `open`, `close` | that relay on for `pulseMs` |
+| `stop` | `stop` on for `pulseMs` |
+| `open` while closing, `close` while opening | `stop`, wait `reversePauseMs`, then the new pulse |
+| the same direction while moving; `open` while `open`; `close` while `closed` | nothing; `ok` |
+
+- One relay at a time; every write waits for the ack of the one before.
+- `target` emits at once (12a §4a). `stop` clears it.
+
+**State** — from the contacts, after inversion:
+
+| `openEnd` | `closedEnd` | `moving` | `state` | `motion` |
+|---|---|---|---|---|
+| 1 | 0 | – | `open` | `stopped` |
+| 0 | 1 | – | `closed` | `stopped` |
+| 0 | 0 | 1 | `partial` | direction: our last command; else away from the end just left |
+| 0 | 0 | 0 | `partial` | `stopped` |
+| 0 | 0 | unbound | `partial` | inferred, below |
+| 1 | 1 | – | `unknown` | `stopped`; `fault` `endContacts` |
+
+- **Without `moving`:** a move starts at our pulse or when an end contact drops; `motion` is our last command's direction, else away from the end just left. It ends at an end, or after `openMs`/`closeMs` + `marginMs` ⇒ `stopped`, `partial`. A stop elsewhere (hand remote) is not seen until then.
+- **`confirmed`** = when the end contacts took their current values, or the first read after a start.
+
+**Faults** (§2):
+
+| `fault` | When |
+|---|---|
+| `notCarriedOut` | no reaction within `startMs` of our pulse: `moving` didn't rise, or the end contact didn't drop. From the middle without `moving`: not checked |
+| `travelTimeout` | a move of ours, not stopped by us, reaches no end within travel + `marginMs` |
+| `endContacts` | both end contacts at once |
+
+- **Moves from elsewhere** — hand remote, wall button, BiSecur app — are tracked from the contacts, never refused: the drive's own inputs stay active (research/matter/07 §3.3).
+- **Saved state:** nothing. After a restart: relays off; `state` from the contacts. In the middle `motion` is `stopped` — the direction of a move already running is not known; the next end contact sets the state.
+- A relay write that throws `SourceUnreachable` answers `unreachable`. An end contact unreachable ⇒ `state` `unknown` (12a §3).
+
+### 3.5. UAP1-HCP set-up
+
+What `closure-from-uap` needs (research/matter/07 §3):
+
+| | |
+|---|---|
+| Inputs | open 15–20, close 17–20, stop; potential-free NO contacts only — never a voltage |
+| K01, K02 | end open, end closed → `openEnd`, `closedEnd` |
+| K03 | drive menu 30 = `09`, relay on during travel → `moving` |
+| Pre-warning | drive menus 32/33: the drive's light flashes before every travel, from any source; `startMs` must be longer |
+
+Commissioning test: stopwatch `openMs` and `closeMs`; the shortest `pulseMs` the drive takes; what the drive does on `open` while closing, which sets `reversePauseMs`.
+
 ## 4. Matter
 
 Part of the mapping table (16a, `driver-home/matter-map`). Closure `0x0230`; Closure Control with `PS`, and `PT` when the device can be blocked (an interlock peer, a gating lock).
@@ -196,6 +273,7 @@ With `positioning: 'percent'`, a Closure Panel `0x0231` child carries the %: Clo
 
 - `matter` origin (12a §4a): an endpoint of `0x0230` maps to `Closure`, `kind` from its tags; its Panel, if any, gives `current`. `blocked` stays empty.
 - Apple and Google support for Closure: unknown (research/matter/07 §2). No Window Covering fallback (§1).
+- **Access closures are not exposed for now.** 16a ignores a `Closure` with `kind` `garageDoor`, `gate` or `door`: exposing one needs the same proof on `open` as `DoorLock.unlock`, and Closure Control carries no PIN (research/matter/07 §1.8). Deferred with Door Lock's exposure (12c-09 §4) to M3.6. Windows stay exposed.
 
 ## 5. Moving and target
 
@@ -205,3 +283,7 @@ With `positioning: 'percent'`, a Closure Panel `0x0231` child carries the %: Clo
 | `current` | once a second while moving, and at the stop |
 | `state`, `motion` | at every start, stop and confirmation |
 | `confirmed` | at every confirmation |
+
+## 6. Open
+
+- **Who may open an access closure, and how it is proved** — M3.6 (13a). `open` (and `goTo` toward open) of a `garageDoor`, `gate` or `door` needs the same proof as `DoorLock.unlock` (12c-09 §1.2); `close` and `stop` need none. Whether a (virtual) `DoorLock` also gates it through `blocked.open: 'locked'` is decided there (research/matter/07 §1.8). Until then nothing is gated.

@@ -19,6 +19,7 @@
 | [`12c-06-Window-covering.md`](12c-Home-main-devices/12c-06-Window-covering.md) | `WindowCovering` |
 | [`12c-07-Closures.md`](12c-Home-main-devices/12c-07-Closures.md) | `Closure` |
 | [`12c-08-Water.md`](12c-Home-main-devices/12c-08-Water.md) | `WaterValve`, `IrrigationSystem`, `WaterLeakDetector` |
+| [`12c-09-Door-lock.md`](12c-Home-main-devices/12c-09-Door-lock.md) | `DoorLock` |
 
 **Job:** one section per home `DeviceType`: fields, built-in templates and Matter mapping, in full.
 12a holds what every type shares; this file holds what one type adds.
@@ -65,10 +66,10 @@ resolution vs Matter (0.01 °C, Percent100ths, log lux), the moving-device patte
 | `OnOffPlugInUnit` | On/Off Plug-in Unit | |
 | `TimerRelay` | — | virtual, no roles; rules start it and react to it; `onFor` stays on lights and plug-in units |
 | `WindowCovering` | Window Covering | 0.01 % closed, as Matter; optional tilt; templates `cover-from-relays`, `cover-from-klf`; wind protection built in |
-| `Closure` | Closure | one type for windows, garage doors, gates (`kind` → Matter tags); template `closure-from-klf`, bundle `velux-klf` with `cover-from-klf`; garage-door template in its own step |
-| `DoorLock` | Door Lock | PIN and assurance level → 13a (M3.6) |
+| `Closure` | Closure | one type for windows, garage doors, gates (`kind` → Matter tags); templates `closure-from-klf`, `closure-from-uap` (Hörmann UAP1-HCP: pulses for open/close/stop, end contacts, optional travel contact); bundle `velux-klf` with `cover-from-klf`; access kinds (`garageDoor`, `gate`, `door`) not on Matter yet. Open: proof for `open` → M3.6 |
+| `DoorLock` | Door Lock | released for a time, locks by itself, door contact; `lastOperation` with the acting user; `lock-from-relay`, `lock-from-2n`; not on Matter yet. Open: proof and principal (M3.6), 2N roles (M3.6a) |
 | `WaterValve` | Water Valve | Matter-shaped `open`/`close`, timed, `maxOpenS`, always closed after a restart; templates `valve-from-output`, `thermal-valve-from-output` (level as a duty cycle); not shown by Apple Home |
-| `IrrigationSystem` | Irrigation System | zones are `WaterValve`s, one at a time; master valve, pump; no schedules. Open: the tank device as the pump's source |
+| `IrrigationSystem` | Irrigation System | zones are `WaterValve`s, one at a time; master valve, pump; no schedules. Open: `RainwaterTank` as the pump's source (M3.3a) |
 | `ContactSensor` | Contact Sensor | one template, `contact-from-di` |
 | `WaterLeakDetector` | Water Leak Detector | one template, `leak-from-di`; no latch |
 | `TemperatureSensor` | Temperature Sensor | `unipi.temp` (1-Wire, xG18, IAQ) or `unipi.ai` (Pt1000, linear) |
@@ -76,10 +77,11 @@ resolution vs Matter (0.01 °C, Percent100ths, log lux), the moving-device patte
 | `AirQualitySensor` | Air Quality Sensor | level derived from CO₂ / VOC index; optional `co2`, `pm25`, `vocIndex`, `temperature`, `humidity`; IAQ as a bundle (`iaq-unipi`) |
 | `OccupancySensor` | Occupancy Sensor | one template, `occupancy-from-di`; `HoldTime` read-only — Open, M3.13 |
 | `LightSensor` | Light Sensor | `unipi.lux` or `unipi.ai` |
-| `RoomAirConditioner` | Room Air Conditioner | one `setpoint` vs Matter's heat/cool setpoints; source: extension-driver device or a new Modbus driver; Apple Home support unverified |
+| `RoomAirConditioner` | Room Air Conditioner | one `setpoint` vs Matter's heat/cool setpoints; source: extension-driver device or a new Modbus driver; Apple Home support unverified; designed with `Thermostat` |
+| `Thermostat` | Thermostat | one per room over a heater (thermal valve, 12c-08 §3.2) and an AC unit; AC specialities as extra devices or clusters; preference policy — AC or heater |
+| `RainwaterTank` | — | own step, M3.3a: custom, answers the irrigation system's demand; level sensors, valves, internal pump not controllable from outside; inner parts as home devices or raw endpoints — open |
 
-**Decided in their own section:** `Thermostat` — what it adds over `TemperatureSensor` +
-`WaterValve`; it drives a thermal valve's `level` (12c-08 §3.2); `Fan` — fit for heat recovery units; `Pump` — deferred, a relay pump is an
+**Decided in their own section:** `Fan` — fit for heat recovery units; `Pump` — deferred, a relay pump is an
 `OnOffPlugInUnit`.
 
 **Inputs:** 12a §2–§4a · 12b §2 · 16a · research/matter · source drivers' `DeviceType`s (08, 09, 10, 12)

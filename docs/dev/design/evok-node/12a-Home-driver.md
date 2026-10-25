@@ -105,7 +105,7 @@ No home `DeviceType` declares `'@'` — every field is named. The whole device i
 | `WaterValve` | Water Valve | 12c-08 §2 |
 | `IrrigationSystem` | Irrigation System | 12c-08 §2 |
 | `WaterLeakDetector` | Water Leak Detector | 12c-08 §2 |
-| `DoorLock` | Door Lock | `state` reading `locked`/`unlocked`/`jammed`/`unknown` · `lock` method · `unlock` method |
+| `DoorLock` | Door Lock | 12c-09 §2 |
 | `ContactSensor` | Contact Sensor | 12c-04 §2 |
 | `AirQualitySensor` | Air Quality Sensor | 12c-04 §2 |
 | `TemperatureSensor` | Temperature Sensor | 12c-04 §2 |
@@ -115,7 +115,7 @@ No home `DeviceType` declares `'@'` — every field is named. The whole device i
 | `RoomAirConditioner` | Room Air Conditioner | `onOff` · `mode` channel `off`/`cool`/`heat`/`auto`/`fan`/`dry` · `setpoint` channel\<float32, °C\> · `temperature` reading · `fanMode` channel `auto`/`low`/`medium`/`high` |
 | `TimerRelay` | — (16a ignores it) | 12c-05 §2 |
 
-Every reading and channel above is `subscribe: true`. A source's own staleness never appears per field — it folds into `reachable` (§4.2). The types in full: lights in 12c-01 §2, plug-in units in 12c-02 §2, the switch in 12c-03 §2, the sensors in 12c-04 §2, the timer in 12c-05 §2, the cover in 12c-06 §2, the closure in 12c-07 §2, valves, irrigation and leaks in 12c-08 §2; the rest follow the same shape.
+Every reading and channel above is `subscribe: true`. A source's own staleness never appears per field — it folds into `reachable` (§4.2). The types in full: lights in 12c-01 §2, plug-in units in 12c-02 §2, the switch in 12c-03 §2, the sensors in 12c-04 §2, the timer in 12c-05 §2, the cover in 12c-06 §2, the closure in 12c-07 §2, valves, irrigation and leaks in 12c-08 §2, the lock in 12c-09 §2; the rest follow the same shape.
 
 A function a device type has no evok-node equivalent for yet is simply not a field — never a stub that answers nothing.
 

@@ -200,7 +200,7 @@ queue empty           master off → stopped
 - A zone in the role order is a 1-based index; it becomes the zone's Matter tag (§4).
 - Nothing is saved (§1.2).
 
-**Open:** the tank device — tank levels and pumping with logic of its own. The `pump` role will also take it; the irrigation system then only sends it a demand for water supply (on while a zone runs, off otherwise), and the tank device decides how to supply it. Deferred until that device is designed; no task yet.
+**Open:** the tank device, `RainwaterTank` — tank levels and pumping with logic of its own. The `pump` role will also take it; the irrigation system then only sends it a demand for water supply (on while a zone runs, off otherwise), and the tank device decides how to supply it. Deferred to M3.3a, which designs it.
 
 ### 3.4. `leak-from-di`
 

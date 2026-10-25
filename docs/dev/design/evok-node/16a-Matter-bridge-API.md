@@ -51,8 +51,8 @@ A device with `battery` bound (12a §2.1) also carries Power Source with the bat
 | `ExtendedColorLight` | Extended Color Light `0x010D` | OnOff, LevelControl, ColorControl |
 | `OnOffPlugInUnit` | On/Off Plug-in Unit `0x010A` | OnOff |
 | `WindowCovering` | Window Covering `0x0202` | WindowCovering |
-| `Closure` | Closure `0x0230`; Closure Panel `0x0231` child with a % (12c-07 §4) | ClosureControl; ClosureDimension on the panel |
-| `DoorLock` | Door Lock `0x000A` | DoorLock |
+| `Closure` | Closure `0x0230`; Closure Panel `0x0231` child with a % (12c-07 §4). Ignored for `kind` `garageDoor`, `gate`, `door` for now | ClosureControl; ClosureDimension on the panel |
+| `DoorLock` | — for now; Door Lock `0x000A` when exposed (12c-09 §4) | ignored |
 | `WaterValve` | Water Valve `0x0042` | ValveConfigurationAndControl (12c-08 §4) |
 | `IrrigationSystem` | Irrigation System `0x0040`, parent of its zones (below) | OperationalState |
 | `WaterLeakDetector` | Water Leak Detector `0x0043` | BooleanState; BooleanStateConfiguration when `sensorFault` is bound |

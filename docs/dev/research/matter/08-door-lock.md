@@ -8,6 +8,13 @@ Input from Tomas (2026-10-25):
 - User management is deferred, but how evok-node will cooperate with the 2N access API on users must be known now.
 - Tomas's locks behave the same in both relay variants: a pulse releases the lock for a time set in the lock; the handle then opens it; closing the door locks it. Two states — `locked` / `unlocked` — are enough.
 - Every door has a door contact on a DI.
+- Identity and access (for 13a, M3.6):
+  - one central identity provider; users get roles; a role grants access to devices, usually by the home hierarchy — role "tenant flat 1" controls every device in flat 1's rooms;
+  - no user is created or edited from any Matter fabric;
+  - the Home UI may ask for biometrics or a PIN before a lock operates; the PIN lives in the identity provider;
+  - 2N devices, through Access Commander, use the identity provider's users and roles, PIN included;
+  - a flat's devices are always exposed in one bridge, to the flat's own network;
+  - from any Matter fabric, a user enters a PIN to identify themselves before a lock operates.
 
 Spec data from connectedhomeip `data_model/1.0/`–`1.6/` (S1); spec prose from matter.js's copy of the spec text, Matter 1.6.1 numbering §5.2.x (S2).
 
@@ -149,7 +156,9 @@ All [V-src S1] unless marked; quote [V S2].
 | Auto-relock | timer → `handleLockOperation({actuation: "lock", source: Auto})`; on failure `LockOperationError`, no retry |
 | Authorization | needs a fabric; enforces operating modes, wrong-code lockout, PIN lookup, user status, schedules, user types. Does **not** check `ActuatorEnabled` |
 | DPS | a `doorState` change emits `DoorStateChange` and counts open/closed events |
-| Credentials | stored non-volatile, AES-128-CCM; override `cipher` or `auth` (`LockAuth.Store`) for external storage |
+| Credentials | stored non-volatile, AES-128-CCM; override `cipher` or `auth` (`LockAuth.Store`) for external storage. Reversible on purpose: the legacy commands "must return plaintext credential data" |
+| PIN check | private `#identifyPin`: for each stored PIN credential, `auth.decrypt(data)` equals the given PIN → its user; a PIN no user holds counts as wrong. Synchronous. So the store must hold every PIN in a recoverable form; a hash-only store or an async call to an identity provider does not fit this path. The other path: override `unlockDoor`/`lockDoor` (async) and redo authorization and lockout [I] |
+| `setUser`, `setCredential`, `clearUser`, `clearCredential` | ordinary command handlers; `setCredential` answers `Duplicate` for a PIN already stored. An override can refuse them [I] |
 | Examples | none for a bridged lock [GAP]; tests override `handleLockOperation` |
 
 All [V-src S3] unless marked.
@@ -158,7 +167,7 @@ All [V-src S3] unless marked.
 
 | Controller | Door Lock | Unlatch / `UBOLT` | PIN for remote unlock | Bridged |
 |---|---|---|---|---|
-| Apple Home | yes [V S5] | no unlatch control: "Apple Home has no Unlatch button for Matter locks, it only knows lock and unlock" (HAMH maintainer) [V S8]; Nuki: "Apple Home has no option to unlatch" [V S9]. Command sent to a `UBOLT` lock: [GAP] | may prompt once "Set Up an Access Code" [V S8]. Face ID / confirmation for unlock and unlocking automations: [GAP] | users report bridged locks working [V S8]; no Apple rule against it found [GAP] |
+| Apple Home | yes [V S5]. After commissioning it "may show a one-time access code prompt"; that code is then used for the bridge's PIN check, and Apple "has the best PIN code support" [V S8]. Whether Apple sends that stored code itself or asks the person each time: [GAP] | no unlatch control: "Apple Home has no Unlatch button for Matter locks, it only knows lock and unlock" (HAMH maintainer) [V S8]; Nuki: "Apple Home has no option to unlatch" [V S9]. Command sent to a `UBOLT` lock: [GAP] | may prompt once "Set Up an Access Code" [V S8]. Face ID / confirmation for unlock and unlocking automations: [GAP] | users report bridged locks working [V S8]; no Apple rule against it found [GAP] |
 | Google Home | yes [V S6] | has "open door when unlocking"; sends both `unboltDoor` and `unlockDoor` (HAMH logs) [V S8] | "remote unlock is disabled on all surfaces for Matter door locks in the Google ecosystem that don't mandate a PIN code … Likewise, voice unlock for door locks is disabled." [V S6] → needs `PIN` + `COTA` + `USR`, `RequirePINforRemoteOperation = true` [I] | "All devices behind a Matter bridge appear as normal" [V S6] |
 | Home Assistant | yes | with `UBOLT`: HA `unlock` → `UnboltDoor`, HA `open` → `UnlockDoor`; without: `unlock` → `UnlockDoor`. `Unlatched` → `is_open` [V-src S7] | `code_format` only if `RequirePINforRemoteOperation`; timed request 10 s [V-src S7] | as any node |
 | Amazon Alexa | yes [V S10] | unsupported (HAMH table) [V S8] | partial (HAMH table) [V S8] | [GAP] |
@@ -302,7 +311,11 @@ Push alternatives:
 - PIN uniqueness: [GAP]. Whether `dir/get`/`query` return `access.pin` in clear, masked or not at all: [GAP] — decides whether evok-node could check a Matter PIN against 2N users.
 - No API call validates a PIN without opening: `grantaccess` takes a uuid, not a credential [V S19 §5.17.3] [I].
 
-**2N Access Commander** — central server, REST API at `https://<ac>/api/v3/`, cookie login, no extra licence [V S29]. Adding a device imports its users; with an access rule defined first, "users are deleted from the device" [V S29]. Once it manages a device, it treats the directory as its own [I]; overwrite rules: [GAP].
+**2N Access Commander** — central server, REST API at `https://<ac>/api/v3/`, cookie login or "Authentication: Bearer $access_key", no extra licence [V S29, S33]. API 3.1 has access rules (`/api/v3/AccessRules`, `bulk` per group × role) and logs (`/api/v3/CamLogs`); user and PIN endpoints: not checked [V S33] [GAP].
+
+LDAP sync into Access Commander: one-way, scheduled or on demand; user name, ID, card, **PIN**, e-mail, phone, licence plate, plus custom schema mappings; group *membership* only — groups must already exist in Access Commander, names case-sensitive; option to disable users disabled in AD [V S34, S35]. 2N's FAQ example keeps the PIN in an ordinary LDAP attribute (`facsimileTelephoneNumber`) [V S35].
+
+authentik's LDAP provider exposes users with `memberOf`, and "Any custom attributes you set are also returned as LDAP attributes" [V S36] — a path authentik → LDAP → Access Commander → 2N, PIN as a custom attribute [I]. The PIN is then readable by any LDAP account allowed to read that attribute [I]. Adding a device imports its users; with an access rule defined first, "users are deleted from the device" [V S29]. Once it manages a device, it treats the directory as its own [I]; overwrite rules: [GAP].
 
 ### 4.8. Integrations and pitfalls
 
@@ -328,11 +341,17 @@ Push alternatives:
 - **P3 — template `lock-from-relay`.** Roles: `release` (`unipi.ro`/`unipi.do`), `door` (DI, required). Settings: `pulseMs` (relay on), `releaseMs` (the lock's own release time), `inverted` (fail-safe strike, maglock). `lock` while `unlocked`: switches the relay off; the lock's own release cycle cannot be cut short, so the reply is success and `state` follows P2a [I]. `hold` mode (permanently unlocked) not needed now.
 - **P4 — 2N as a source.** A network driver for 2N (its own endpoints: switches, door, tamper, auth events over `log/pull`), and a home template mapping one switch to a `DoorLock` — keeps the one-owner rule (12a, 01 §2). `unlock` → `switch/ctrl action=trigger` (or `grantaccess` for a named user); lock → `off`; 2N `lock`/`unlock` (lock-out) → a separate setting or `OperatingMode NoRemoteLockUnlock` [I]; `SwitchesBlocked`/tamper → `DoorLockAlarm` candidates.
 - **P5 — event link.** Long-poll `log/pull` with `timeout` ≈ 30 s; on failure re-subscribe with `include=-<s since last seen>`, dedupe on (`utcTime`, `id`, `event`), then re-read `switch/status` (§4.5). `door` from the 2N's `DoorStateChanged` when the contact is on the 2N input, else from a `unipi.di` [I]. One API account, Digest over HTTPS, minimal privileges; `System Control` only once users are synced.
-- **P6 — PIN and Google.** Without `PIN` + `COTA` + `USR`, Google Home will not unlock remotely; Apple and HA will (§2). Start without PIN, or with PINs checked by evok-node (matter.js stores them, §1.10) — a 2N cannot check a PIN for us (§4.7). Decision for 13a.
+- **P6 — PIN and Google.** *(See P11–P15 for Tomas's identity input.)* Without `PIN` + `COTA` + `USR`, Google Home will not unlock remotely; Apple and HA will (§2). Start without PIN, or with PINs checked by evok-node (matter.js stores them, §1.10) — a 2N cannot check a PIN for us (§4.7). Decision for 13a.
 - **P7 — user cooperation with 2N (13a).** (a) evok-node owns users and pushes them with `dir/create`, `owner: "evok-node"`, cleanup by `dir/delete {owner}`; (b) 2N / Access Commander owns them, evok-node mirrors with `dir/query` and maps 2N users to Matter `UserIndex` for `LockOperation`; (c) disjoint — 2N authenticates its own users, evok-node only reports `UserAuthenticated` names. (a) conflicts with Access Commander (§4.7).
 - **P8 — who opened.** `LockOperation.OperationSource`: 2N keypad → `Keypad`, card → `RFID`, finger → `Biometric`, exit button → `Button`, evok-node rule → `Auto`, Matter → `Remote`. `UserIndex` only with `USR` [I].
 - **P9 — failure state.** Fail-secure on `unipi.ro`: watchdog default off = locked. Fail-safe / maglock (inverted): watchdog default off = **open**; the section's saved default must be on, or the template refuses an inverted role without it [I] (research/02 §4.8).
 - **P10 — open vs close** as in 07 §5.2: `unlock` needs the higher assurance level, `lock` the lower one; rules that unlock need explicit consent (13a).
+- **P11 — Matter user DB is a mirror.** Per bridge (per flat), evok-node fills the Door Lock user DB from the identity provider: one Matter user per person whose roles grant this lock, one PIN credential each; `SetUser`, `SetCredential`, `ClearUser`, `ClearCredential` from any fabric answer `Failure` (or `UnsupportedAccess` [GAP]). How Apple's access-code prompt (§2) reacts to a refused `SetCredential`: [GAP].
+- **P12 — PIN check path.** Either (a) a `LockAuth.Store` override holding the flat's PINs from the identity provider in recoverable form (§1.10); or (b) override `unlockDoor`/`lockDoor`, ask 13a to verify the PIN (async, hash-only possible), and redo lockout and events. (b) keeps PINs out of evok-node's Matter storage [I].
+- **P13 — the PIN must identify one person.** PINs unique per lock (Matter `Duplicate`, §1.10); the identity provider enforces uniqueness over everyone who can reach the same lock, e.g. a shared entrance in several flats' bridges [I]. A PIN that identifies a user without a role for this lock → `Failure` + `LockOperationError(InvalidCredential)`.
+- **P14 — Apple may not identify a person.** If Apple keeps the one-time access code and sends it itself (§2, GAP), every Apple user of that home unlocks as the same PIN owner. Requirement "user enters PIN to identify themselves" then holds for Google and HA, not for Apple [I]. To verify on a device.
+- **P15 — bridge per flat.** "A flat's devices in one bridge" means one Matter node per flat; 16a says "One bridge, always" — to resolve in 16a. A shared lock (entrance) is then in several bridges, each with its own user DB and its own wrong-code lockout (`WrongCodeEntryLimit` is per lock, not per user) [I].
+- **P16 — 2N users from the identity provider.** P7 (b) via LDAP: authentik LDAP provider → Access Commander LDAP sync (roles → AC groups by name, PIN as a custom attribute) → 2N. evok-node never writes the 2N directory; it maps 2N `UserAuthenticated.uuid` back to the identity-provider user for events [I]. ID mapping across the chain: [GAP].
 
 ## 7. Sources
 
@@ -368,3 +387,7 @@ Push alternatives:
 - S30 — Home Assistant core `generated/integrations.json` (dev): https://github.com/home-assistant/core/blob/dev/homeassistant/generated/integrations.json
 - S31 — Home Assistant community, "2n / Helios Integration": https://community.home-assistant.io/t/2n-helios-integration/823428
 - S32 — provu, 2N IP Verso 2.0: https://www.provu.co.uk/2n-ip-verso-2.0.html
+- S33 — 2N Access Commander, HTTP API for version 3.1: https://wiki.2n.com/acc/latest/en/http-api-pro-verzi-3-1
+- S34 — 2N Access Commander 2.7 manual, §4.1.1 LDAP: https://wiki.2n.com/acc/2.7/en/4-sprava-systemu/4-1-spolecnosti/4-1-1-ldap
+- S35 — 2N FAQ, "LDAP - Users synchronisation from a remote directory": https://www.2n.com/nl-NL/faqs/ldap-users-synchronisation-from-a-remote-directory-kA0Rn000000u5D8KAI
+- S36 — authentik docs, LDAP provider: https://docs.goauthentik.io/add-secure-apps/providers/ldap/

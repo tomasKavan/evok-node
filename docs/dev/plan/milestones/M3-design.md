@@ -14,6 +14,7 @@ Target numbering in `design/evok-node/` once M3 is done.
 | 12b | Home rules | 12b |
 | 12c | Home main devices | new |
 | 12d | Almanac driver | new |
+| 12e | 2N access driver | new |
 | 13 | APIs — common to all, API plugins | 13 + 18 |
 | 13a | Auth & ACL framework | new |
 | 13b | Shell app (mobile/desktop) | new |
@@ -44,14 +45,21 @@ device moves to its target. Matter research per type in `research/matter/`.
 Types: `GenericSwitch`, `OnOffLight`, `DimmableLight`, `ColorTemperatureLight`,
 `ExtendedColorLight`, `OnOffPlugInUnit`, `TimerRelay`, `WindowCovering`, `Closure`, `DoorLock`, `WaterValve`, `IrrigationSystem`, `ContactSensor`,
 `WaterLeakDetector`, `TemperatureSensor`, `HumiditySensor`, `AirQualitySensor`,
-`OccupancySensor`, `LightSensor`, `RoomAirConditioner`.
-Decided in their step: `Thermostat` (vs temperature sensor + valve), `Fan` (fit for heat
-recovery units), `Pump`. A type with no built-in source driver (AC): an extension-driver
-device or a new driver.
+`OccupancySensor`, `LightSensor`, `RoomAirConditioner`, `Thermostat`.
+`RoomAirConditioner` and `Thermostat` in one step: one thermostat per room over a heater
+(thermal `WaterValve`) and an AC unit; AC specialities as extra devices or clusters; a
+preference policy — AC or heater, and when. A type with no built-in source driver (AC): an
+extension-driver device or a new driver.
+Decided in their step: `Fan` (fit for heat recovery units), `Pump`.
 One file per type group under `12c-Home-main-devices/`; 12c itself becomes their index as the last step.
 **Done when:** 12c covers every listed type; 12a §2.2, 16a's mapping table and 12b agree
 with it; `research/matter/` holds a note per type with a Matter counterpart.
 **Refs:** 12a §2–§4a · 12b §2 · 16a · research/matter
+
+### M3.3a — Home: rainwater tank   `area/home`
+`RainwaterTank`: a custom home device, no Matter counterpart. Controls the water tanks and answers the irrigation system's demand for water (its `pump` role, 12c-08 §3.3). Has water-level sensors and valves; the pump is part of it and not controllable from outside. Open: its inner parts — home devices only the tank controls, or raw endpoints (device kinds).
+**Done when:** 12c has its file; 12c-08 §3.3 has no Open; 12a §2.2 and 16a agree with it.
+**Refs:** 12c-08 · 12a §2.1, §3 · research/matter/09
 
 ### M3.4 — Almanac driver   `area/almanac`
 Calendar, weather forecast, sun position. Data sources, offline behaviour. Respective home devices. A wind DeviceType — gusts in m/s with the time they apply to — for `WindowCovering`'s `wind` role (12c-06 §3.4).
@@ -64,9 +72,14 @@ What every API must do, whatever it speaks. API as plugin, the same mechanism as
 **Refs:** 13 · 18 · 01 §9 · 02 §4–§5 · 03
 
 ### M3.6 — Auth & ACL framework   `area/auth`
-A library APIs use, not an API. Upstream identity provider (authentik). Users, roles, keys, devices, client credentials (PLC to PLC). Authentication: SSO, password, PIN, biometrics; local vs full. Assurance levels and how an API reacts (PIN for a lock). Local DB as a new driver kind. Example flows, including mobile apps and biometrics.
+A library APIs use, not an API. Upstream identity provider (authentik). Users, roles, keys, devices, client credentials (PLC to PLC). Authentication: SSO, password, PIN, biometrics; local vs full. Assurance levels and how an API reacts (PIN for a lock): a method marked as needing proof, and the call's principal reaching a template (12c-09 §1.2). The same proof for an access closure's `open` (`garageDoor`, `gate`, `door`; `close` free), and whether a virtual `DoorLock` gates it (12c-07 §6). Then Matter exposure of `DoorLock` and access closures (12c-09 §4, 12c-07 §4). Local DB as a new driver kind. Example flows, including mobile apps and biometrics.
 **Done when:** 13a designed; research doc for the identity provider exists.
-**Refs:** 13 · 15 · 06 §5a · 12a §4b
+**Refs:** 13 · 15 · 06 §5a · 12a §4b · 12c-07 §6 · 12c-09 §1.2
+
+### M3.6a — 2N access driver   `area/2n`
+A driver for 2N Access Unit 2.0 / IP Verso 2.0 over the HTTP API: switches, door state, I/O, events over `log/subscribe`/`log/pull`, `grantaccess` for a user. API account and secrets via 13a. Map from the identity provider's users to 2N users; the 2N's users come from the identity provider through Access Commander — the driver never writes the 2N directory. DeviceTypes for `lock-from-2n`'s roles.
+**Done when:** 12e designed; 12c-09 §3.2 has no Open.
+**Refs:** research/matter/08 §4 · 12c-09 §3.2 · 13a · 05a
 
 ### M3.7 — Shell app (mobile/desktop)   `area/shell-app`
 What it is and how it's used. Multi-user, multi-PLC, multi-app: what an app (inspector, Home UI) must provide to load in the shell. Platforms, framework. Authorization via 13a, biometrics. Push notifications, Matter BLE pairing.
