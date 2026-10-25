@@ -48,12 +48,83 @@ Features: `TS` TimeSync (only with the Time Synchronization cluster) and `LVL` L
 
 ### 1.3. Irrigation System `0x0040`
 
-Since **1.5** [V-src S1]. "An irrigation system is always defined via endpoint composition … Each zone is represented by a disambiguated Water Valve endpoint"; at least one Water Valve; several ⇒ semantic tags in the Descriptor `TagList` per zone [V S2].
+Since **1.5**, revision 1; unchanged up to 1.7 [V-src S1]. "Also commonly referred to as 'Sprinkler Controllers' … A physical irrigation system typically has a set of electrical terminals to which in-ground water valves are connected" [V S2, spec §5.7].
 
-- **Master valve:** "the physical system is responsible for opening it first when receiving a command to open a downstream watering valve … closing the master valve when the last open watering valve is closed … it is not represented as a Water Valve endpoint." [V S2]
-- Optional Operational State: Running while any valve is open, Stopped when all are closed; Pause/Resume, with `CountdownTime` for the remaining open duration of the open valve [V S2].
-- Optional Flow Measurement: total flow of the system, not of one valve [V S2].
-- Identify, Operational State and Flow Measurement are all optional [V-src S1].
+#### 1.3.1. Composition
+
+- "Always defined via endpoint composition … Each zone is represented by a disambiguated Water Valve endpoint." At least one Water Valve endpoint; "Any instance of the Valve Configuration and Control Cluster on an endpoint is scoped to the valve on that endpoint and not the whole node." [V S2]
+- The data model classes it `simple`, like Refrigerator and Laundry Washer — other appliances built from child endpoints [V-src S1]. The XML holds no composition element; the rule above is spec prose only [V-src S1].
+- Clusters on the Irrigation System endpoint: Identify ("identify the entire irrigation system device"), Operational State, Flow Measurement server and client — **all optional** [V-src S1, V S2]. So the parent may carry no cluster beyond Descriptor [I].
+
+Example layout of a 3-zone controller [I — from the rules above]:
+
+```
+EP0  Root Node
+EP1  Irrigation System 0x0040    Identify?, Operational State?, Flow Measurement?
+ ├─ EP2  Water Valve 0x0042      Valve Configuration and Control   TagList: Location.Zone, Number.One
+ ├─ EP3  Water Valve 0x0042      …                                  TagList: Location.Zone, Number.Two
+ └─ EP4  Water Valve 0x0042      …                                  TagList: Location.Zone, Number.Three
+master valve, pump:  no endpoint
+```
+
+#### 1.3.2. Zone tags
+
+- With more than one zone, each Water Valve "shall include semantic tags from the common namespaces in the TagList attribute of the Descriptor cluster" [V S2].
+- `TagList` is a fixed-quality list of `SemanticTagStruct {MfgCode, NamespaceID, Tag, Label}`; `Label` is a nullable string [V-src S1]. Fixed ⇒ the tags name the terminal, not the user's lawn [I]. A user's zone name goes to a label cluster or, on a bridge, to the bridged device's name (16a) [I].
+- Common namespaces that fit [V-src S1, `namespaces/`]: Common Location `0x0006` tag `Zone` `0x0004` — "Element is a part of a location divided into zones (e.g. a yard irrigation zone)"; Common Number `0x0007` (`One`, `Two`, …); Common Area `0x0010` (`FrontYard`, `BackYard`, `Garden`, …).
+- Which combination controllers expect: [GAP] — the spec text in S2 gives none.
+
+#### 1.3.3. Master valve and pump
+
+"When a master valve is present, the physical system is responsible for opening it first when receiving a command to open a downstream watering valve … closing the master valve when the last open watering valve is closed. Since the master valve is orchestrated by the device, it is not represented as a Water Valve endpoint." [V S2]
+
+- A pump is not mentioned [V S2]. Device Energy Management has `IrrigationWaterPump` in its `ESATypeEnum` [V-src S1]; Pump `0x0303` is its own device type, not shown by Apple (README §2) [V].
+- Delays between master and zone (OpenSprinkler, ESPHome, §4.2) are not in the spec — the device's own business [I].
+
+#### 1.3.4. Operational State on the system
+
+When present [V S2]: "Running" while "at least one of the composed water valves is open for any reason", "Stopped" when all are closed. Pause, Resume and "Paused" are optional — "if it supports temporarily pausing a water valve that is currently open for a known duration. In this case, it SHOULD report the CountdownTime attribute to denote the remaining open duration of a currently open valve."
+
+Operational State `0x0060` itself [V-src S1, V S2]:
+
+| Element | Facts |
+|---|---|
+| `OperationalState` | `Stopped` 0, `Running` 1, `Paused` 2, `Error` 3; `OperationalStateList` = the states matching the supported commands, plus Error |
+| `OperationalError` | `{ErrorStateID, ErrorStateLabel?, ErrorStateDetails?}`; `NoError`, `UnableToStartOrResume`, `UnableToCompleteOperation`, `CommandInvalidInState` |
+| `PhaseList`, `CurrentPhase` | mandatory but nullable: "A value of null indicates that the device does not present phases" |
+| `CountdownTime` | optional, `elapsed-s`, ≤ 259200 (72 h); 0 = done, null = no time defined. Not reported on a plain countdown (05 §1.1) |
+| `Pause` ⇔ `Resume`, `Start` ⇔ `Stop` | each pair both-or-none. `Resume` returns to "the point it was at when it received the Pause command"; `Start` "if it is safe to do so" |
+| events | `OperationalError` (mandatory, critical); `OperationCompletion` (optional; `TotalOperationalTime`, `PausedTime`) |
+
+- Start/Stop on the system are not described for irrigation; S2's text names only Running/Stopped and Pause/Resume [V S2]. What `Start` would run (a program?) and whether `Stop` closes every zone: [GAP] [I: Stop = all valves closed is the natural reading].
+- `CountdownTime` is "of a currently open valve" — one valve. With two zones open, which one counts: [GAP].
+- Paused vs the zone: whether a paused zone reports `Closed` with `RemainingDuration` kept, or stays `Open`: [GAP].
+
+#### 1.3.5. Flow
+
+- System Flow Measurement server: "shall report the total flow through the irrigation system and not any individual valve" [V S2].
+- System Flow Measurement client: "used via binding to measure flow from external flow sensors" [V S2]; a zone's client: "to close a control loop of flow through the valve" (§1.1) [V S2].
+- Flow Measurement `MeasuredValue` unit: [GAP] here — not read.
+
+#### 1.3.6. What the spec does not say
+
+All [GAP] in S1/S2:
+
+- Schedules, programs, run times, rain delay, seasonal adjust — there are no attributes or commands for them. A controller (or the device's own app) schedules zones [I].
+- Whether several zones may be open at once, or the device may refuse. A refusal fits `Open` → `FailureDueToFault`, and the valve fault bit `CurrentExceeded` ("The available current has been exceeded") fits a transformer limit (§4.1) [I].
+- Rain or soil input. Rain Sensor `0x0044` and Soil Sensor (1.5: Identify, Soil Measurement `0x0430` mandatory with `SoilMoistureMeasuredValue` in %, Temperature Measurement optional) are separate device types [V-src S1]; no link to the Irrigation System is defined [I].
+
+#### 1.3.7. Support
+
+| Controller | Irrigation System |
+|---|---|
+| Apple Home | not in darwin.md's list [V S6]; zones are Water Valves, which Apple refuses (§2) [V]. Apple DTS: HAP's "'Irrigation System' definitions are different enough that they can't be directly mapped" [V S6] |
+| Google Home | not in either list [V S9, S10]. The Home APIs list a Google-specific "Sprinkler" (`home.matter.6006.types.0141`, Timer and Operational State traits) [V S10] |
+| Home Assistant | not mapped [V-src S5]. Discovery is per endpoint, so each zone still becomes a `valve` entity [I] |
+| SmartThings | mapped: profile `irrigation-system` (`valve`, optional `level`, `flowMeasurement`, `operationalState`; category `Irrigation`); one child device per Water Valve endpoint; flow and operational state taken from the Irrigation System endpoint [V-src S11]. Commands go to the endpoint of the component [V-src S11] |
+| matterbridge-zigbee2mqtt | "Controllers still handle this poorly" [V S15] |
+
+Products declaring `0x0040`: none found — [GAP]. matter-survey's page for type 64 could not be fetched. The Grimsholm valve (§3) is a single Water Valve, not an Irrigation System [V S13].
 
 ### 1.4. Water Leak Detector `0x0043` and its siblings
 
@@ -96,7 +167,7 @@ Home Assistant's own `valve` entity: states opening/open/closing/closed; feature
 
 | Product | Declared as | Facts |
 |---|---|---|
-| Grimsholm Smart Irrigation Valve | Water Valve | Thread, battery. EP1 Water Valve with **`TS` on, `LVL` off**, all duration attributes, `ValveFault`; EP2 Flow Sensor; EP3 Water Freeze Detector; EP4 Water Leak Detector without Boolean State Configuration [V S13]. Endpoints 5–16: [GAP] |
+| Grimsholm Smart Irrigation Valve (fw 1.5.0) | Water Valve | Thread, battery. 5 endpoints: EP0 root; EP1 Water Valve with **`TS` on, `LVL` off**, all duration attributes, `ValveFault`, Binding; EP2 Flow Sensor; EP3 Water Freeze Detector; EP4 Water Leak Detector without Boolean State Configuration. No Irrigation System endpoint, no Operational State, `TagList` off [V S13] |
 | matter-survey.org | — | 3 products implement `0x0042`, 6 `0x0043`, 1 `0x0041`, 0 `0x0044` [V S14] |
 | matterbridge-zigbee2mqtt | Water Valve (opt-in `valveList`) | open/close → ON/OFF, `CurrentLevel` 0 or 100; before, valves "appeared as on/off light switches (or not at all)"; on Irrigation System: "Controllers still handle this poorly" [V S15] |
 | Aqara Valve Controller T1, Tuya-style Wi-Fi valves | — | "Matter-compatible" through a hub or sold as Apple Home compatible [V S16]; the declared type: [GAP] |
@@ -225,7 +296,7 @@ All [V] from the source named in the column. Loxone's room controller: [GAP] —
 - **P4 — `maxOpenS`.** A cap on every opening, timed or not, for irrigation and tank filling (Jandy, OpenSprinkler, §4.2, §4.4). Reaching it closes the valve and sets `GeneralFault` [I].
 - **P5 — level for heating.** Either the valve gets `LVL` (`level` 0–100 → software duty cycle, `periodS` 600, min on/off time) and `Thermostat` drives the level; or the valve stays on/off and `Thermostat` owns the duty cycle. Matter has no other place for a valve's opening (§1.5). Relay wear (§4.3) favours a DO (24 V DC actuators) or an SSR over a relay; the template could warn when bound to `unipi.ro` [I].
 - **P6 — exercise.** Setting `exerciseEveryDays` + `exerciseS` (MDT 6 d / 5 min, Möhlenhoff 14 d / 10 min). Skipped while open; for heating valves and the 3-way valve.
-- **P7 — irrigation.** Zones are `WaterValve`s; one zone at a time, master valve / pump with on/off delays, `valve_open_delay` or overlap, multiplier, rain delay (§4.2) — a 12b rule or a bundle (12a §3a) whose members are the zones. 16a could compose the bundle as Irrigation System `0x0040` (§1.3) with the master valve hidden — HA ignores it, SmartThings maps it (§2). Rain / freeze skip: almanac (12d), or a Rain Sensor `0x0044` on a DI.
+- **P7 — irrigation.** Zones are `WaterValve`s; one zone at a time, master valve / pump with on/off delays, `valve_open_delay` or overlap, multiplier, rain delay (§4.2) — a 12b rule or a bundle (12a §3a) whose members are the zones. 16a could compose the bundle as Irrigation System `0x0040` (§1.3): parent = the bundle, children = the zones with `Location.Zone` + `Number.N` tags, the master valve and pump as hidden members the bundle switches (§1.3.3); Operational State only Running/Stopped, derived from the zones; Pause/Resume and `CountdownTime` only if the bundle can pause a zone (§1.3.4). HA ignores the parent, SmartThings maps it (§1.3.7). Rain / freeze skip: almanac (12d), or a Rain Sensor `0x0044` on a DI.
 - **P8 — Apple.** Apple Home never shows a Water Valve (§2). A per-device projection setting: `WaterValve` as Water Valve (default) or as On/Off Plug-in Unit (Apple's workaround; loses duration and state).
 - **P9 — tank filling and the 3-way valve are rules, not types.** Fill: a `WaterValve`, a level input (`ContactSensor` on a float switch or a Finder 72 output), open below low / close at high, a fill-time lockout (Jandy). The 3-way valve on one relay is a `WaterValve` whose "open" is the bypass position [I]; Matter has no diverter type (§1.5).
 - **P10 — faults.** A relay output reports nothing back; `ValveFault` stays 0 except P4's timeout [I]. A stale output source ⇒ not `reachable` (12a §4.2).

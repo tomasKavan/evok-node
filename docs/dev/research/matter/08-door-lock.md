@@ -6,6 +6,8 @@ Input from Tomas (2026-10-25):
 
 - Two lock kinds from the start: (a) opened by a relay output, in two variants — **unlock** and **latch release**; (b) opened through the HTTP API of a **2N Access Unit 2.0 / IP Verso 2.0**.
 - User management is deferred, but how evok-node will cooperate with the 2N access API on users must be known now.
+- Tomas's locks behave the same in both relay variants: a pulse releases the lock for a time set in the lock; the handle then opens it; closing the door locks it. Two states — `locked` / `unlocked` — are enough.
+- Every door has a door contact on a DI.
 
 Spec data from connectedhomeip `data_model/1.0/`–`1.6/` (S1); spec prose from matter.js's copy of the spec text, Matter 1.6.1 numbering §5.2.x (S2).
 
@@ -320,16 +322,17 @@ Push alternatives:
 
 ## 6. Proposals for 12c (not binding)
 
-- **P1 — fields.** `state` adds `unlatched` (Matter `Unlatched`, HA `open`). Methods `lock`, `unlock`, `unlatch`; a device declares which it has in a `features` reading, like the switch (12c-03). Optional `door` reading `open`/`closed`/`ajar`/`forcedOpen`/`unknown` (→ `DPS`).
-- **P2 — Matter projection.** Lock with both `unlock` and `unlatch` → `UBOLT`: `UnboltDoor` → `unlock`, `UnlockDoor` → `unlatch` (§1.5 naming trap). Lock with `unlatch` only (strike) → no `UBOLT`, `UnlockDoor` → `unlatch`, report `Unlocked` during the pulse, then `Locked` with source `Auto`, `AutoRelockTime` = pulse (§1.9 a) — the one Apple can use (§2). matter.js 0.18 must be extended to emit `Unlatched`/`Unlatch` (§1.10).
-- **P3 — template `lock-from-relay`.** Roles: `release` (`unipi.ro`/`unipi.do`), optional `door` (DI), optional `lockedFeedback` (DI). Settings: `mode` `pulse` (latch release) | `hold` (unlock), `pulseMs`, `inverted` (fail-safe strike, maglock), `autoRelockMs`. `lock` on a pulse lock ends the pulse.
-- **P4 — 2N as a source.** A network driver for 2N (its own endpoints: switches, door, tamper, auth events over `log/pull`), and a home template mapping one switch to a `DoorLock` — keeps the one-owner rule (12a, 01 §2). Unlatch → `switch/ctrl action=trigger` (or `grantaccess` for a named user); lock → `off`; 2N `lock`/`unlock` (lock-out) → a separate setting or `OperatingMode NoRemoteLockUnlock` [I]; `SwitchesBlocked`/tamper → `DoorLockAlarm` candidates.
-- **P5 — event link.** Long-poll `log/pull` with `timeout` ≈ 30 s; on failure re-subscribe with `include=-<s since last seen>`, dedupe on (`utcTime`, `id`, `event`), then re-read `switch/status` (§4.5). One API account, Digest over HTTPS, minimal privileges; `System Control` only once users are synced.
+- **P1 — fields, two states.** `state` `locked`/`unlocked`/`jammed`/`unknown` (as 12a today); methods `lock`, `unlock`; `door` reading `open`/`closed`/`unknown` from the door contact. No `unlatched`, no `unlatch`: Tomas's locks don't separate unbolt from unlatch (Input). A lock that does can add `unlatch` later as an optional field — 12a's "no stub fields" rule.
+- **P2 — Matter projection.** No `UBOLT` — "Locks without unbolting support … perform the same operation for both commands" (§1.5). `UnlockDoor` → `unlock`; `LockDoor` → `lock`; `DPS` from `door`, `DoorStateChange` on each change. `AutoRelockTime` = the release time. Fits Apple (lock / unlock only, §2); avoids the matter.js `Unlatched` gap (§1.10).
+- **P2a — `locked` means secured.** With a lock that locks on door close, the release time can end while the door is still open. So `state` = `unlocked` from the pulse until the release time has passed **and** `door` = `closed`; then `locked`, with `LockOperation(Lock, Auto)`. Opened with `state` = `locked` (no pulse, no 2N grant) → `DoorForcedOpen` (Matter `DoorState`, `DoorLockAlarm`) [I].
+- **P3 — template `lock-from-relay`.** Roles: `release` (`unipi.ro`/`unipi.do`), `door` (DI, required). Settings: `pulseMs` (relay on), `releaseMs` (the lock's own release time), `inverted` (fail-safe strike, maglock). `lock` while `unlocked`: switches the relay off; the lock's own release cycle cannot be cut short, so the reply is success and `state` follows P2a [I]. `hold` mode (permanently unlocked) not needed now.
+- **P4 — 2N as a source.** A network driver for 2N (its own endpoints: switches, door, tamper, auth events over `log/pull`), and a home template mapping one switch to a `DoorLock` — keeps the one-owner rule (12a, 01 §2). `unlock` → `switch/ctrl action=trigger` (or `grantaccess` for a named user); lock → `off`; 2N `lock`/`unlock` (lock-out) → a separate setting or `OperatingMode NoRemoteLockUnlock` [I]; `SwitchesBlocked`/tamper → `DoorLockAlarm` candidates.
+- **P5 — event link.** Long-poll `log/pull` with `timeout` ≈ 30 s; on failure re-subscribe with `include=-<s since last seen>`, dedupe on (`utcTime`, `id`, `event`), then re-read `switch/status` (§4.5). `door` from the 2N's `DoorStateChanged` when the contact is on the 2N input, else from a `unipi.di` [I]. One API account, Digest over HTTPS, minimal privileges; `System Control` only once users are synced.
 - **P6 — PIN and Google.** Without `PIN` + `COTA` + `USR`, Google Home will not unlock remotely; Apple and HA will (§2). Start without PIN, or with PINs checked by evok-node (matter.js stores them, §1.10) — a 2N cannot check a PIN for us (§4.7). Decision for 13a.
 - **P7 — user cooperation with 2N (13a).** (a) evok-node owns users and pushes them with `dir/create`, `owner: "evok-node"`, cleanup by `dir/delete {owner}`; (b) 2N / Access Commander owns them, evok-node mirrors with `dir/query` and maps 2N users to Matter `UserIndex` for `LockOperation`; (c) disjoint — 2N authenticates its own users, evok-node only reports `UserAuthenticated` names. (a) conflicts with Access Commander (§4.7).
 - **P8 — who opened.** `LockOperation.OperationSource`: 2N keypad → `Keypad`, card → `RFID`, finger → `Biometric`, exit button → `Button`, evok-node rule → `Auto`, Matter → `Remote`. `UserIndex` only with `USR` [I].
 - **P9 — failure state.** Fail-secure on `unipi.ro`: watchdog default off = locked. Fail-safe / maglock (inverted): watchdog default off = **open**; the section's saved default must be on, or the template refuses an inverted role without it [I] (research/02 §4.8).
-- **P10 — open vs close** as in 07 §5.2: `unlock`/`unlatch` need the higher assurance level, `lock` the lower one; rules that unlock need explicit consent (13a).
+- **P10 — open vs close** as in 07 §5.2: `unlock` needs the higher assurance level, `lock` the lower one; rules that unlock need explicit consent (13a).
 
 ## 7. Sources
 

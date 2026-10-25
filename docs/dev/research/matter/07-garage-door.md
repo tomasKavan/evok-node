@@ -9,6 +9,7 @@ Input from Tomas (2026-10-25):
 - Three `unipi.ro` give open, close and stop — each a short closing of a potential-free contact (NO pulse), stop included.
 - K03 could go to a third DI.
 - Later: security like `DoorLock` (13a, M3.6).
+- Gate idea: a virtual Door Lock next to the door. Open only while it is unlocked; close always; it relocks after a set time.
 
 Spec data from connectedhomeip `data_model/1.5/` and `1.7/` (S1); spec prose from matter.js's generated cluster docs, which cite Matter 1.6.1 (S2).
 
@@ -66,6 +67,69 @@ All codes [V-src S1, 1.5].
 ### 1.6. matter.js
 
 `ClosureControlServer` is a generated, empty subclass of the behaviour — no command logic, unlike `WindowCoveringServer` ([06 §1](06-window-covering.md)) [V-src S3]. The Closure device type is generated (`devices/closure.ts`) [V-src S3].
+
+### 1.7. Closure Panel and Closure Dimension
+
+| Device type | Mandatory | Disallowed |
+|---|---|---|
+| Closure `0x0230` | Descriptor (TagList), Identify, Closure Control | Window Covering, Closure Dimension |
+| Closure Panel `0x0231` | Closure Dimension `0x0105` | Window Covering, Closure Control |
+
+[V-src S1, 1.5 and 1.7]
+
+- A Closure stands alone, or has Closure Panels on child endpoints — one per moving part. Panels "operate in relation to the ClosureControl cluster at the top of the hierarchy"; a change through either cluster updates the other [V S3 §8.5]. "Additional device types not listed in this table may also be included in device compositions" [V S3 §8.5].
+- Closure Dimension features: `PS` 0.00–100.00 %, `LT`, `UT` unit (mm, degree), `LM` limited range, `SP`, `TR` translation, `RO` rotation, `MD` modulation (`SlatsOrientation`, `SlatsOpenwork`, `StripesAlignment`, `Opacity`, `Ventilation`) [V-src S1].
+- Attributes: `CurrentState`, `TargetState`, `Resolution`, `StepValue`, `Unit`, `UnitRange`, `LimitRange`, `TranslationDirection` (`Upward`, `Downward`, `Leftward`, …), `RotationAxis`, `Overflow`, `ModulationType`, `LatchControlModes`. Commands: `SetTarget(position, latch, speed)`, `Step(direction, numberOfSteps, speed)` [V-src S1].
+- A door known only by its end contacts has no % to report; a Closure without panels fits it [I].
+
+Example — a garage door on a bridge [I]:
+
+```
+Bridged node
+ └─ EP 3  Closure 0x0230   TagList [Closure.GarageDoor]   ClosureControl (PS)
+```
+
+### 1.8. Gating opening: latch or Door Lock
+
+Closure Control has no PIN or credential, in 1.5 or 1.7 (§1.4, §1.5) [V-src S1]. Two ways to make "open" depend on an unlock:
+
+**A — the closure's own latch (`LT`).**
+
+```
+MoveTo({ latch: false })               // unlatch
+MoveTo({ position: MoveToFullyOpen })  // open
+SecureState = FullyClosed && Latch      // §1.3
+```
+
+- `Latch` null = unknown, false = not or partly latched, true = fully latched [V S2 §5.4.6.5.2].
+- `LatchControlModes`: `RemoteLatching`, `RemoteUnlatching` — 0 means only by hand. A latch request that needs a hand ⇒ `INVALID_IN_STATE` [V S2 §5.4.6.7, §5.4.8.2.2].
+- One endpoint; no PIN, no relock timer in the cluster [V-src S1].
+
+**B — a Door Lock on a child endpoint.** Allowed by the composition rule (§1.7).
+
+```
+Bridged node
+ ├─ EP 3  Closure 0x0230 [GarageDoor]
+ └─ EP 4  Door Lock 0x000A  (virtual: PIN, COTA, USR; RequirePINforRemoteOperation = true)
+
+UnlockDoor(PIN) | UnlockWithTimeout(60, PIN)  →  MoveTo(MoveToFullyOpen) accepted
+MoveTo(MoveToFullyClosed)                     →  always accepted
+AutoRelockTime / Timeout elapsed              →  Locked
+```
+
+- What the Door Lock gives — PIN on remote commands, `AutoRelockTime`, `UnlockWithTimeout`, users: [08 §1.5–1.9](08-door-lock.md) [V]. The Door Lock device type disallows Groups — no group unlock [V-src S1].
+- Google Home disables remote unlock for Matter locks that don't require a PIN ([08 §2](08-door-lock.md)) [V].
+- Matter defines no link between the two endpoints. Only the bridge knows that the lock gates the closure [I].
+- A refused open: `MainState = Protected` ("Commands MAY be rejected", needs `PT`) or `INVALID_IN_STATE` — the spec names neither for this case [I].
+- Controllers show two devices; the user unlocks first, then opens. Whether any controller shows them as one: [GAP]. Closure support in Apple and Google: [GAP] (§2).
+
+| | A — latch | B — Door Lock child |
+|---|---|---|
+| Endpoints | 1 | 2 |
+| PIN, wrong-code limit | no | yes |
+| Relock after a time | ours, not in Matter | `AutoRelockTime`, `UnlockWithTimeout` |
+| `SecureState` covers the lock | yes | no — Closure sees only its position [I] |
+| Controller support | Closure only | Closure + Door Lock (Door Lock: Apple, Google, HA — 08 §2) |
 
 ## 2. Controllers
 
@@ -198,14 +262,14 @@ Open grants access; close removes it but can hurt someone [I].
 - **P4 — timeout.** No end reached within `travelMs` + margin ⇒ `fault` (ESPHome `max_duration`); K01 = K02 = 1 ⇒ `fault`.
 - **P5 — moves from elsewhere** update `state` from the relays; a command in flight is not assumed done until an end is reached [I].
 - **P6 — Matter projection.** Closure `0x0230`, tag `GarageDoor`, features `PS` (+ `PT` for lockouts; `VT` if a vent RO is added); `SecureState` = closed; `MainState` from `motion`; `PhysicallyBlocked` from `obstructed`. Window Covering fallback only behind a setting, given §2. Apple support: unknown (§2).
-- **P7 — access (to 13a).** Open needs the higher assurance level, close the lower one (§5.2); rules may close freely, opening by a rule needs explicit consent. Remote close warns first — the drive's own pre-warning (menus 32/33) covers every source, a light/buzzer role does not [I].
+- **P7 — access (to 13a).** Open needs the higher assurance level, close the lower one (§5.2); rules may close freely, opening by a rule needs explicit consent. Remote close warns first — the drive's own pre-warning (menus 32/33) covers every source, a light/buzzer role does not [I]. On Matter (§1.8): B — a virtual Door Lock child (PIN, `AutoRelockTime`) gates `MoveTo(open)`; close is never gated; the lock is checked when a command arrives, not during the move. A as an alternative without PIN. Moves from the drive's own inputs are never gated (§3.3).
 - **P8 — lockouts.** A `locked` setting/role blocks evok-node's commands (Loxone `Off`/`DisPc`); the drive's own inputs stay active (§3.3).
 
 ## 8. Sources
 
 - S1 — connectedhomeip `data_model/1.5/`, `1.7/` at commit `645b267` (2026-10-24): `clusters/ClosureControl.xml`, `DoorLock.xml`, `WindowCovering.xml`; `device_types/Closure.xml`; `namespaces/Namespace-Closure.xml`: https://github.com/project-chip/connectedhomeip/tree/master/data_model
 - S2 — matter.js `packages/types/src/clusters/closure-control.d.ts` (spec 1.6.1 prose), commit `aec864d` (2026-10-22): https://github.com/project-chip/matter.js/blob/main/packages/types/src/clusters/closure-control.d.ts
-- S3 — matter.js `packages/node/src/behaviors/closure-control/ClosureControlServer.ts`, same commit: https://github.com/project-chip/matter.js/tree/main/packages/node/src/behaviors/closure-control
+- S3 — matter.js `packages/node/src/behaviors/closure-control/ClosureControlServer.ts` and `packages/node/src/devices/closure.ts` (spec 1.6.1 device text), same commit: https://github.com/project-chip/matter.js/tree/main/packages/node/src
 - S4 — HAP-NodeJS `src/lib/definitions/` (`GarageDoorOpener`, `CurrentDoorState`, `TargetDoorState`), commit `f1d8ee7`: https://github.com/homebridge/HAP-NodeJS/tree/master/src/lib/definitions
 - S5 — MacRumors forum, "Opening a HomeKit garage door without authentication to Run scene" (Dec 2019): https://forums.macrumors.com/threads/opening-a-homekit-garage-door-without-authentication-to-run-scene.2214845/
 - S6 — Nabu Casa, Google Assistant secure devices: https://support.nabucasa.com/hc/en-us/articles/25619376817053
