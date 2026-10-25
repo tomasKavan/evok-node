@@ -17,7 +17,7 @@ This driver assembles home-automation devices and exposes each on its own tail (
 
 | Origin | Composed from | Example |
 |---|---|---|
-| `local` | other drivers' devices in the same daemon, by a template (§3) — or none, for a virtual device such as `TimerRelay` (12c-05) | a `unipi.ro` relay → `OnOffLight`, a `dali.gear` → `DimmableLight`, a `unipi.di` → `GenericSwitch` |
+| `local` | other drivers' devices in the same daemon, or this driver's own, by a template (§3) — or none, for a virtual device such as `TimerRelay` (12c-05) | a `unipi.ro` relay → `OnOffLight`, a `dali.gear` → `DimmableLight`, a `unipi.di` → `GenericSwitch` |
 | `matter` | an endpoint of a Matter node paired to this driver's own controller (§4a) | a Matter contact sensor → `ContactSensor` |
 | `remote` | an `exposed` device of another evok-node's home driver (§4b) | the garden PLC's `OnOffLight` |
 
@@ -102,6 +102,9 @@ No home `DeviceType` declares `'@'` — every field is named. The whole device i
 | `OnOffPlugInUnit` | On/Off Plug-in Unit | 12c-02 §2 |
 | `WindowCovering` | Window Covering | 12c-06 §2 |
 | `Closure` | Closure | 12c-07 §2 |
+| `WaterValve` | Water Valve | 12c-08 §2 |
+| `IrrigationSystem` | Irrigation System | 12c-08 §2 |
+| `WaterLeakDetector` | Water Leak Detector | 12c-08 §2 |
 | `DoorLock` | Door Lock | `state` reading `locked`/`unlocked`/`jammed`/`unknown` · `lock` method · `unlock` method |
 | `ContactSensor` | Contact Sensor | 12c-04 §2 |
 | `AirQualitySensor` | Air Quality Sensor | 12c-04 §2 |
@@ -112,7 +115,7 @@ No home `DeviceType` declares `'@'` — every field is named. The whole device i
 | `RoomAirConditioner` | Room Air Conditioner | `onOff` · `mode` channel `off`/`cool`/`heat`/`auto`/`fan`/`dry` · `setpoint` channel\<float32, °C\> · `temperature` reading · `fanMode` channel `auto`/`low`/`medium`/`high` |
 | `TimerRelay` | — (16a ignores it) | 12c-05 §2 |
 
-Every reading and channel above is `subscribe: true`. A source's own staleness never appears per field — it folds into `reachable` (§4.2). The types in full: lights in 12c-01 §2, plug-in units in 12c-02 §2, the switch in 12c-03 §2, the sensors in 12c-04 §2, the timer in 12c-05 §2, the cover in 12c-06 §2, the closure in 12c-07 §2; the rest follow the same shape.
+Every reading and channel above is `subscribe: true`. A source's own staleness never appears per field — it folds into `reachable` (§4.2). The types in full: lights in 12c-01 §2, plug-in units in 12c-02 §2, the switch in 12c-03 §2, the sensors in 12c-04 §2, the timer in 12c-05 §2, the cover in 12c-06 §2, the closure in 12c-07 §2, valves, irrigation and leaks in 12c-08 §2; the rest follow the same shape.
 
 A function a device type has no evok-node equivalent for yet is simply not a field — never a stub that answers nothing.
 
@@ -155,7 +158,7 @@ This driver registers two ref types (05a §3.10):
 | Ref type | Lists | `has` |
 |---|---|---|
 | `home.device` | this driver's devices whose kind is in `filter.kinds`; `label` is the device's `name`, `path` its place in the hierarchy (§6) | a record with that tail and kind |
-| `home.source` | devices of the drivers in `config.local` whose kind is in `filter.kinds`, from their introspection | its driver is in `config.local`, its tail is bound, and `matchesDeviceType` passes (05a §4a) |
+| `home.source` | devices of the drivers in `config.local` whose kind is in `filter.kinds`, from their introspection — and this driver's own devices when a `home.*` kind is in it (§3) | its driver is in `config.local` or is this driver, its tail is bound, and `matchesDeviceType` passes (05a §4a) |
 
 A ref type exists only where a generic form must pick an object that has no listing method of its own. The hierarchy has `listHierarchy` (§5), so it has none.
 
@@ -222,6 +225,8 @@ interface AssemblyTemplate<F extends Record<string, EndpointType | OptionalEndpo
 }
 ```
 
+A role's `types` may include home `DeviceType`s: its source is then another device of this driver, of any origin — an `IrrigationSystem`'s zones are `WaterValve`s (12c-08 §3.3). Nothing checks for cycles; a device that is its own source, directly or through others, is the admin's mistake.
+
 A role names a source by its `DeviceType` alone, never a driver kind: a kind already names its own family (`dali.gear`), and which driver serves it is the source's address (§4). `assemble()` returns handlers for the device type's own fields, plus `identify` when its `indicator` role has a source, and never for any other `CommonKey` — a template that does is a packaging mistake, rejected when the template is resolved.
 
 A role with `max` above 1 takes several sources that together make **one** physical device — a chandelier on two relays, one temperature averaged from three probes. Separate lights stay separate devices, tied together by a rule (12b). With several sources:
@@ -242,7 +247,7 @@ Handlers answer from memory, the way every driver does (01): `assemble()` subscr
 
 A `SET` forwarded to a source that can't take it — not up, not answering — throws `SourceUnreachable` (05a §3.5) and is answered `unreachable`. It is never queued and replayed later.
 
-Each built-in `DeviceType` (§2) ships with the templates its own built-in source drivers warrant — the light templates of 12c-01 §3, `switch-from-di` for `GenericSwitch` (12c-03 §3), the role-less `timer` for `TimerRelay` (12c-05 §3), `cover-from-relays` for `WindowCovering` (12c-06 §3) — and a template is itself a manifest-loaded, `kind`-resolved module (01 §10; `{ "kind": "home-template", "templateKind": "dimmable-from-dali", … }`), so a driver plugin for hardware this driver doesn't know about yet can ship its own template for an existing `DeviceType` without touching this package. It imports that `DeviceType` from `@evok-node/driver-home`; it never rebuilds one under the same kind (05a §3.5).
+Each built-in `DeviceType` (§2) ships with the templates its own built-in source drivers warrant — the light templates of 12c-01 §3, `switch-from-di` for `GenericSwitch` (12c-03 §3), the role-less `timer` for `TimerRelay` (12c-05 §3), `cover-from-relays` for `WindowCovering` (12c-06 §3), the valve, `irrigation` and `leak-from-di` templates (12c-08 §3) — and a template is itself a manifest-loaded, `kind`-resolved module (01 §10; `{ "kind": "home-template", "templateKind": "dimmable-from-dali", … }`), so a driver plugin for hardware this driver doesn't know about yet can ship its own template for an existing `DeviceType` without touching this package. It imports that `DeviceType` from `@evok-node/driver-home`; it never rebuilds one under the same kind (05a §3.5).
 
 ## 3a. Template bundles
 
@@ -527,7 +532,7 @@ Every method validates before anything is persisted or bound, and answers `domai
 
 - `unknown-device-type`, `unknown-template`, `unknown-device`, `unknown-node`, `unknown-remote`, `duplicate-remote`, `unknown-level`, `unknown-room`, `unknown-group`, `unknown-bundle-kind`, `unknown-bundle`.
 - `invalid-anchor` — `createBundle`'s anchor fails `home.source`'s `has`, or `resolve` answers `ok: false`; `detail` carries its `reason`.
-- `invalid-sources` — the form's `sources` fail its codec (a role missing or unknown, a count outside `min`–`max`), or a source fails `home.source`'s `has` (§2.4): its driver isn't in `config.local`, or its current introspection fails `matchesDeviceType` against every one of the role's `types` (05a §4a). A device is never created against a source nobody has seen; once created, a missing source only makes it unreachable (§4.2). For a bundle, `detail` names the failing member.
+- `invalid-sources` — the form's `sources` fail its codec (a role missing or unknown, a count outside `min`–`max`), or a source fails `home.source`'s `has` (§2.4): its driver is neither in `config.local` nor this driver, or its current introspection fails `matchesDeviceType` against every one of the role's `types` (05a §4a). A device is never created against a source nobody has seen; once created, a missing source only makes it unreachable (§4.2). For a bundle, `detail` names the failing member.
 - `invalid-settings` — `settings` fail the form's `settings`.
 - `read-only` — `updateDevice` on a `remote` device with anything but `overrides`; `overrides` on a non-`remote` one; `sources`/`settings` on a non-`local` one; `removeDevice` on a present `matter`/`remote` one; any change to an attached node (§6) or to what's in it.
 - `in-use` — removing a level, room or group something still references.
@@ -605,6 +610,6 @@ Tier 1, against fixture drivers (no hardware) that each expose a handful of `bin
 - Forms: `listTemplates` answers a `form` whose `sources` hold one ref array per role, kinds taken from `types`, and whose `settings` carry the template's defaults; `createDevice` without `settings` stores every default; a 0–1 role may be omitted.
 - Bundles: `createBundle` on a fixture `iaq-unipi` anchor creates one device per non-null member, each with `bundle` set, in one KV `batch`; a member failing its form creates nothing; an anchor the bundle refuses answers `invalid-anchor`; removing the last member removes the bundle; `removeBundle` with `keep` clears `bundle` on every member.
 - `battery`: bound on every device of a fixture Matter node whose root endpoint has a battery Power Source with an empty `EndpointList`; `percent` is `BatPercentRemaining / 2`; unbound on every `local` device.
-- `$refs`: `home.device` lists only devices of the filtered kinds, with `name` and hierarchy path; `home.source` lists only devices of `config.local` drivers.
+- `$refs`: `home.device` lists only devices of the filtered kinds, with `name` and hierarchy path; `home.source` lists only devices of `config.local` drivers, plus this driver's own for a `home.*` kind.
 - Several sources: a 1–4 role accepts 1–4 addresses and answers `invalid-sources` for 0 or 5; `reachable` is false while any source is down; a `SET` with one source unreachable answers `unreachable`, and the other source keeps the write.
 - `manage` is one bound device of kind `home.Manage`; each method answers at `home:manage.<method>` and takes one args struct.

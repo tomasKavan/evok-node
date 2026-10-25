@@ -18,6 +18,7 @@
 | [`12c-05-Timer-relay.md`](12c-Home-main-devices/12c-05-Timer-relay.md) | `TimerRelay` |
 | [`12c-06-Window-covering.md`](12c-Home-main-devices/12c-06-Window-covering.md) | `WindowCovering` |
 | [`12c-07-Closures.md`](12c-Home-main-devices/12c-07-Closures.md) | `Closure` |
+| [`12c-08-Water.md`](12c-Home-main-devices/12c-08-Water.md) | `WaterValve`, `IrrigationSystem`, `WaterLeakDetector` |
 
 **Job:** one section per home `DeviceType`: fields, built-in templates and Matter mapping, in full.
 12a holds what every type shares; this file holds what one type adds.
@@ -66,9 +67,10 @@ resolution vs Matter (0.01 °C, Percent100ths, log lux), the moving-device patte
 | `WindowCovering` | Window Covering | 0.01 % closed, as Matter; optional tilt; templates `cover-from-relays`, `cover-from-klf`; wind protection built in |
 | `Closure` | Closure | one type for windows, garage doors, gates (`kind` → Matter tags); template `closure-from-klf`, bundle `velux-klf` with `cover-from-klf`; garage-door template in its own step |
 | `DoorLock` | Door Lock | PIN and assurance level → 13a (M3.6) |
-| `WaterValve` | Water Valve | irrigation zones; Matter auto-close (`OpenDuration`); not supported by Apple Home |
+| `WaterValve` | Water Valve | Matter-shaped `open`/`close`, timed, `maxOpenS`, always closed after a restart; templates `valve-from-output`, `thermal-valve-from-output` (level as a duty cycle); not shown by Apple Home |
+| `IrrigationSystem` | Irrigation System | zones are `WaterValve`s, one at a time; master valve, pump; no schedules. Open: the tank device as the pump's source |
 | `ContactSensor` | Contact Sensor | one template, `contact-from-di` |
-| `WaterLeakDetector` | Water Leak Detector | |
+| `WaterLeakDetector` | Water Leak Detector | one template, `leak-from-di`; no latch |
 | `TemperatureSensor` | Temperature Sensor | `unipi.temp` (1-Wire, xG18, IAQ) or `unipi.ai` (Pt1000, linear) |
 | `HumiditySensor` | Humidity Sensor | `unipi.humidity` or `unipi.ai` |
 | `AirQualitySensor` | Air Quality Sensor | level derived from CO₂ / VOC index; optional `co2`, `pm25`, `vocIndex`, `temperature`, `humidity`; IAQ as a bundle (`iaq-unipi`) |
@@ -77,9 +79,7 @@ resolution vs Matter (0.01 °C, Percent100ths, log lux), the moving-device patte
 | `RoomAirConditioner` | Room Air Conditioner | one `setpoint` vs Matter's heat/cool setpoints; source: extension-driver device or a new Modbus driver; Apple Home support unverified |
 
 **Decided in their own section:** `Thermostat` — what it adds over `TemperatureSensor` +
-`WaterValve`; `Fan` — fit for heat recovery units; `Pump` — deferred, a relay pump is an
+`WaterValve`; it drives a thermal valve's `level` (12c-08 §3.2); `Fan` — fit for heat recovery units; `Pump` — deferred, a relay pump is an
 `OnOffPlugInUnit`.
-
-**Not a type:** irrigation — `WaterValve` zones + rules (12b) + almanac (12d).
 
 **Inputs:** 12a §2–§4a · 12b §2 · 16a · research/matter · source drivers' `DeviceType`s (08, 09, 10, 12)

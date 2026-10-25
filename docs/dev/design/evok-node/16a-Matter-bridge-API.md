@@ -53,6 +53,9 @@ A device with `battery` bound (12a §2.1) also carries Power Source with the bat
 | `WindowCovering` | Window Covering `0x0202` | WindowCovering |
 | `Closure` | Closure `0x0230`; Closure Panel `0x0231` child with a % (12c-07 §4) | ClosureControl; ClosureDimension on the panel |
 | `DoorLock` | Door Lock `0x000A` | DoorLock |
+| `WaterValve` | Water Valve `0x0042` | ValveConfigurationAndControl (12c-08 §4) |
+| `IrrigationSystem` | Irrigation System `0x0040`, parent of its zones (below) | OperationalState |
+| `WaterLeakDetector` | Water Leak Detector `0x0043` | BooleanState; BooleanStateConfiguration when `sensorFault` is bound |
 | `ContactSensor` | Contact Sensor `0x0015` | BooleanState |
 | `AirQualitySensor` | Air Quality Sensor `0x002C` | AirQuality; CarbonDioxideConcentrationMeasurement, Pm25ConcentrationMeasurement when bound (12c-04 §4) |
 | `TemperatureSensor` | Temperature Sensor `0x0302` | TemperatureMeasurement |
@@ -81,9 +84,11 @@ ep1  Aggregator
 |---|---|---|
 | `bundle.id` (12a §3a, §4.1) — `local` | the bundle's devices | the bundle's `name` |
 | `origin.nodeId` (12a §4.1) — `matter` | the node's devices | its devices' `product.name` (from Basic Information, 12a §4a) |
+| an `IrrigationSystem` (12c-08 §3.3) — any origin | its `zones`; never its master or pump | its own `name`. The parent carries the system's own device type and clusters, not only BridgedDeviceBasicInformation |
 | none — `remote`, or a device on its own | — | flat, one endpoint |
 
-- Only exposed members are children. A product with one exposed member is flat.
+- Only exposed members are children. A product with one exposed member is flat — except an `IrrigationSystem`, whose parent is a device itself and stays composed with one zone.
+- A zone that is also a bundle's member or in a second irrigation system: the admin's to avoid; the first irrigation system by tail order takes it.
 - The parent carries BridgedDeviceBasicInformation (`NodeLabel`, `reachable` = every child's
   `reachable`), and Power Source when a member has `battery` — a Matter node's battery is the same for
   every member (12a §2.1). Children carry their own device type, clusters, Descriptor, Identify and labels.
@@ -91,12 +96,12 @@ ep1  Aggregator
   `temperature` or `humidity` bound — a `matter` ALPSTUGA — gets them as child Temperature Sensor /
   Humidity Sensor endpoints under its parent, not as clusters on its own endpoint. Re-bridged this way,
   such a device's temperature reaches Apple Home where the device's own endpoint does not.
-- **Endpoint numbers stay.** The parent is keyed `bundle:<id>` or `node:<nodeId>`, children by their
+- **Endpoint numbers stay.** The parent is keyed `bundle:<id>`, `node:<nodeId>` or, for an irrigation system, its tail, children by their
   tail (and `:temperature`/`:humidity` for split-out readings), all in the tail → endpoint map. A member
   added or removed adds or removes a child; the parent keeps its number, so the controller keeps its room.
 - A product turning flat (one exposed member left), or flat turning composed, re-creates its endpoints:
   controllers re-read them, rooms may be lost. The admin's to avoid, like `exposed` itself.
-- SmartThings ignores child endpoints (research/matter/04 §6) — a known limit, not worked around.
+- SmartThings ignores child endpoints (research/matter/04 §6) — a known limit, not worked around. Irrigation zones are the exception: it maps each as a child device (research/matter/09 §1.3.7).
 
 **matter.js: behaviours, not servers, for device clusters.** Home owns how a device behaves —
 templates, `onFor`, fades, press gestures (12c). A matter.js `…Server` brings that logic again,
@@ -152,3 +157,5 @@ subscribe(switchTail, v => {                          // a switch: position, the
 - **Switch events** are emitted per `switch.lastEvent`, with the payload of 12c-03 §4; a gap in
   `seq` is not filled in. matter.js's own `SwitchServer` does the same `events.<name>.emit(…)`
   call (research/matter/03 §5).
+- **Boolean State `StateChange`** is emitted on every change of a `WaterLeakDetector`'s `leak` —
+  mandatory on that device type (12c-08 §4).

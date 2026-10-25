@@ -42,7 +42,7 @@ Deep dive per device type. Per type: intro (what it is for, what not), fields, t
 their workflow, Matter mapping (part of the mapping table), what a `SET` reports while the
 device moves to its target. Matter research per type in `research/matter/`.
 Types: `GenericSwitch`, `OnOffLight`, `DimmableLight`, `ColorTemperatureLight`,
-`ExtendedColorLight`, `OnOffPlugInUnit`, `TimerRelay`, `WindowCovering`, `Closure`, `DoorLock`, `WaterValve`, `ContactSensor`,
+`ExtendedColorLight`, `OnOffPlugInUnit`, `TimerRelay`, `WindowCovering`, `Closure`, `DoorLock`, `WaterValve`, `IrrigationSystem`, `ContactSensor`,
 `WaterLeakDetector`, `TemperatureSensor`, `HumiditySensor`, `AirQualitySensor`,
 `OccupancySensor`, `LightSensor`, `RoomAirConditioner`.
 Decided in their step: `Thermostat` (vs temperature sensor + valve), `Fan` (fit for heat
