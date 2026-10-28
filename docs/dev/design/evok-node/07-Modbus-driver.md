@@ -4,7 +4,7 @@
 
 The shared ancestor of the onboard and extension drivers (08, 09): everything Modbus, nothing Unipi-model-specific. Transport, framing, correlation, timing, batching and breakers live here; a hardware definition — what a register means, which model has which sections, how multi-register values group — never does. That split is what stops 08 and 09 from drifting into two independent implementations of the same wire protocol.
 
-Two ways this file gets used. Standalone, configured directly (`type: modbus-kit`), it's the Raw Relay Driver (§6): it owns one transport and exposes it raw, function-code by function-code — the only place this file's own endpoints get bound, and the only kind of instance a `modbus-relay` transport config (§4) can ever name. Embedded, it's not a driver at all — just the engine, constructed and held directly by whatever driver owns or relays a transport, which builds its own typed endpoints on top and never touches a raw endpoint (§7).
+Two ways this file gets used. Standalone, configured directly (`type: modbus-kit`), it's the Raw Relay Driver (§6): it owns one transport and exposes it raw, function-code by function-code — the only place this file's own endpoints get bound, and the only kind of instance a `modbus-relay` or `modbus-remote` transport config (§4) can ever name. Embedded, it's not a driver at all — just the engine, constructed and held directly by whatever driver owns or relays a transport, which builds its own typed endpoints on top and never touches a raw endpoint (§7).
 
 This package also hosts `hw-modbus-kit` (07a) — the binder that turns a `hw-definitions`-resolved definition into bound `driver-kit` devices, for `driver-onboard` and `driver-extension` alike. It's a distinct concern from everything else in this file, kept in its own `src/hw-modbus-kit/` subpath rather than blended in: this file stays "everything Modbus, nothing hardware-specific," 07a is "everything hardware-specific, on top of this file's own transport."
 
@@ -53,7 +53,9 @@ type ModbusTransportConfig =
   | { kind: 'modbus-rtu'; path: string; baudRate: number;
       dataBits?: 7 | 8; stopBits?: 1 | 2; parity?: 'none' | 'even' | 'odd'; timeoutMs?: number }
       // t3.5 pacing is derived from baudRate, never a separate config key
-  | { kind: 'modbus-relay'; driverId: string };   // §6 — that instance's own MODBUS_RAW; always at its static `raw` tail, so a driver id alone is enough
+  | { kind: 'modbus-relay'; driverId: string }    // §6 — that instance's own MODBUS_RAW; always at its static `raw` tail, so a driver id alone is enough
+  | { kind: 'modbus-remote'; url: string; driverId: string; timeoutMs?: number };
+      // §4.1 — the same MODBUS_RAW, on another evok-node; url is that PLC's WS API (api-nextgen)
 
 interface ModbusTransport {
   open(): Promise<void>;
@@ -82,6 +84,44 @@ Every register is a `number` — a 16-bit unsigned value, exactly what Modbus it
 For `kind: 'modbus-relay'`, the `ModbusTransport` returned is a facade, not a wire: every method forwards as a `CALL` to `driverId`'s own `MODBUS_RAW` device (§6) at its static `raw` tail, trivial precisely because that device's bound methods already share the exact same `CallOutcome` shape these methods return — no translation layer, every method a 1:1 forward. `health()` relays the same way, through `MODBUS_RAW`'s ninth field (§6), the one method on that device that isn't a function code, added for exactly this case, since a relay has no local breaker state of its own to read. `open()`/`close()` on this facade only flip a local ready flag; the wire's actual lifecycle belongs to the Raw Relay Driver instance `driverId` names, shared across however many facades point at it, and is never itself opened or closed by any one of them. A `driverId` that doesn't resolve to a Raw Relay Driver instance is fatal at `configure()`, same tier as any other unresolvable reference.
 
 `writeSingleCoil`/`writeSingleRegister` return the value the slave actually echoed — FC5/FC6's own response carries it. `writeMultipleCoils`/`writeMultipleRegisters` return nothing on success — FC15/FC16's response is only an address-and-count echo of what the caller already sent, so there's genuinely nothing new to hand back; `CallOutcome<void, ...>` says that honestly rather than repeating the caller's own input.
+
+### 4.1. `modbus-remote`: a line on another PLC
+
+The same facade as `modbus-relay`, but the `MODBUS_RAW` it forwards to is a Raw Relay Driver (§6) on another evok-node. Every method is one `CALL` on `<driverId>:raw.<method>` over that PLC's WS API (`api-nextgen`); the result comes back unchanged. The facade's own instance owns that connection (01 §7).
+
+```yaml
+# PLC1 — owns the wire
+drivers:
+  rs485-1:
+    type: modbus-kit
+    transport: { kind: modbus-rtu, path: /dev/ttyNS0, baudRate: 19200 }
+apis:
+  nextgen:
+    drivers: [rs485-1]
+
+# PLC2 — uses it
+drivers:
+  ac:
+    type: <any driver embedding the engine>
+    transport: { kind: modbus-remote, url: wss://plc1/api, driverId: rs485-1 }
+```
+
+| Situation | Result |
+| --- | --- |
+| Caller sends a deadline | Sent as the remaining duration, rebuilt on PLC1 (04 §6.2a) |
+| Caller sends no deadline | `timeoutMs`, else this transport's default |
+| Link down, or not yet up | Every call answers `unreachable`; `health()` is `offline` |
+| Link comes up | Checks `evokNodeVersion` against a supported range, as 12a §4b does, and `matchesDeviceType(MODBUS_RAW)` (05a §4a) on `<driverId>:raw`'s `$introspect` |
+| Check fails | Link stays down, an error is logged, `health()` is `offline` |
+| Write in flight when the link drops | Answers `unreachable`; never re-sent after a reconnect (§2) |
+| Health | Forwarded to the remote `health` field, as for `modbus-relay` |
+
+Unlike `modbus-relay`, a `driverId` that doesn't resolve is not fatal at `configure()`: PLC1 may be off when PLC2 starts. The check runs every time the link comes up instead.
+
+What this adds to the line: PLC1 still serializes every transaction behind its own per-line mutex and t3.5 pacing, so arbitration doesn't change. Every transaction costs one more network round trip — PLC2's scan rates must budget for it.
+
+PLC-to-PLC credentials are deferred to M3.6, the same as 12a §4b. The four write methods are `mutates` (§6), so PLC1's api ACL decides who may write.
+
 
 ## 5. Domain errors: Modbus exceptions
 
@@ -195,13 +235,29 @@ const modbusDriverDescriptor: ModuleDescriptor<ModbusDriverConfig> = {
 
 Every `onCall` is a pure forward, nothing translated in between — the engine and the endpoint speak the same `CallOutcome` shape (05a §3.5), so there is no separate mapping layer for this file to get wrong.
 
-Nothing stops this driver's own `transport` (`ModbusDriverConfig.transport`, above) from itself being `kind: 'modbus-relay'` — a relay pointed at another relay. It's never useful, so nothing here special-cases or forbids it.
+This driver's own `transport` may itself be `kind: 'modbus-remote'` (§4.1). That's how several drivers on PLC2 share one WS connection to PLC1's line: one local `modbus-kit` on `modbus-remote`, and every local driver on `modbus-relay` to it.
+
+```yaml
+# PLC2
+drivers:
+  rs485-1-remote:
+    type: modbus-kit
+    transport: { kind: modbus-remote, url: wss://plc1/api, driverId: rs485-1 }
+  ac:
+    type: <driver A>
+    transport: { kind: modbus-relay, driverId: rs485-1-remote }
+  iaq:
+    type: <driver B>
+    transport: { kind: modbus-relay, driverId: rs485-1-remote }
+```
+
+On PLC1, nothing extra is needed: a Raw Relay Driver is reachable from another PLC once it's listed in an api instance's `drivers` (02 §3). `kind: 'modbus-relay'` pointed at another `modbus-relay` is never useful, so nothing special-cases or forbids it.
 
 ## 7. Embedding the engine
 
-A driver that owns or relays a Modbus transport never subclasses anything from this file — it embeds the engine. It calls `createModbusTransport` once, from its own `configure()`, holds the result, calls the typed methods directly to implement whatever endpoints its own hardware definition calls for, and calls `close()` from its own `stop()`. Direct or relay is entirely `transport.kind`'s own answer (§4); the embedding driver's code is identical either way, and it never touches `ModbusDriver` or the nine endpoint constants above (§6) — those are bound only by the Raw Relay Driver itself. Its own callers never see a raw Modbus address at all, only whatever typed endpoints it chose to expose.
+A driver that owns or relays a Modbus transport never subclasses anything from this file — it embeds the engine. It calls `createModbusTransport` once, from its own `configure()`, holds the result, calls the typed methods directly to implement whatever endpoints its own hardware definition calls for, and calls `close()` from its own `stop()`. Direct, relay or remote is entirely `transport.kind`'s own answer (§4); the embedding driver's code is identical either way, and it never touches `ModbusDriver` or the nine endpoint constants above (§6) — those are bound only by the Raw Relay Driver itself. Its own callers never see a raw Modbus address at all, only whatever typed endpoints it chose to expose.
 
-A line that several driver instances need is never shared by one of them exposing its own `MODBUS_RAW` on the side — only the Raw Relay Driver ever binds that device (§6), so neither `08` nor `09` can be a relay target themselves. It's owned by a dedicated Raw Relay Driver instance from the start, and every consumer reaches it the same way: `transport: { kind: 'modbus-relay', driverId: ... }`.
+A line that several driver instances need is never shared by one of them exposing its own `MODBUS_RAW` on the side — only the Raw Relay Driver ever binds that device (§6), so neither `08` nor `09` can be a relay target themselves. It's owned by a dedicated Raw Relay Driver instance from the start, and every consumer reaches it the same way: `transport: { kind: 'modbus-relay', driverId: ... }` on the same PLC, `kind: 'modbus-remote'` (§4.1) from another one.
 
 ## 8. Placement: native code and process isolation
 
@@ -221,3 +277,9 @@ Tier 1, `packages/modbus-kit`, against the simulator (`design/simulator`) — no
 - The TCP transaction-id cap: outstanding requests never exceed the table's own slot count.
 - Exception mapping: each of the standard exception codes surfaces as its matching `ModbusExceptionKind`, and an unrecognised code surfaces as `unknown-exception` with `info.code` carrying the raw value, never `internal-error`.
 - Per-unit breaker isolation: one unit answering nothing must not affect calls addressed to a different unit on the same line.
+- `modbus-remote` (§4.1), against a fixture WS API serving a Raw Relay Driver:
+  - Every method forwards 1:1; a slave exception arrives as the same `ModbusExceptionKind`.
+  - Link down → every call answers `unreachable`, `health()` is `offline`.
+  - The deadline arrives as a remaining duration, rebuilt on the receiver's clock.
+  - A write in flight when the link drops is never re-sent after the reconnect.
+  - A remote `driverId` that isn't a Raw Relay Driver, or an out-of-range `evokNodeVersion`, keeps the link down.
