@@ -304,7 +304,7 @@ Registering `isHandshakeFn` as `'modbus-handshake'`'s own guard, at this package
 
 ## 10. The built-in kind catalogue
 
-All `unipi.`-prefixed. Every `reading`-shaped field below except §10.4's is built with `polled()` (§4) even where the table just says "reading" for brevity — the `polled` member is implied, never re-listed per field. A device with no `@` is a sibling-only bundle (05a §3.3 permits this — 07's own `MODBUS_RAW` is the existing example) — there is no single primary signal to root the tail on.
+All `unipi.`-prefixed, except §10.5's third-party kinds. Every `reading`-shaped field below except §10.4's is built with `polled()` (§4) even where the table just says "reading" for brevity — the `polled` member is implied, never re-listed per field. A device with no `@` is a sibling-only bundle (05a §3.3 permits this — 07's own `MODBUS_RAW` is the existing example) — there is no single primary signal to root the tail on.
 
 ### 10.1 Per-channel I/O
 
@@ -346,6 +346,19 @@ IAQ's digital output reuses `unipi.ro` as-is — a plain bool channel, no new ki
 08 and 09 both bind one per configured unit at `<unit>.typeInfo` (§3a).
 
 `unipi.ro` (EMO-R8's 8 relays) stays blocked: no register map exists yet anywhere (§11).
+
+### 10.5 Third-party kinds
+
+A device that isn't Unipi's, whose definition we ship in `hw-definitions` under `modbus/<vendor>/<device>` — never under `custom/` (09 §7). Its kind is prefixed with the maker.
+
+| Kind | Fields | Registers | Definition |
+|---|---|---|---|
+| `dyp.ds1603da` | `@`: reading\<uint16, mm\>, subscribe — the level above the tank bottom, the sensor's process value · `realtime`: reading\<uint16, mm\> — one detection · `periodS`: channel\<uint8, 1–60 s\> | holding 0x00, 0x01, 0x06 | `modbus/dyp/ds1603da-3r` — handshake `none`, rate `slow` |
+
+- DYP DS1603DA-3R V2.0, an ultrasonic level sensor mounted under a tank (research/15 §1). Used by the rainwater driver (12i).
+- Not bound: the address (0x04) is set once at commissioning (12i §9); the medium (0x05) stays water, its default.
+- The kind reports what the sensor sends. What a value under the 40 mm blind zone means is the consumer's (12i §6.1) — the sensor's own behaviour there is not documented (research/15 §1.5).
+- The sensor measures once per `periodS` (default 2 s); its line polls it at a `slow` rate of 2000 ms (09 §7).
 
 ## 11. Placement: native code and process isolation
 

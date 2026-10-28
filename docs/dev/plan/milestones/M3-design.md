@@ -18,6 +18,7 @@ Target numbering in `design/evok-node/` once M3 is done.
 | 12f | ISM8i driver | new |
 | 12g | MIM-B19N driver | new |
 | 12h | Central heating driver | new |
+| 12i | Rainwater driver | 12i |
 | 13 | APIs — common to all, API plugins | 13 + 18 |
 | 13a | Auth & ACL framework | new |
 | 13b | Shell app (mobile/desktop) | new |
@@ -56,10 +57,10 @@ One file per type group under `12c-Home-main-devices/`; 12c itself becomes their
 with it; `research/matter/` holds a note per type with a Matter counterpart.
 **Refs:** 12a §2–§4a · 12b §2 · 16a · research/matter
 
-### M3.3a — Home: rainwater tank   `area/home`
-`RainwaterTank`: a custom home device, no Matter counterpart. Controls the water tanks and answers the irrigation system's demand for water (its `pump` role, 12c-08 §3.3). Has water-level sensors and valves; the pump is part of it and not controllable from outside. Open: its inner parts — home devices only the tank controls, or raw endpoints (device kinds).
-**Done when:** 12c has its file; 12c-08 §3.3 has no Open; 12a §2.2 and 16a agree with it.
-**Refs:** 12c-08 · 12a §2.1, §3 · research/matter/09
+### M3.3a — Rainwater driver and tank   `area/home`
+`driver-rainwater`: the rainwater tanks, their valves and the garden pump — refills, transfer to the upper tank, cutoff, alarms — as raw endpoints shown and controlled in the Inspector. Plant in config, mode and settings in KV. Descaler bypass on another PLC over a WS link, a general driver-kit mechanism. Level sensor DS1603DA-3R as a shipped third-party definition. Home side: `RainwaterTank`, a supply valve as the irrigation master, the retention alarm as a `WaterLeakDetector`.
+**Done when:** 12i and 12c-11 designed; 05a §3.8b, 07a §10.5 and 09 §7 agree; 12c-08 §3.3 has no Open; 12a §2.2 and 16a agree.
+**Refs:** research/15 · 12c-08 · 12a §3, §3a · 05a §3.8a · 07 §4.1 · 07a §10 · 09 §7
 
 ### M3.3b — Home: thermostat   `area/home`
 `Thermostat`: one per room, the room's controller — setpoint, actual temperature (a `TemperatureSensor` role), source policy (hydronic, AC, order, outdoor breakpoint), override, presets, Matter mapping. It runs the room loop and sends requests to its sources: a heating request (`mode`, `level` %) to a central-heating zone (12h), power/mode/compensated setpoint to an AC indoor unit (12g). Cooling lockout. `SamsungAc` device for the AC specialities (fan, swing, WindFree, quiet/fast/eco, filter, errors). Open: whether `RoomAirConditioner` stays a home type; on which PLC the thermostat runs, as zones live on the boiler-room PLC and a remote import carries home devices only (12a §4b).
@@ -82,9 +83,9 @@ with it; `research/matter/` holds a note per type with a Matter counterpart.
 **Refs:** research/matter/11 §5, §7 · research/matter/09 §4.3 · 12c-08 · 12f · 08 · 09
 
 ### M3.4 — Almanac driver   `area/almanac`
-Calendar, weather forecast, sun position. Data sources, offline behaviour. Respective home devices. A wind DeviceType — gusts in m/s with the time they apply to — for `WindowCovering`'s `wind` role (12c-06 §3.4).
-**Done when:** 12d designed; new device types added to 12c.
-**Refs:** 05a · 12a · 12b
+Calendar, weather forecast, sun position. Data sources, offline behaviour. Respective home devices. A wind DeviceType — gusts in m/s with the time they apply to — for `WindowCovering`'s `wind` role (12c-06 §3.4). A rain forecast for the rainwater driver's early transfer (12i §11).
+**Done when:** 12d designed; new device types added to 12c; 12i §11 has no Open.
+**Refs:** 05a · 12a · 12b · 12i
 
 ### M3.5 — APIs: common contract and API plugins   `area/api`
 What every API must do, whatever it speaks. API as plugin, the same mechanism as drivers. Absorbs 18 API plugins.

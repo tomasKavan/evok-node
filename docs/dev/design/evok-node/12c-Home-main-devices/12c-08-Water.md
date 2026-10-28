@@ -18,7 +18,7 @@
 
 - Motorised ball valves on two outputs, 0–10 V valves: no template yet.
 - Schedules, rain skip, seasonal adjust. A rule or the almanac (12d) calls `run`; the system runs what it is told.
-- Tank levels and pumping on their own: a tank device of its own (§3.3, Open).
+- Tank levels and pumping: the rainwater driver (12i) and its home side (12c-11).
 - Latching a leak alarm. The detector follows its source, as Matter's (research/matter/09 §5.2); what reacts is a rule's.
 - Rain and freeze detectors: not yet types (research/matter/09 §1.4).
 
@@ -38,6 +38,7 @@ Apple Home shows no Water Valve and no Irrigation System (research/matter/09 §2
 - **`maxOpenS` counts from the opening**, not from the last `open`: a rule that keeps re-opening cannot pass it. `seconds` beyond what is left of it is clamped. `fault.timeout` clears on the next `open`.
 - **Always closed after a restart.** Matter leaves start-up to the maker and recommends restarting only while closed (research/matter/09 §1.1); an open valve with nobody counting is the worst case.
 - `identify` is unbound — opening a valve to identify it wastes water, or worse.
+- `fault.blocked` is bound only by a valve whose "open" is a demand on a supply — `valve-from-rainwater-supply` (12c-11 §3.2). No output template binds it.
 
 ### 1.2. `IrrigationSystem` behaviour
 
@@ -83,7 +84,8 @@ export const WaterValve = device('home.WaterValve', {
   state:      reading(ValveState, { subscribe: true }),
   level:      optional(reading(Codecs.struct({ current: Percent, target: Percent }), { subscribe: true })),   // thermal template only; 0 when closed
   remainingS: reading(Seconds, { subscribe: true }),                 // 0 ⇒ closed or untimed; emits once a second while timed
-  fault:      reading(Codecs.struct({ timeout: Codecs.bool() }), { subscribe: true }),
+  fault:      reading(Codecs.struct({ timeout: Codecs.bool(),
+                blocked: Codecs.optional(Codecs.bool()) }), { subscribe: true }),   // blocked: open, but its supply delivers nothing — 12c-11 §3.2 only
   behavior:   reading(ValveBehavior, { subscribe: true }),
   open:       method('mutates', Codecs.void, Codecs.struct({
                 seconds: Codecs.optional(Codecs.uint32({ unit: 's' })),   // 0 ⇒ stays open
@@ -200,7 +202,7 @@ queue empty           master off → stopped
 - A zone in the role order is a 1-based index; it becomes the zone's Matter tag (§4).
 - Nothing is saved (§1.2).
 
-**Open:** the tank device, `RainwaterTank` — tank levels and pumping with logic of its own. The `pump` role will also take it; the irrigation system then only sends it a demand for water supply (on while a zone runs, off otherwise), and the tank device decides how to supply it. Deferred to M3.3a, which designs it.
+**Rainwater supply.** With a rainwater driver (12i), the master is its supply valve — a `WaterValve` from `valve-from-rainwater-supply` (12c-11 §3.2): opening it is the system's demand for water, and the driver holds back its own use of the pump meanwhile. The pump role stays empty: the garden pump is the rainwater driver's.
 
 ### 3.4. `leak-from-di`
 
@@ -233,7 +235,7 @@ Part of the mapping table (16a, `driver-home/matter-map`).
 | `RemainingDuration` | `remainingS`; null when 0 |
 | `DefaultOpenDuration` | `behavior.defaultOpenS`, null when absent. Writes refused — `manage` only (12c-04 §4 Open, M3.13) |
 | `CurrentLevel`, `TargetLevel` | `level.current`, `level.target` — `LVL` only |
-| `ValveFault` | `GeneralFault` = `fault.timeout` |
+| `ValveFault` | `GeneralFault` = `fault.timeout`; `Blocked` = `fault.blocked` |
 | event `ValveStateChanged` | when `state.current` reaches `open` or `closed` |
 
 - No Flow Measurement: no source has one.

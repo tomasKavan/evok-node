@@ -486,6 +486,54 @@ function remoteDevice<F extends Record<string, EndpointType | OptionalEndpointTy
 
 `DriverKit.remote`/`.remoteDevice` (§3.5) are forwarding sugar only — `kit.remote(address, field)` is exactly `remote(ctx, address, field)` with the `ctx` a driver already has in scope closed over, the same convenience `attach()` already is over a bare `ctx.messaging.onRequest` call.
 
+### 3.8b. Reaching another PLC: `RemoteLink`
+
+§3.8a's handles reach a driver in the same daemon. A `RemoteLink` gives the same handles for an endpoint on another evok-node, over that PLC's WS API (15) — a relay output on the house PLC that the garden PLC's rainwater driver switches (12i §5.3).
+
+```ts
+// @evok-node/driver-kit
+interface RemoteLinkConfig {
+  readonly url: string;          // the other PLC's WS API (15)
+  readonly timeoutMs?: number;   // for a call sent with no deadline; default 5000
+}
+
+interface RemoteLink {
+  readonly url: string;
+  readonly up: boolean;
+  onUp(onChange: (up: boolean) => void): () => void;                                        // unsubscribe
+  remote<E extends EndpointType>(address: Address, field: E): RemoteEndpoint<E>;             // §3.8a
+  remoteDevice<F extends Record<string, EndpointType | OptionalEndpointType>>(address: Address, type: DeviceType<F>): RemoteDevice<F>;
+}
+
+// DriverKit
+remoteLink(config: RemoteLinkConfig): RemoteLink;
+```
+
+```yaml
+drivers:
+  rain:
+    type: rainwater
+    bypass: { url: wss://house-plc/api, address: ONB:2.unipi.ro.04 }   # an address as the other PLC names it (03 §3)
+```
+
+| Situation | Result |
+|---|---|
+| Caller sends a deadline | Sent as the remaining duration, rebuilt on the other PLC (04 §6.2a) |
+| Caller sends no deadline | `timeoutMs` |
+| Link down, or not yet up | Every `get`/`set`/`call` answers `unreachable` — `SourceUnreachable` (§3.5), as a local driver that is down; `up` is `false` |
+| Link comes up | Checks the other PLC's `evokNodeVersion` against a supported range, as 12a §4b does. Then, per handle, `matchesDeviceType` (§4a) on its address's introspection; subscriptions are made again and each subscribed field is read once |
+| Version check fails | The link stays down, an error is logged |
+| A handle's check fails | That handle answers `unreachable`, an error is logged; other handles work |
+| Introspection there changes | Followed over the link (§4b); each handle is checked again |
+| Write in flight when the link drops | Answers `unreachable`; never re-sent after a reconnect |
+
+- **The instance owns the connection** (01 §7): one link per `url` per instance, shared by all its handles. Two instances on one PLC have two links.
+- **Not fatal at `configure()`.** The other PLC may be off when this one starts; the link retries in the background, forever.
+- **What is reachable** is what the other PLC's api instance lists in its `drivers` (02 §3) — nothing to set up there beyond that.
+- A handle is a §3.8a handle: a consumer can't tell a link endpoint from a local one, except by `unreachable` lasting longer.
+- 07 §4.1's `modbus-remote` is built on this link. 12a §4b's peer link imports home devices and is not this.
+- PLC-to-PLC credentials: deferred to M3.6 (13a).
+
 ### 3.9. REMOVED
 
 ### 3.10. Refs — picking an object by id

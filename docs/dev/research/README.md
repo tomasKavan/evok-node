@@ -42,6 +42,7 @@ at commit `47c95c8` (branch `main`, latest tag **3.0.6**, 2025-09-02).
 | [`12-modularisation.md`](12-modularisation.md) | **The 2026-08-12 re-steer**, in full: drivers / APIs / main, the addressing scheme, introspection as the source of compat's table, the config and message sketches, and every alternative rejected along the way. Recorded at the time as ADRs 0001–0004; this file carries the reasoning those compress, and outlives them. |
 | [`13-config-and-hw-definition-format.md`](13-config-and-hw-definition-format.md) | The proposed config and hardware-definition format, in detail. Was `plan/hw-definition-format.md`. |
 | [`14-bug-dispositions.md`](14-bug-dispositions.md) | Every known EVOK finding and the disposition proposed for it. Was `plan/bug-dispositions.md`. |
+| [`15-rainwater-tank.md`](15-rainwater-tank.md) | The rainwater tank's sensors and measurement: DYP DS1603DA-3R ultrasonic level sensor, a 4–20 mA pressure sensor on a pipe, smoothing, the descaler bypass. Feeds 12i and 12c-11. |
 
 ## Subdirectories
 

@@ -92,6 +92,19 @@ The practical path for a device this driver's own authors never heard of, and it
 - **A register layout the generic walk can't express.** The same `ModbusKindBinder`, registered either directly (a driver-extension bundle statically depending on `acme`'s package, full typing, no manifest involved) or as a `kind: "modbus-kind-binder"` manifest entry resolved lazily the first time this line's `configure()` needs it (`07a §7`).
 - **An identity check that isn't Unipi's.** A `handshake` name registered the identical two ways (`07a §9`) — direct `registerHandshake()`, or a `kind: "modbus-handshake"` manifest entry — or `none` when the device has no identity block to check at all.
 
+**A third-party device we ship.** Its definition is ours, under `modbus/<vendor>/<device>`, and its kind is in 07a §10.5 — `modbus/dyp/ds1603da-3r`, the rainwater driver's level sensor (12i). It speaks only 9600 baud and has no register to change that (research/15 §1.4), so it gets a line of its own:
+
+```yaml
+drivers:
+  RS2:
+    type: extension
+    transport: { kind: modbus-rtu, path: /dev/ttyNS1, baudRate: 9600, parity: none }
+    rates: { slow: 2000 }
+    devices:
+      - { unit: 2, definition: modbus/dyp/ds1603da-3r }   # lower tank → RS2:2.dyp.ds1603da.01
+      - { unit: 3, definition: modbus/dyp/ds1603da-3r }   # retention tank
+```
+
 The limit worth being honest about: none of this is a YAML-only extension point. A genuinely new kind or handshake is code — a package with its own `evokNodePlugin` manifest entry, or a build-time dependency — never something expressible purely inside the definition file itself. What the definition file *does* fully control is which already-registered kind, binder, and handshake name a given unit uses.
 
 ## 8. Failure modes

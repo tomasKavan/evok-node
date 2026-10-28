@@ -20,6 +20,7 @@
 | [`12c-07-Closures.md`](12c-Home-main-devices/12c-07-Closures.md) | `Closure` |
 | [`12c-08-Water.md`](12c-Home-main-devices/12c-08-Water.md) | `WaterValve`, `IrrigationSystem`, `WaterLeakDetector` |
 | [`12c-09-Door-lock.md`](12c-Home-main-devices/12c-09-Door-lock.md) | `DoorLock` |
+| [`12c-11-Rainwater-tank.md`](12c-Home-main-devices/12c-11-Rainwater-tank.md) | `RainwaterTank` |
 
 **Job:** one section per home `DeviceType`: fields, built-in templates and Matter mapping, in full.
 12a holds what every type shares; this file holds what one type adds.
@@ -69,7 +70,7 @@ resolution vs Matter (0.01 °C, Percent100ths, log lux), the moving-device patte
 | `Closure` | Closure | one type for windows, garage doors, gates (`kind` → Matter tags); templates `closure-from-klf`, `closure-from-uap` (Hörmann UAP1-HCP: pulses for open/close/stop, end contacts, optional travel contact); bundle `velux-klf` with `cover-from-klf`; access kinds (`garageDoor`, `gate`, `door`) not on Matter yet. Open: proof for `open` → M3.6 |
 | `DoorLock` | Door Lock | released for a time, locks by itself, door contact; `lastOperation` with the acting user; `lock-from-relay`, `lock-from-2n`; not on Matter yet. Open: proof and principal (M3.6), 2N roles (M3.6a) |
 | `WaterValve` | Water Valve | Matter-shaped `open`/`close`, timed, `maxOpenS`, always closed after a restart; templates `valve-from-output`, `thermal-valve-from-output` (level as a duty cycle); not shown by Apple Home |
-| `IrrigationSystem` | Irrigation System | zones are `WaterValve`s, one at a time; master valve, pump; no schedules. Open: `RainwaterTank` as the pump's source (M3.3a) |
+| `IrrigationSystem` | Irrigation System | zones are `WaterValve`s, one at a time; master valve, pump; no schedules. With a rainwater driver the master is its supply valve (12c-11 §3.2) |
 | `ContactSensor` | Contact Sensor | one template, `contact-from-di` |
 | `WaterLeakDetector` | Water Leak Detector | one template, `leak-from-di`; no latch |
 | `TemperatureSensor` | Temperature Sensor | `unipi.temp` (1-Wire, xG18, IAQ) or `unipi.ai` (Pt1000, linear) |
@@ -79,7 +80,7 @@ resolution vs Matter (0.01 °C, Percent100ths, log lux), the moving-device patte
 | `LightSensor` | Light Sensor | `unipi.lux` or `unipi.ai` |
 | `RoomAirConditioner` | Room Air Conditioner | one `setpoint` vs Matter's heat/cool setpoints; source: extension-driver device or a new Modbus driver; Apple Home support unverified; designed with `Thermostat` |
 | `Thermostat` | Thermostat | one per room over a heater (thermal valve, 12c-08 §3.2) and an AC unit; AC specialities as extra devices or clusters; preference policy — AC or heater |
-| `RainwaterTank` | — | own step, M3.3a: custom, answers the irrigation system's demand; level sensors, valves, internal pump not controllable from outside; inner parts as home devices or raw endpoints — open |
+| `RainwaterTank` | — | overview and simple control of the rainwater driver (12i); templates `tank-from-rainwater`, `valve-from-rainwater-supply` (`WaterValve`, irrigation master), `leak-from-rainwater-alarm` (`WaterLeakDetector`, retention alarm), bundle `rainwater` — all shipped with that driver |
 
 **Decided in their own section:** `Fan` — fit for heat recovery units; `Pump` — deferred, a relay pump is an
 `OnOffPlugInUnit`.

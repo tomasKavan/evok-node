@@ -87,7 +87,7 @@ For `kind: 'modbus-relay'`, the `ModbusTransport` returned is a facade, not a wi
 
 ### 4.1. `modbus-remote`: a line on another PLC
 
-The same facade as `modbus-relay`, but the `MODBUS_RAW` it forwards to is a Raw Relay Driver (§6) on another evok-node. Every method is one `CALL` on `<driverId>:raw.<method>` over that PLC's WS API (`api-nextgen`); the result comes back unchanged. The facade's own instance owns that connection (01 §7).
+The same facade as `modbus-relay`, but the `MODBUS_RAW` it forwards to is a Raw Relay Driver (§6) on another evok-node. Every method is one `CALL` on `<driverId>:raw.<method>` over a `RemoteLink` (05a §3.8b) to that PLC's WS API (`api-nextgen`); the result comes back unchanged. `url` and `timeoutMs` are the link's config; deadlines, a link that is down and writes in flight follow the link's rules.
 
 ```yaml
 # PLC1 — owns the wire
@@ -108,12 +108,10 @@ drivers:
 
 | Situation | Result |
 | --- | --- |
-| Caller sends a deadline | Sent as the remaining duration, rebuilt on PLC1 (04 §6.2a) |
-| Caller sends no deadline | `timeoutMs`, else this transport's default |
-| Link down, or not yet up | Every call answers `unreachable`; `health()` is `offline` |
-| Link comes up | Checks `evokNodeVersion` against a supported range, as 12a §4b does, and `matchesDeviceType(MODBUS_RAW)` (05a §4a) on `<driverId>:raw`'s `$introspect` |
-| Check fails | Link stays down, an error is logged, `health()` is `offline` |
-| Write in flight when the link drops | Answers `unreachable`; never re-sent after a reconnect (§2) |
+| Deadlines, link down, write in flight | As `RemoteLink` (05a §3.8b); a write is never re-sent (§2) |
+| Link down, or not yet up | `health()` is `offline` |
+| Link comes up | The link's checks, with `MODBUS_RAW` as the type `<driverId>:raw` must match (05a §4a) |
+| Check fails | `health()` is `offline` |
 | Health | Forwarded to the remote `health` field, as for `modbus-relay` |
 
 Unlike `modbus-relay`, a `driverId` that doesn't resolve is not fatal at `configure()`: PLC1 may be off when PLC2 starts. The check runs every time the link comes up instead.
