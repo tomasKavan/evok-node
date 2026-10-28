@@ -311,6 +311,8 @@ Thermal actuators, PWM periods and valve exercise: [09 §4.3](09-water.md).
 
 ### 6.1. Interface chain
 
+For the FJM multi-split actually installed, and corrections to §6.2, see [`../17-mim-b19n.md`](../17-mim-b19n.md): an FJM outdoor unit takes the MIM-B19N without a MIM-R10N; quiet and away (B+28, B+29) are EHS only.
+
 | Fact | Source |
 |---|---|
 | MIM-B19N / MIM-B19NT: Samsung's Modbus RTU module, in the outdoor unit's electrical box, on R1/R2 and 12 V DC from the outdoor main board; indoor units stay on F1/F2. One outdoor system, up to 48 indoor units (address 0–47) | [V S31] |

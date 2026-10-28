@@ -21,6 +21,7 @@ One file per device group, numbered as they are written. Each covers: how the sp
 | [`09-water.md`](09-water.md) | Water Valve, Valve Configuration and Control (durations, level, faults), Irrigation System (1.5), Water Leak Detector, Rain, Freeze, Boolean State Configuration; controllers; solenoid and thermal actuators, irrigation sequencing, heating PWM and valve protection, tank filling, 3-way valves; leak modules on a DI, leak alarms |
 | [`10-roof-window.md`](10-roof-window.md) | VELUX roof window and its cover behind a KLF 150 on Unipi RO/DI: inputs (pulse vs hold, both = stop), 2 s success output, timing, rain sensor, moves evok-node can't see; Matter Closure with `Window` + `Roof` tags, Closure Panel for %; window–cover interlock |
 | [`11-thermostat.md`](11-thermostat.md) | Thermostat, Room Air Conditioner, Fan Control: features, deadband, presets, AC attributes, 1.6–1.7 additions; controllers and products (ACs ship as Thermostat); one room with several sources — KNX stages, Loxone, dual fuel, Home Assistant, AC setpoint compensation, overrides; weather-compensated heating with room valves; Samsung WindFree Avant 2 over MIM-B19N; Wolf ISM8i datapoints |
+| [`12-fan.md`](12-fan.md) | Fan, Air Purifier, Extractor Hood; Fan Control rules, On/Off with a fan, filter monitoring; controllers; products (no Matter heat recovery unit found); how Vallox, Zehnder, Systemair, Loxone model a ventilation unit; fit of Matter Fan for a heat recovery unit; simple fans on RO/AO |
 
 ## 2. Apple Home support
 
@@ -36,7 +37,8 @@ Apple publishes no complete list; this one is collected per type. "no" means App
 | Door Lock `0x000A`, Window Covering `0x0202` | 1.0 | yes [V] | S2 |
 | Closure `0x0230` (garage door, gate, …) | 1.5 | [GAP] — not found; SmartThings works, Home Assistant not yet ([`07-garage-door.md`](07-garage-door.md) §2) | — |
 | Thermostat `0x0301`, Heating/Cooling Unit `0x0300` | 1.0 | yes [V] | S2 |
-| Fan `0x002B`, Air Purifier `0x002D` | 1.2 | yes [V] | S2 |
+| Fan `0x002B` | 1.0 | yes [V] | S2 |
+| Air Purifier `0x002D` | 1.2 | yes, iOS 18 [V] ([`12-fan.md`](12-fan.md) §2) | S2 |
 | Water Leak Detector `0x0043` | 1.3 | yes, iOS 18.4 [V] | S3 |
 | Room Air Conditioner `0x0072` | 1.0 | renders in 2026, but sends Cool instead of Auto [V]; not in S2's list ([`11-thermostat.md`](11-thermostat.md) §2) | S2, S7 |
 | Heat Pump `0x0309` | 1.4 | [GAP] — not in S2's list; no product seen ([11 §3](11-thermostat.md)) | — |

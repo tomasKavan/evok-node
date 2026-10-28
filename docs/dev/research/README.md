@@ -43,6 +43,9 @@ at commit `47c95c8` (branch `main`, latest tag **3.0.6**, 2025-09-02).
 | [`13-config-and-hw-definition-format.md`](13-config-and-hw-definition-format.md) | The proposed config and hardware-definition format, in detail. Was `plan/hw-definition-format.md`. |
 | [`14-bug-dispositions.md`](14-bug-dispositions.md) | Every known EVOK finding and the disposition proposed for it. Was `plan/bug-dispositions.md`. |
 | [`15-rainwater-tank.md`](15-rainwater-tank.md) | The rainwater tank's sensors and measurement: DYP DS1603DA-3R ultrasonic level sensor, a 4–20 mA pressure sensor on a pipe, smoothing, the descaler bypass. Feeds 12i and 12c-11. |
+| [`16-airgenio.md`](16-airgenio.md) | 2VV Venus heat recovery unit with AirGENIO Comfort over Modbus RTU: interface, control/status/service registers, modes (manual, DCV, boost, nobody, night ventilation, fire), discrepancies between 2VV's documents. Feeds a future AirGENIO driver and 12c's `Fan`. |
+| [`17-almanac.md`](17-almanac.md) | Almanac candidates per consumer: calendar and holidays, sun position and times, light % (clear-sky index, sunshine, cloud models, per-facade GTI), weather variables from Open-Meteo and MET Norway, ČHMÚ CAP warnings, air quality and pollen, provider terms, offline behaviour. Feeds 12d (M3.4). |
+| [`17-mim-b19n.md`](17-mim-b19n.md) | Samsung MIM-B19N on an FJM multi-split: compatibility, addresses and SEG5, the register map checked on the manual's pages, custom NASA registers, mode conflict and defrost, AI modes, line budget, the `mim-b19n` library and its differences from the manual. Feeds 12g. |
 
 ## Subdirectories
 
