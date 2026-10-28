@@ -15,6 +15,9 @@ Target numbering in `design/evok-node/` once M3 is done.
 | 12c | Home main devices | new |
 | 12d | Almanac driver | new |
 | 12e | 2N access driver | new |
+| 12f | ISM8i driver | new |
+| 12g | MIM-B19N driver | new |
+| 12h | Central heating driver | new |
 | 13 | APIs — common to all, API plugins | 13 + 18 |
 | 13a | Auth & ACL framework | new |
 | 13b | Shell app (mobile/desktop) | new |
@@ -46,10 +49,7 @@ Types: `GenericSwitch`, `OnOffLight`, `DimmableLight`, `ColorTemperatureLight`,
 `ExtendedColorLight`, `OnOffPlugInUnit`, `TimerRelay`, `WindowCovering`, `Closure`, `DoorLock`, `WaterValve`, `IrrigationSystem`, `ContactSensor`,
 `WaterLeakDetector`, `TemperatureSensor`, `HumiditySensor`, `AirQualitySensor`,
 `OccupancySensor`, `LightSensor`, `RoomAirConditioner`, `Thermostat`.
-`RoomAirConditioner` and `Thermostat` in one step: one thermostat per room over a heater
-(thermal `WaterValve`) and an AC unit; AC specialities as extra devices or clusters; a
-preference policy — AC or heater, and when. A type with no built-in source driver (AC): an
-extension-driver device or a new driver.
+`Thermostat` and `RoomAirConditioner` in their own step, M3.3b.
 Decided in their step: `Fan` (fit for heat recovery units), `Pump`.
 One file per type group under `12c-Home-main-devices/`; 12c itself becomes their index as the last step.
 **Done when:** 12c covers every listed type; 12a §2.2, 16a's mapping table and 12b agree
@@ -60,6 +60,26 @@ with it; `research/matter/` holds a note per type with a Matter counterpart.
 `RainwaterTank`: a custom home device, no Matter counterpart. Controls the water tanks and answers the irrigation system's demand for water (its `pump` role, 12c-08 §3.3). Has water-level sensors and valves; the pump is part of it and not controllable from outside. Open: its inner parts — home devices only the tank controls, or raw endpoints (device kinds).
 **Done when:** 12c has its file; 12c-08 §3.3 has no Open; 12a §2.2 and 16a agree with it.
 **Refs:** 12c-08 · 12a §2.1, §3 · research/matter/09
+
+### M3.3b — Home: thermostat   `area/home`
+`Thermostat`: one per room, the room's controller — setpoint, actual temperature (a `TemperatureSensor` role), source policy (hydronic, AC, order, outdoor breakpoint), override, presets, Matter mapping. It runs the room loop and sends requests to its sources: a heating request (`mode`, `level` %) to a central-heating zone (12h), power/mode/compensated setpoint to an AC indoor unit (12g). Cooling lockout. `SamsungAc` device for the AC specialities (fan, swing, WindFree, quiet/fast/eco, filter, errors). Open: whether `RoomAirConditioner` stays a home type; on which PLC the thermostat runs, as zones live on the boiler-room PLC and a remote import carries home devices only (12a §4b).
+**Done when:** 12c has its file (12c-10); the request contract to 12g and 12h is fixed; 12a §2.2 and 16a agree with it.
+**Refs:** research/matter/11 · 12a §3, §4b · 12c-04 · 12c-08 · 16a
+
+### M3.3c — MIM-B19N driver   `area/samsung`
+`driver-mimb19n`: Samsung MIM-B19N over Modbus RTU, raw devices per indoor unit and outdoor unit. Configuration and state it holds, indoor-unit list, write pacing, setup of custom NASA registers, local-change detection (remote, SmartThings), remote lock. AI mode: research gap first.
+**Done when:** 12g designed; the kinds serve M3.3b's request contract.
+**Refs:** research/matter/11 §6 · 07 · 07b · 05a
+
+### M3.3d — ISM8i driver   `area/heating`
+`driver-ism8i`: Wolf ISM8i over TCP — the driver is the server; acknowledgements, read-all on connect, watchdog for the silent drop, writes. Raw kinds for boiler, direct circuit and mixer circuits 1–3.
+**Done when:** 12f designed.
+**Refs:** research/matter/11 §7 · 05a
+
+### M3.3e — Central heating driver   `area/heating`
+`driver-central-heating`: the building's heating as one system, on the boiler-room PLC. Circuits (mixers 1–5, 1–3 through 12f) and zones (rooms → valves on Unipi outputs). Answers zone requests from thermostats: valve duty cycle, exercise, flow guard (one circuit open or a bypass), summer and availability, setpoint correction on mixers 1–3, fallback to open valves when requests stop. Knows no room temperature. How 12c-08's `thermal-valve-from-output` relates to it.
+**Done when:** 12h designed; M3.3b's zone contract matches it.
+**Refs:** research/matter/11 §5, §7 · research/matter/09 §4.3 · 12c-08 · 12f · 08 · 09
 
 ### M3.4 — Almanac driver   `area/almanac`
 Calendar, weather forecast, sun position. Data sources, offline behaviour. Respective home devices. A wind DeviceType — gusts in m/s with the time they apply to — for `WindowCovering`'s `wind` role (12c-06 §3.4).

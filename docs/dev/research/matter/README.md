@@ -20,6 +20,7 @@ One file per device group, numbered as they are written. Each covers: how the sp
 | [`08-door-lock.md`](08-door-lock.md) | Door Lock: features (`USR`, `PIN`, `COTA`, `DPS`, `UBOLT`), unlock vs unbolt vs unlatch, remote PIN and lockout, events, users and credentials, auto-relock, matter.js `DoorLockServer`; controllers (Google needs a PIN for remote unlock, Apple has no unlatch); relay-driven locks (strikes fail-secure/fail-safe, motor locks, pulse vs hold); 2N Access Unit 2.0 / IP Verso 2.0 HTTP API (switches, door, `log/pull` events, access points, directory, Access Commander) |
 | [`09-water.md`](09-water.md) | Water Valve, Valve Configuration and Control (durations, level, faults), Irrigation System (1.5), Water Leak Detector, Rain, Freeze, Boolean State Configuration; controllers; solenoid and thermal actuators, irrigation sequencing, heating PWM and valve protection, tank filling, 3-way valves; leak modules on a DI, leak alarms |
 | [`10-roof-window.md`](10-roof-window.md) | VELUX roof window and its cover behind a KLF 150 on Unipi RO/DI: inputs (pulse vs hold, both = stop), 2 s success output, timing, rain sensor, moves evok-node can't see; Matter Closure with `Window` + `Roof` tags, Closure Panel for %; window–cover interlock |
+| [`11-thermostat.md`](11-thermostat.md) | Thermostat, Room Air Conditioner, Fan Control: features, deadband, presets, AC attributes, 1.6–1.7 additions; controllers and products (ACs ship as Thermostat); one room with several sources — KNX stages, Loxone, dual fuel, Home Assistant, AC setpoint compensation, overrides; weather-compensated heating with room valves; Samsung WindFree Avant 2 over MIM-B19N; Wolf ISM8i datapoints |
 
 ## 2. Apple Home support
 
@@ -37,7 +38,8 @@ Apple publishes no complete list; this one is collected per type. "no" means App
 | Thermostat `0x0301`, Heating/Cooling Unit `0x0300` | 1.0 | yes [V] | S2 |
 | Fan `0x002B`, Air Purifier `0x002D` | 1.2 | yes [V] | S2 |
 | Water Leak Detector `0x0043` | 1.3 | yes, iOS 18.4 [V] | S3 |
-| Room Air Conditioner `0x0072` | 1.0 | [GAP] — not in S2's list, which may be outdated | S2 |
+| Room Air Conditioner `0x0072` | 1.0 | renders in 2026, but sends Cool instead of Auto [V]; not in S2's list ([`11-thermostat.md`](11-thermostat.md) §2) | S2, S7 |
+| Heat Pump `0x0309` | 1.4 | [GAP] — not in S2's list; no product seen ([11 §3](11-thermostat.md)) | — |
 | Water Valve `0x0042` | 1.3 | no [V] — workaround seen: On/Off Plug-in Unit; bridging doesn't help | S1, S6 |
 | Irrigation System `0x0040` | 1.5 | [GAP] — not in S2's list | — |
 | Rain Sensor `0x0044`, Water Freeze Detector `0x0041` | 1.3 | [GAP] — not in S2's list | — |
@@ -54,3 +56,4 @@ Irrigation System `0x0040` (1.5) is composed of Water Valve zone endpoints; a ma
 - S4 — CSA, Matter 1.5 announcement: https://csa-iot.org/newsroom/matter-1-5-introduces-cameras-closures-and-enhanced-energy-management-capabilities/
 - S5 — matter-smarthome.de, device types by Matter version: https://matter-smarthome.de/en/development/these-device-types-are-available-in-the-matter-standard/
 - S6 — Apple developer forum, "Home app rejects Matter device type 0x0042 (Water Valve) as 'not supported'" (Sep 2026): https://developer.apple.com/forums/thread/844646
+- S7 — Apple developer forum, "Apple Home sends Cool instead of Auto for Matter Room AC device type (works correctly as Thermostat)": https://developer.apple.com/forums/thread/851099
