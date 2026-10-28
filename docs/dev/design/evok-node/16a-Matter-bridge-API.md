@@ -62,7 +62,8 @@ A device with `battery` bound (12a §2.1) also carries Power Source with the bat
 | `HumiditySensor` | Humidity Sensor `0x0307` | RelativeHumidityMeasurement |
 | `OccupancySensor` | Occupancy Sensor `0x0107` | OccupancySensing |
 | `LightSensor` | Light Sensor `0x0106` | IlluminanceMeasurement |
-| `RoomAirConditioner` | Room Air Conditioner `0x0072` | OnOff, Thermostat, FanControl |
+| `Thermostat` | Thermostat `0x0301` | Thermostat, ThermostatUserInterfaceConfiguration (12c-10 §4) |
+| `RoomAirConditioner` | Room Air Conditioner `0x0072` — tested with controllers in M3.13 (12c-10 §6) | OnOff, Thermostat, FanControl, ThermostatUserInterfaceConfiguration (12c-10 §4) |
 | `TimerRelay` | — | ignored |
 | `RainwaterTank` | — | ignored (12c-11 §4) |
 

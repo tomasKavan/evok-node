@@ -112,11 +112,12 @@ No home `DeviceType` declares `'@'` — every field is named. The whole device i
 | `HumiditySensor` | Humidity Sensor | 12c-04 §2 |
 | `OccupancySensor` | Occupancy Sensor | 12c-04 §2 |
 | `LightSensor` | Light Sensor | 12c-04 §2 |
-| `RoomAirConditioner` | Room Air Conditioner | `onOff` · `mode` channel `off`/`cool`/`heat`/`auto`/`fan`/`dry` · `setpoint` channel\<float32, °C\> · `temperature` reading · `fanMode` channel `auto`/`low`/`medium`/`high` |
+| `Thermostat` | Thermostat | 12c-10 §2 |
+| `RoomAirConditioner` | Room Air Conditioner | 12c-10 §2 |
 | `TimerRelay` | — (16a ignores it) | 12c-05 §2 |
 | `RainwaterTank` | — (16a ignores it) | 12c-11 §2 |
 
-Every reading and channel above is `subscribe: true`. A source's own staleness never appears per field — it folds into `reachable` (§4.2). The types in full: lights in 12c-01 §2, plug-in units in 12c-02 §2, the switch in 12c-03 §2, the sensors in 12c-04 §2, the timer in 12c-05 §2, the cover in 12c-06 §2, the closure in 12c-07 §2, valves, irrigation and leaks in 12c-08 §2, the lock in 12c-09 §2, the rainwater tank in 12c-11 §2; the rest follow the same shape.
+Every reading and channel above is `subscribe: true`. A source's own staleness never appears per field — it folds into `reachable` (§4.2). The types in full: lights in 12c-01 §2, plug-in units in 12c-02 §2, the switch in 12c-03 §2, the sensors in 12c-04 §2, the timer in 12c-05 §2, the cover in 12c-06 §2, the closure in 12c-07 §2, valves, irrigation and leaks in 12c-08 §2, the lock in 12c-09 §2, the thermostat and room air conditioner in 12c-10 §2, the rainwater tank in 12c-11 §2; the rest follow the same shape.
 
 A function a device type has no evok-node equivalent for yet is simply not a field — never a stub that answers nothing.
 
@@ -159,7 +160,7 @@ This driver registers two ref types (05a §3.10):
 | Ref type | Lists | `has` |
 |---|---|---|
 | `home.device` | this driver's devices whose kind is in `filter.kinds`; `label` is the device's `name`, `path` its place in the hierarchy (§6) | a record with that tail and kind |
-| `home.source` | devices of the drivers in `config.local` whose kind is in `filter.kinds`, from their introspection — and this driver's own devices when a `home.*` kind is in it (§3) | its driver is in `config.local` or is this driver, its tail is bound, and `matchesDeviceType` passes (05a §4a) |
+| `home.source` | devices of the drivers in `config.local` whose kind is in `filter.kinds`, from their introspection — and this driver's own devices when a `home.*` kind is in it (§3) | its driver is in `config.local` or is this driver, its tail is bound, and `matchesDeviceType` passes (05a §4a). A source on another PLC (§3) is not listed; it has when its link is up and its handle's check passes (05a §3.8b) |
 
 A ref type exists only where a generic form must pick an object that has no listing method of its own. The hierarchy has `listHierarchy` (§5), so it has none.
 
@@ -228,6 +229,8 @@ interface AssemblyTemplate<F extends Record<string, EndpointType | OptionalEndpo
 
 A role's `types` may include home `DeviceType`s: its source is then another device of this driver, of any origin — an `IrrigationSystem`'s zones are `WaterValve`s (12c-08 §3.3). Nothing checks for cycles; a device that is its own source, directly or through others, is the admin's mistake.
 
+**A source on another PLC** is `{ url, address }` instead of an address: `url` is that PLC's WS API, `address` as it names it there (03 §3) — a room's heating zone on the boiler-room PLC (12c-10 §3.3). It is reached over a `RemoteLink` (05a §3.8b), one per `url` per driver instance, shared by every source on it. It counts for `reachable` (§4.2) while its link is up and its handle's check passes. `createDevice` answers `invalid-sources` while the link is down: a device is never created against a source nobody has seen (§5). This is not a `remote` device (§4b): the device is this PLC's, only its source is elsewhere.
+
 A role names a source by its `DeviceType` alone, never a driver kind: a kind already names its own family (`dali.gear`), and which driver serves it is the source's address (§4). `assemble()` returns handlers for the device type's own fields, plus `identify` when its `indicator` role has a source, and never for any other `CommonKey` — a template that does is a packaging mistake, rejected when the template is resolved.
 
 A role with `max` above 1 takes several sources that together make **one** physical device — a chandelier on two relays, one temperature averaged from three probes. Separate lights stay separate devices, tied together by a rule (12b). With several sources:
@@ -248,7 +251,7 @@ Handlers answer from memory, the way every driver does (01): `assemble()` subscr
 
 A `SET` forwarded to a source that can't take it — not up, not answering — throws `SourceUnreachable` (05a §3.5) and is answered `unreachable`. It is never queued and replayed later.
 
-Each built-in `DeviceType` (§2) ships with the templates its own built-in source drivers warrant — the light templates of 12c-01 §3, `switch-from-di` for `GenericSwitch` (12c-03 §3), the role-less `timer` for `TimerRelay` (12c-05 §3), `cover-from-relays` for `WindowCovering` (12c-06 §3), the valve, `irrigation` and `leak-from-di` templates (12c-08 §3) — and a template is itself a manifest-loaded, `kind`-resolved module (01 §10; `{ "kind": "home-template", "templateKind": "dimmable-from-dali", … }`), so a driver plugin for hardware this driver doesn't know about yet can ship its own template for an existing `DeviceType` without touching this package — the rainwater driver ships `valve-from-rainwater-supply` for `WaterValve` and `leak-from-rainwater-alarm` for `WaterLeakDetector`, with `tank-from-rainwater` and the bundle `rainwater` (12c-11 §3). It imports that `DeviceType` from `@evok-node/driver-home`; it never rebuilds one under the same kind (05a §3.5).
+Each built-in `DeviceType` (§2) ships with the templates its own built-in source drivers warrant — the light templates of 12c-01 §3, `switch-from-di` for `GenericSwitch` (12c-03 §3), the role-less `timer` for `TimerRelay` (12c-05 §3), `cover-from-relays` for `WindowCovering` (12c-06 §3), the valve, `irrigation` and `leak-from-di` templates (12c-08 §3), `thermostat` for `Thermostat` (12c-10 §3.1) — and a template is itself a manifest-loaded, `kind`-resolved module (01 §10; `{ "kind": "home-template", "templateKind": "dimmable-from-dali", … }`), so a driver plugin for hardware this driver doesn't know about yet can ship its own template for an existing `DeviceType` without touching this package — the rainwater driver ships `valve-from-rainwater-supply` for `WaterValve` and `leak-from-rainwater-alarm` for `WaterLeakDetector`, with `tank-from-rainwater` and the bundle `rainwater` (12c-11 §3); driver-mimb19n ships `room-ac-from-mimb19n` for `RoomAirConditioner` (12c-10 §3.2). It imports that `DeviceType` from `@evok-node/driver-home`; it never rebuilds one under the same kind (05a §3.5).
 
 ## 3a. Template bundles
 
@@ -301,7 +304,7 @@ A **device record** is this driver's own user data (01 §2), stored in its KV na
 type DeviceOrigin =
   | { readonly kind: 'local';                               // §3
       readonly templateKind: string;
-      readonly sources: Readonly<Record<string, readonly Address[]>>;   // per role, its driver-qualified addresses (03 §3); a role with no source is absent
+      readonly sources: Readonly<Record<string, readonly (Address | { readonly url: string; readonly address: Address })[]>>;   // per role, its driver-qualified addresses (03 §3), or one on another PLC (§3); a role with no source is absent
       readonly settings: Value; }                           // the template's `settings`, defaults filled
   | { readonly kind: 'matter';                              // §4a
       readonly nodeId: string;                              // decimal Matter NodeId — json has no bigint
@@ -355,7 +358,7 @@ Tails are `device.<origin>.<origin-specific>`:
 
 A tail never changes: not on `updateDevice`, not when a Matter bridge renumbers its endpoints (§4a). A removed device's number is never reused, so a rule (12b) or 16a's tail → endpoint map that still names it never reaches a new device. A `remote` origin is another evok-node (§4b); 05a's `RemoteDevice` is only the handle a `local` device uses to reach a source in this daemon.
 
-`configure()` replays every stored `DeviceRecord`. A `local` one the same way 12-DALI-driver's own stored gears are replayed (12 §10.1, 05a §3.6): resolve `templateKind` → `AssemblyTemplate`, build one `remoteDevice(ctx, address, type)` (05a §3.8a) per source address, `type` being the one of `role.types` its kind matches, call `assemble()`, and `bindDevice()` the result under its tail. A `matter` or `remote` one is bound the same way, ahead of its node or peer link, so which `optional()` fields it binds comes from `optionalBound`, recorded at commissioning or import. When the node's or the remote's own description changes it, the device is re-bound under the same tail. A device is bound whether or not its sources are up yet, so start order never matters; until they are, the device is simply not `reachable`. A record without `deviceType` is never bound.
+`configure()` replays every stored `DeviceRecord`. A `local` one the same way 12-DALI-driver's own stored gears are replayed (12 §10.1, 05a §3.6): resolve `templateKind` → `AssemblyTemplate`, build one `remoteDevice(ctx, address, type)` (05a §3.8a) per source address — `link.remoteDevice(address, type)` for one on another PLC (05a §3.8b) —, `type` being the one of `role.types` its kind matches, call `assemble()`, and `bindDevice()` the result under its tail. A `matter` or `remote` one is bound the same way, ahead of its node or peer link, so which `optional()` fields it binds comes from `optionalBound`, recorded at commissioning or import. When the node's or the remote's own description changes it, the device is re-bound under the same tail. A device is bound whether or not its sources are up yet, so start order never matters; until they are, the device is simply not `reachable`. A record without `deviceType` is never bound.
 
 Who writes a record depends on its origin: a `local` one through `createDevice`/`updateDevice`/`removeDevice` (§5), a `matter` one through pairing (§4a), a `remote` one through import (§4b) and its `overrides` through `updateDevice`. Every write persists the record first, then binds, re-binds or unbinds the device live — the same persist-before-apply order 06 §7 states for any driver's own dynamic binding. A change to a `local` device's `sources` or `settings` re-binds it (unbind, `assemble()`, bind) under the same tail and kind; a change to `name`, labels, tags, `product`, `exposed`, `controllable` or `overrides` only emits on the affected common field.
 
@@ -364,7 +367,7 @@ Who writes a record depends on its origin: a `local` one through `createDevice`/
 Computed per origin; it emits only when the result flips:
 
 ```
-local:   every bound source of a role without `reachable: false` passes its watchDevice check  &&  the template hasn't called markStale(true)
+local:   every bound source of a role without `reachable: false` passes its watchDevice check (one on another PLC: its link is up and its handle's check passes)  &&  the template hasn't called markStale(true)
 matter:  node.subscriptionActive  &&  endpoint in the node's PartsList  &&  (BridgedDeviceBasicInformation.reachable ?? true)  &&  no mapped value reported null
 remote:  peer link up  &&  the remote device's own `reachable`
 ```

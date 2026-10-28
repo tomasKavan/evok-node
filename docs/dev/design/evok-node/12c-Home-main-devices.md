@@ -20,6 +20,7 @@
 | [`12c-07-Closures.md`](12c-Home-main-devices/12c-07-Closures.md) | `Closure` |
 | [`12c-08-Water.md`](12c-Home-main-devices/12c-08-Water.md) | `WaterValve`, `IrrigationSystem`, `WaterLeakDetector` |
 | [`12c-09-Door-lock.md`](12c-Home-main-devices/12c-09-Door-lock.md) | `DoorLock` |
+| [`12c-10-Climate.md`](12c-Home-main-devices/12c-10-Climate.md) | `Thermostat`, `RoomAirConditioner` |
 | [`12c-11-Rainwater-tank.md`](12c-Home-main-devices/12c-11-Rainwater-tank.md) | `RainwaterTank` |
 
 **Job:** one section per home `DeviceType`: fields, built-in templates and Matter mapping, in full.
@@ -78,8 +79,8 @@ resolution vs Matter (0.01 °C, Percent100ths, log lux), the moving-device patte
 | `AirQualitySensor` | Air Quality Sensor | level derived from CO₂ / VOC index; optional `co2`, `pm25`, `vocIndex`, `temperature`, `humidity`; IAQ as a bundle (`iaq-unipi`) |
 | `OccupancySensor` | Occupancy Sensor | one template, `occupancy-from-di`; `HoldTime` read-only — Open, M3.13 |
 | `LightSensor` | Light Sensor | `unipi.lux` or `unipi.ai` |
-| `RoomAirConditioner` | Room Air Conditioner | one `setpoint` vs Matter's heat/cool setpoints; source: extension-driver device or a new Modbus driver; Apple Home support unverified; designed with `Thermostat` |
-| `Thermostat` | Thermostat | one per room over a heater (thermal valve, 12c-08 §3.2) and an AC unit; AC specialities as extra devices or clusters; preference policy — AC or heater |
+| `RoomAirConditioner` | Room Air Conditioner | the controller of a room with an AC: thermostat fields + the unit, `policy` (AC first above an outdoor breakpoint), stage 2, lockouts, window, `boost`, compensated AC setpoint; `room-ac-from-mimb19n` from driver-mimb19n (12c-10) |
+| `Thermostat` | Thermostat | the controller of a room without an AC: the shared thermostat fields, a 12h zone over a `RemoteLink`; template `thermostat` (12c-10) |
 | `RainwaterTank` | — | overview and simple control of the rainwater driver (12i); templates `tank-from-rainwater`, `valve-from-rainwater-supply` (`WaterValve`, irrigation master), `leak-from-rainwater-alarm` (`WaterLeakDetector`, retention alarm), bundle `rainwater` — all shipped with that driver |
 
 **Decided in their own section:** `Fan` — fit for heat recovery units; `Pump` — deferred, a relay pump is an
