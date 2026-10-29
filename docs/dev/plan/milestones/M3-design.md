@@ -73,10 +73,15 @@ with it; `research/matter/` holds a note per type with a Matter counterpart.
 **Done when:** 12g designed; the kinds serve M3.3b's request contract.
 **Refs:** research/matter/11 §6 · 07 · 07b · 05a
 
-### M3.3d — ISM8i driver   `area/heating`
-`driver-ism8i`: Wolf ISM8i over TCP — the driver is the server; acknowledgements, read-all on connect, watchdog for the silent drop, writes. Raw kinds for boiler, direct circuit and mixer circuits 1–3.
+### M3.3d — ISM8i library `wolf-ism8`   `area/heating`
+The ISM8i protocol as a library of its own, in its own repository `tomasKavan/wolf-ism8` (created before development): codec with stream reassembly, KNX datapoint types, the datapoint table, a session over any byte stream (ACKs, read-all once, keepalive and silence, checked and rate-limited writes), a TCP server, the web-page info helper.
+**Done when:** design/libs 01 designed.
+**Refs:** research/19 · design/libs README
+
+### M3.3da — ISM8i driver   `area/heating`
+`driver-ism8i`: evok-node's side of the ISM8i, on `wolf-ism8`'s server — config, raw kinds for boiler, system, direct circuit, mixer circuits and modules 1–3, write mapping, liveness to `reachable`.
 **Done when:** 12f designed.
-**Refs:** research/matter/11 §7 · 05a
+**Refs:** design/libs 01 · research/19 · 05a
 
 ### M3.3e — Central heating driver   `area/heating`
 `driver-central-heating`: the building's heating as one system, on the boiler-room PLC. Circuits (mixers 1–5, 1–3 through 12f) and zones (rooms → valves on Unipi outputs). Answers zone requests from thermostats: valve duty cycle, exercise, flow guard (one circuit open or a bypass), summer and availability, setpoint correction on mixers 1–3, fallback to open valves when requests stop. Knows no room temperature. How 12c-08's `thermal-valve-from-output` relates to it.
