@@ -10,7 +10,20 @@ Input from Tomas (2026-10-28):
 - Light % is the **clear-sky index** (§3.2 A): `100 × GHI / GHI_clear`.
 - "Local first" lives in the almanac's `outdoor` endpoint — one place, averages computed once.
 - Only home devices trigger rules (12b §3), so calendar and sun get home devices too; the almanac's home devices go to 12c-13.
-- One almanac per site, on the central PLC in the basement; every other PLC uses it.
+- One **master** almanac per site, on the central PLC in the basement — the only one that talks to providers.
+- Every other PLC runs a **replica** almanac: driven by the master while reachable, takes the master's configuration, computes on its own what it can (calendar, sun) when the master is down.
+- No long-term history.
+- A replica never calls providers. Local sensors (`local`) are on the master only.
+- The flats don't import the master's home devices: those are not `exposed` (12a) on the basement PLC.
+- Clocks on all PLCs are assumed in sync.
+- Calendar: fixed, from a library (`date-holidays`, §2) — no custom days, no school holidays; `days` look-ahead capped at 400.
+- A **clock** ticks once a minute (`hour`, `minute`); no seconds. Times of day are rule options (e.g. `at: '06:30'` or a sun phase with an offset), evaluated on each tick — no marks on home devices.
+- DST: a time that doesn't exist (spring) fires at the next minute that does; a time that occurs twice (autumn) fires once.
+- `almanac.sun` as sketched (position, phase, next, times, light, days); facades left out for now.
+- Weather endpoints `outdoor`, `forecast`, `warnings`, `air`, `provider.<name>`, `status` as sketched.
+- Light %: Haurwitz clear-sky; absent below 5° elevation; clamped at 100 %; 15-minute instant values. A local pyranometer or lux sensor counts as `local` for GHI.
+- Light % is also forecast — this day and the next few.
+- No schedule device: schedules are rules (12b) triggered by almanac home devices. That closes the schedule points of 12c-05, 12c-08, 12c-10.
 
 ## 1. Who asks for what
 
@@ -73,7 +86,9 @@ What "how much light the sun gives" can be built from:
 | **D. linear cloud** | `G = G_clear × (off + (1 − off)(1 − cc))`, off = 35 % | cloud cover only | pvlib, after Larson et al. 2016: "0% cloud cover returns ghi_clear. 100% … returns offset*ghi_clear" [V S6] |
 | **E. per facade** | `GTI(tilt 90°, azimuth facade)` in W/m² | Open-Meteo `global_tilted_irradiance` [V S3] | heat on a window, not a % — for shading and room gain |
 
-- Clear-sky GHI from Open-Meteo: `shortwave_radiation_clear_sky` exists "only for DWD MTG data" (Satellite Radiation API) [V S3]. Otherwise a local clear-sky model is needed (e.g. Haurwitz, Ineichen) [I]; formula not verified here [GAP].
+- Clear-sky GHI from Open-Meteo: `shortwave_radiation_clear_sky` exists "only for DWD MTG data" (Satellite Radiation API) [V S3]. Otherwise a local clear-sky model:
+  - **Haurwitz:** `GHI_clear = 1098 × cos z × exp(−0.059 / cos z)`, z = apparent (refraction-corrected) zenith; negative results set to 0, no other cutoff [V-src S13]. Needs the zenith only. Reno et al. (Sandia 2012) found it best "in terms of average monthly error" among zenith-only models [V S14].
+  - **Ineichen:** needs apparent zenith, pressure-corrected airmass, Linke turbidity and altitude; pvlib reads turbidity from a monthly 2160 × 4320 global table (`LinkeTurbidities.mat`, values × 20) [V-src S13]. Shipping that table is a size cost [I].
 - **Visibility** is a weak input: Open-Meteo says visibility (DWD ICON) "is only available until November 2026" [V S2]. Fog shows in MET Norway's `fog_area_fraction` and in cloud cover [V S7].
 - Outdoor lux from W/m²: a luminous-efficacy factor [I], not verified [GAP].
 
@@ -144,7 +159,7 @@ design/evok-node README lists "Timeseries storage of readings" as a non-goal [V]
 
 ## 7. Proposals (not binding)
 
-- **P1 — one almanac per site** — chosen (Input). One instance (location, providers) on one PLC; other PLCs import its devices over a remote link (12a §4b) [I].
+- **P1 — one almanac per site** — replaced by master + replicas (Input). One instance (location, providers) on one PLC; other PLCs import its devices over a remote link (12a §4b) [I].
 - **P2 — actual = local first** — chosen (Input). A role takes a hardware source first and the almanac's `current` as fallback; the value says where it came from, e.g. `{ value: 7.2, source: 'local' | 'almanac', at }` [I]. Matches the Input rule.
 - **P3 — light % as A (clear-sky index)** — chosen (Input) with B as a second field; E (per-facade GTI) as a separate reading for shading. Needs a local clear-sky model; Open-Meteo has clear-sky only for satellite data.
 - **P4 — wind for 12c-06:** `{ gustMs, at, kind: 'forecast' | 'measured' }`; forecast gust = max of the hour it ends at.
@@ -154,7 +169,7 @@ design/evok-node README lists "Timeseries storage of readings" as a non-goal [V]
 
 ## 8. Gaps
 
-- Kasten–Czeplak exponent; a verified clear-sky formula.
+- Kasten–Czeplak exponent (no longer needed — light % is A).
 - Brno inside ICON-D2's domain; what replaces ICON visibility after November 2026.
 - ČHMÚ CAP feed URL and update rate.
 - MET Norway: which fields are only in `/complete`.
@@ -176,3 +191,5 @@ design/evok-node README lists "Timeseries storage of readings" as a non-goal [V]
 - S10 — SunCalc README (copy in a `node_modules`): https://git.efi.th-nuernberg.de/gitea/partoschph68073/SmartMirror-Projektarbeit/blame/branch/master/node_modules/suncalc/README.md
 - S11 — `solar-spa`: https://github.com/acamarata/solar-spa
 - S12 — MET Norway, Terms of Service: https://docs.api.met.no/doc/TermsOfService
+- S13 — pvlib 0.4.0, `pvlib.clearsky` source: https://pvlib-python.readthedocs.io/en/v0.4.0/_modules/pvlib/clearsky.html
+- S14 — pvlib 0.6.2, `clearsky.haurwitz`: https://pvlib-python.readthedocs.io/en/v0.6.2/generated/pvlib.clearsky.haurwitz.html

@@ -46,6 +46,7 @@ at commit `47c95c8` (branch `main`, latest tag **3.0.6**, 2025-09-02).
 | [`16-airgenio.md`](16-airgenio.md) | 2VV Venus heat recovery unit with AirGENIO Comfort over Modbus RTU: interface, control/status/service registers, modes (manual, DCV, boost, nobody, night ventilation, fire), discrepancies between 2VV's documents. Feeds a future AirGENIO driver and 12c's `Fan`. |
 | [`17-almanac.md`](17-almanac.md) | Almanac candidates per consumer: calendar and holidays, sun position and times, light % (clear-sky index, sunshine, cloud models, per-facade GTI), weather variables from Open-Meteo and MET Norway, ČHMÚ CAP warnings, air quality and pollen, provider terms, offline behaviour. Feeds 12d (M3.4). |
 | [`18-mim-b19n.md`](18-mim-b19n.md) | Samsung MIM-B19N on an FJM multi-split: compatibility, addresses and SEG5, the register map checked on the manual's pages, custom NASA registers, mode conflict and defrost, AI modes, line budget, the `mim-b19n` library and its differences from the manual. Feeds 12g. |
+| [`19-ism8i.md`](19-ism8i.md) | Wolf ISM8i: the BAOS-style protocol at byte level (frames, ACK, read-all, writes, reassembly), connection and the silent drop, KNX encodings and where implementations differ, the datapoint table, writes, the BM-2/MM system behind it, CGB-2-38. Feeds 12f, a new ISM8i library, and 12h. |
 
 ## Subdirectories
 

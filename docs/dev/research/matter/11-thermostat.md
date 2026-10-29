@@ -387,6 +387,8 @@ All [V S37]. Heating −15 to 24 °C outdoor, cooling −10 to 46 °C; R32. **Wi
 
 ## 7. Wolf ISM8i
 
+Superseded for the driver by [`../19-ism8i.md`](../19-ism8i.md) — protocol, datapoints, BM-2/MM behaviour.
+
 ### 7.1. Protocol
 
 - The ISM8i is the **TCP client**: it connects to one IP and port (default 12004) set in its web page; the integration is the server. One target only; a change needs the boiler fully powered off [V S52, S48].
