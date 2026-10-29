@@ -68,6 +68,8 @@ A device with `battery` bound (12a §2.1) also carries Power Source with the bat
 | `RainwaterTank` | — | ignored (12c-11 §4) |
 | `Fan` | Fan `0x002B` | OnOff, FanControl (12c-12 §4) |
 | `VentilationUnit` | Fan `0x002B` — Air Purifier `0x002D` tested in M3.13 (12c-12 §6) | OnOff, FanControl (12c-12 §4) |
+| `Calendar`, `Clock`, `Sun`, `WindSensor`, `Weather` | — | ignored (12c-13 §4) |
+| `RainSensor` | Rain Sensor `0x0044` — tested with controllers in M3.13 (12c-13 §4) | BooleanState |
 
 **Composed bridged devices.** One bridge, always: one Matter node with an Aggregator, and one bridged
 device per exposed home device — or per product, when several home devices are one. A product is

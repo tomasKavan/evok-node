@@ -89,9 +89,9 @@ with it; `research/matter/` holds a note per type with a Matter counterpart.
 **Refs:** research/16 · research/matter/12 · 07 §4, §6, §7 · 07a §4, §8 · 12a §3 · 12c-10
 
 ### M3.4 — Almanac driver   `area/almanac`
-Calendar, weather forecast, sun position. Data sources, offline behaviour. Respective home devices. A wind DeviceType — gusts in m/s with the time they apply to — for `WindowCovering`'s `wind` role (12c-06 §3.4). A rain forecast for the rainwater driver's early transfer (12i §11).
-**Done when:** 12d designed; new device types added to 12c; 12i §11 has no Open.
-**Refs:** 05a · 12a · 12b · 12i
+Calendar, clock, sun position, light %, weather forecast, warnings, air. Data sources, offline behaviour. One master per site, replicas on the other PLCs. Home devices `Calendar`, `Clock`, `Sun`, `WindSensor`, `RainSensor`, `Weather`; schedules are rules on `Clock`. A wind DeviceType for `WindowCovering`'s `wind` role (12c-06 §3.4). A rain forecast for the rainwater driver's early transfer (12i §11).
+**Done when:** 12d and 12c-13 designed; 12c-06 §3.4 and 12i §11 have no Open; 12c-05, 12c-08 and 12c-10 point schedules to rules on `Clock`; 12a §2.2 and 16a agree.
+**Refs:** research/17 · 05a · 12a · 12b · 12i · 12c-06
 
 ### M3.5 — APIs: common contract and API plugins   `area/api`
 What every API must do, whatever it speaks. API as plugin, the same mechanism as drivers. Absorbs 18 API plugins.

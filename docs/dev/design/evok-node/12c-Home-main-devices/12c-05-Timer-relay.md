@@ -11,7 +11,7 @@
 **Not for:**
 
 - Switching a load. It has no roles and drives nothing; a rule switches the load (12b §2.1). A light's or plug-in unit's own timed on is `onFor` (12c-01 §1.1) — the one a Matter controller reaches.
-- Time of day and schedules — the almanac driver (12d).
+- Time of day and schedules: a rule on `Clock` (12c-13 §1.2).
 - Repeating. There is no flasher mode; a rule may start the timer again on `elapsed`.
 
 ### 1.1. Behaviour

@@ -96,7 +96,7 @@ export const WindowCovering = device('home.WindowCovering', {
 
 | Template | Roles |
 |---|---|
-| `cover-from-relays` (§3.1–§3.5) | `up`: `unipi.ro` \| `unipi.do`, 1 · `down`: `unipi.ro` \| `unipi.do`, 1 · `wind`: the almanac's wind DeviceType (12d), 0–1, `reachable: false` (12a §3) |
+| `cover-from-relays` (§3.1–§3.5) | `up`: `unipi.ro` \| `unipi.do`, 1 · `down`: `unipi.ro` \| `unipi.do`, 1 · `wind`: `home.WindSensor` (12c-13), 0–1, `reachable: false` (12a §3) |
 | `cover-from-klf` (§3.6) | `up`: `unipi.ro`, 1 · `down`: `unipi.ro`, 1 · `feedback`: `unipi.di`, 0–1 · `wind`: as above |
 
 One motor on two relays, no feedback (research/matter/06 §3). The motor stops itself at its ends.
@@ -171,13 +171,13 @@ Tracking is accurate to one poll period (12c-03 §3). Wind protection still appl
 
 ### 3.4. Wind
 
-- `wind` reads the source's gust and the time it was measured — what 12d must provide (Open below).
+- `wind` reads the source's `wind.gust` and `wind.at` (12c-13 §3.2) — the gust of the preceding hour, from the model or the cached forecast; a source without a gust is as a gust older than `sourceLostAfterMs`.
 - A gust value older than `sourceLostAfterMs`, or the source not reachable (12a §4.2, `reachable: false` roles), is **source lost**.
 - Level changes act as §1.2. Level 1 on rise: `goTo({ tilt: 0 })` when lift > 0 and tilt > 0. Level 2 on rise: `up`, merged into any run.
 - `restore` keeps the targets from before the first level rose, and goes back to them when the last one drops.
 - Without a `wind` role, `wind` is `{ level: 0, acting: 0, source: 'none' }`.
 
-**Open:** the almanac's wind DeviceType — a gust in m/s with the time it applies to. Deferred to M3.4 (12d), which designs the almanac's devices. A hardware anemometer template for the same role follows it.
+A hardware anemometer template for the same role follows with the first anemometer (12c-13 §6).
 
 ### 3.5. State
 

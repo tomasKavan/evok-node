@@ -17,7 +17,7 @@
 **Not for:**
 
 - Motorised ball valves on two outputs, 0–10 V valves: no template yet.
-- Schedules, rain skip, seasonal adjust. A rule or the almanac (12d) calls `run`; the system runs what it is told.
+- Schedules, rain skip, seasonal adjust. A rule calls `run` — on `Clock`, with `RainSensor` or `Weather` as device options (12c-13 §1.1); the system runs what it is told.
 - Tank levels and pumping: the rainwater driver (12i) and its home side (12c-11).
 - Latching a leak alarm. The detector follows its source, as Matter's (research/matter/09 §5.2); what reacts is a rule's.
 - Rain and freeze detectors: not yet types (research/matter/09 §1.4).

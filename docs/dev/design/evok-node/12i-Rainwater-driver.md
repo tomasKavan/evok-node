@@ -32,7 +32,7 @@ The driver owns no transport. Its sources are other drivers' devices, reached as
 
 - The sludge pump: it runs on its own floats and reports nothing.
 - Irrigation zones and taps: zones are `WaterValve`s (12c-08); the pump serves them on its pressure switch. The irrigation system asks for water through `supply` (§4).
-- Schedules and weather: the almanac (12d), §11.
+- Schedules: rules (12b). Weather: only the early transfer reads the almanac's forecast (§5.1).
 
 **Must not depend on:** any api, `main`, another driver. The home templates (12c-11 §3) are in the `@evok-node/driver-rainwater/home` subpath, which imports `driver-home`'s types (12a §3); the driver itself never does.
 
@@ -59,6 +59,7 @@ interface RainwaterConfig {
   readonly retention?: Tank & { readonly highFloat?: Float };
   readonly mains?: Address;                                                            // unipi.ro | unipi.do
   readonly bypass?: { readonly url: string; readonly address: Address };               // RemoteLink (05a §3.8b); unipi.ro | unipi.do there
+  readonly forecast?: Address;                                                         // almanac.forecast (12d) — the local almanac, master or replica
 }
 ```
 
@@ -86,6 +87,7 @@ drivers:
       highFloat: PLC:2.unipi.di.07
     mains: PLC:3.unipi.ro.01       # EV.103.01
     bypass: { url: wss://house-plc/api, address: ONB:2.unipi.ro.04 }
+    forecast: almanac:forecast
 ```
 
 Fatal at `configure()`: `bypass` without `mains`; a `fullMm` above 2000 with a `dyp.ds1603da` level (its range, research/15 §1.1). A source of the wrong kind is not fatal: that part is not `reachable` until it matches (§6.4).
@@ -115,6 +117,8 @@ const Settings = Codecs.struct({
   settleS:           S(10, 'Upper level settle', 'after the drain closes, before the upper level is read'),
   smoothingS:        S(30, 'Smoothing window'),
   deadbandMm:        Codecs.uint16({ unit: 'mm', default: 10, label: 'Level deadband' }),
+  earlyTransferMm:   Codecs.float32({ min: 0, unit: 'mm', optional: true, label: 'Early transfer rain', hint: 'rain expected in 6 h at or above this starts a transfer early; absent = off' }),
+  earlyTransferPct:  Pct(50, 'Early transfer level', 'the lower tank at or above this level'),
 });
 ```
 
@@ -216,13 +220,14 @@ One process at a time. A process starts when its start condition holds and no pr
 |---|---|---|---|
 | `refillFromUpper` | lower low, upper above `upperEmptyPct` | drain open | lower reaches its target, or lower high. Upper reaches `upperEmptyPct` ⇒ `refillFromMains` for the rest |
 | `refillFromMains` | lower low, no upper water; or from `refillFromUpper` | the bypass sequence (§5.3), mains open | lower reaches its target, or lower high; mains past `mainsMaxS` (§5.3) |
-| `fillUpper` | lower high, upper below `upperFullPct`, no demand, no cutoff | fill open — the pump pushes water up on its pressure switch | upper reaches `upperFullPct`, lower reaches its target, cutoff. A demand pauses it (§5.2) |
+| `fillUpper` | lower high — or early: `forecast.rainNext.h6` ≥ `earlyTransferMm` and lower ≥ `earlyTransferPct` — upper below `upperFullPct`, no demand, no cutoff | fill open — the pump pushes water up on its pressure switch | upper reaches `upperFullPct`, lower reaches its target, cutoff. A demand pauses it (§5.2) |
 | `idle` | — | every valve this driver opened is closed | — |
 
 - **Lower low** is `lower.low`; without that float, or while it isn't reachable, the level at or below `lowPct`. **Lower high** likewise: `lower.high`, else at or above `highPct`.
 - **Targets** are relative, computed at the start: a refill's is the start level + `refillPct`, a transfer's the start level − `transferPct`. `target` (§4) reports the one running.
 - **No lower level** (§6.4): a refill runs until lower high, a mains refill still capped by `mainsMaxS`; `fillUpper` doesn't start — its target is unknown.
 - **No upper level**: `refillFromUpper` and `fillUpper` don't start — a refill goes to mains.
+- **Early transfer** makes room before heavy rain, so the retention tank and the sewer take less. It needs `forecast` and `earlyTransferMm`; it starts once per forecast crossing — after a `stop` or its end, not again until `rainNext.h6` has been below `earlyTransferMm` once (as §5.1's restart rule).
 - **Interlocks** (§5.5) hold in every process.
 
 Example:
@@ -300,6 +305,7 @@ The upper tank's pressure sensor sits on its outlet pipe: while the drain is ope
 - Each source is followed with `watchDevice` (05a §4b); a stale `polled` value counts as not reachable.
 - A level not reachable, or with no value (§6.1): that tank's `mm`, `percent` and `litres` are absent; `alarm.sensor` is true.
 - A float not reachable: its field keeps its last value; §5.1 uses the level instead; `alarm.sensor` is true.
+- `forecast` not reachable, or its run past its horizon: no early transfer; nothing else changes. Not an alarm.
 - An output not reachable — pump, a valve: its `@` keeps its last value; a process that needs it doesn't start, a running one ends. A pump not reachable ⇒ `supply.available` false.
 
 ## 7. Modes
@@ -349,7 +355,7 @@ At daemon start:
 
 ## 11. Open
 
-- **Forecast.** Before heavy rain, start `fillUpper` early so the lower tank has room — the retention tank and the sewer take less. Needs the almanac's rain forecast (12d). Deferred to M3.4.
+None.
 
 ## 12. Testing
 

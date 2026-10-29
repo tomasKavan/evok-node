@@ -11,7 +11,7 @@
 
 **Not for:**
 
-- Schedules. A rule or the almanac (12d) sets `preset`; the device runs what it is told, as `IrrigationSystem` (12c-08 §1.2).
+- Schedules. A rule on `Clock` (12c-13 §1.2) sets `preset`; the device runs what it is told, as `IrrigationSystem` (12c-08 §1.2).
 - Valves, mixers, duty cycles, the flow guard. They are the central-heating driver's (12h); a room only sends a request to its zone (§3.3).
 - A second AC in one room — Open (§6).
 

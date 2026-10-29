@@ -23,6 +23,7 @@
 | [`12c-10-Climate.md`](12c-Home-main-devices/12c-10-Climate.md) | `Thermostat`, `RoomAirConditioner` |
 | [`12c-11-Rainwater-tank.md`](12c-Home-main-devices/12c-11-Rainwater-tank.md) | `RainwaterTank` |
 | [`12c-12-Ventilation.md`](12c-Home-main-devices/12c-12-Ventilation.md) | `Fan`, `VentilationUnit` |
+| [`12c-13-Almanac.md`](12c-Home-main-devices/12c-13-Almanac.md) | `Calendar`, `Clock`, `Sun`, `WindSensor`, `RainSensor`, `Weather` |
 
 **Job:** one section per home `DeviceType`: fields, built-in templates and Matter mapping, in full.
 12a holds what every type shares; this file holds what one type adds.
@@ -85,6 +86,10 @@ resolution vs Matter (0.01 °C, Percent100ths, log lux), the moving-device patte
 | `RainwaterTank` | — | overview and simple control of the rainwater driver (12i); templates `tank-from-rainwater`, `valve-from-rainwater-supply` (`WaterValve`, irrigation master), `leak-from-rainwater-alarm` (`WaterLeakDetector`, retention alarm), bundle `rainwater` — all shipped with that driver |
 | `Fan` | Fan | on/off, low/medium/high, %; templates `fan-from-relay`, `fan-from-relays` (one tap at a time), `fan-from-ao` (12c-12) |
 | `VentilationUnit` | Fan | a heat recovery unit: `Fan` fields + auto (demand control on rooms' CO₂), boost, away, night ventilation, temperatures, filter, fault; `ventilation-from-airgenio` from driver-airgenio (12j). Open: Fan vs Air Purifier → M3.13 (12c-12 §6) |
+| `Calendar`, `Clock`, `Sun` | — | from the almanac driver (12d); rules trigger on them — a schedule is a rule on `Clock` (12c-13 §1.2) |
+| `WindSensor` | — | the gust with its time, for `WindowCovering`'s `wind` role; `wind-from-almanac` |
+| `RainSensor` | Rain Sensor | raining, past and coming rain; `rain-from-almanac` |
+| `Weather` | — | the Home UI's weather tile; `weather-from-almanac`; bundle `almanac` (12c-13 §3.6) |
 
 **Deferred:** `Pump` — a relay pump is an `OnOffPlugInUnit`.
 

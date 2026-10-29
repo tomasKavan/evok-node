@@ -14,7 +14,7 @@
 
 **Not for:**
 
-- Schedules. A rule (12b) or the almanac (12d) sets `mode`, `away` or `onOff`; the device runs what it is told.
+- Schedules. A rule (12b) — on `Clock` for a time (12c-13 §1.2) — sets `mode`, `away` or `onOff`; the device runs what it is told.
 - A fan that runs on after a light: a `TimerRelay` in a rule (12c-05).
 - Auto on a `Fan` — a bath fan on humidity is a rule.
 - The unit's service side: fire mode, bypass, frost protection, the supply-air setpoint, calibration. They are the unit driver's, in the Inspector (12j §4).
