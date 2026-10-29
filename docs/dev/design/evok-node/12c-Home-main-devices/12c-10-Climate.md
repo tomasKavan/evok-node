@@ -79,7 +79,7 @@ const Celsius    = Codecs.float32({ min: -273.15, unit: '°C' });       // as 12
 const Percent    = Codecs.uint8({ min: 0, max: 100, unit: '%' });     // as 12c-08
 const SystemMode = Codecs.string({ enumValues: ['off', 'heat', 'cool', 'auto', 'fan', 'dry'] });
 const Preset     = Codecs.string({ enumValues: ['occupied', 'unoccupied', 'sleep', 'wake', 'vacation'] });   // Matter's scenarios
-const Reason     = Codecs.string({ enumValues: ['summer', 'lockout', 'window', 'fault', 'unreachable'] });
+const Reason     = Codecs.string({ enumValues: ['summer', 'lockout', 'window', 'fault', 'unreachable', 'defrost', 'modeConflict'] });   // the last two: the AC's outdoor unit (12g §6.1)
 const Avail      = Codecs.struct({ ok: Codecs.bool(), reason: Codecs.optional(Reason) });
 
 const ThermostatBehavior = Codecs.struct({   // settings a consumer must see (12a §2.3) — 16a reports them
@@ -142,7 +142,7 @@ export const RoomAirConditioner = device('home.RoomAirConditioner', {
 | Template | DeviceType | Roles | Shipped by |
 |---|---|---|---|
 | `thermostat` (§3.1) | `Thermostat` | `sensor`: `home.TemperatureSensor`, 1–3 · `heating`: the 12h zone, 1 · `window`: `home.ContactSensor`, 0–8, `reachable: false` · `outdoor`: `home.TemperatureSensor`, 0–1, `reachable: false` | driver-home |
-| `room-ac-from-mimb19n` (§3.2) | `RoomAirConditioner` | `unit`: the 12g indoor unit, 1 · `sensor`: `home.TemperatureSensor`, 0–3, `reachable: false` · `heating`: the 12h zone, 0–1, `reachable: false` · `window`, `outdoor` as above | driver-mimb19n (12a §3) |
+| `room-ac-from-mimb19n` (§3.2) | `RoomAirConditioner` | `unit`: `mimb19n.indoorUnit` (12g §3), 1 · `sensor`: `home.TemperatureSensor`, 0–3, `reachable: false` · `heating`: the 12h zone, 0–1, `reachable: false` · `window`, `outdoor` as above | driver-mimb19n (12a §3) |
 
 - **One room controller.** Both templates run the same module of driver-home: the loops, the source order, stage 2, lockouts, window, boost and compensation (§1). A template adds only its sources. Another AC brand is another `room-ac-from-…` template on the same module.
 - **`reachable`** (12a §4.2): a `Thermostat` needs its sensor and its zone — without either it can't control. A `RoomAirConditioner` needs only its unit; the rest is handled as §1 says.
@@ -177,7 +177,7 @@ Settings of §3.1 (`window` adds `blockAc: true`), plus:
 | `pauseH` | 2 | |
 | `boostMin` | 30 | |
 
-What the unit supports (modes, fan, swing, specials, filter, lock) comes from the `unit` source — M3.3c.
+What the unit supports (modes, fan, swing, specials, setpoint range and step) comes from its `features` (12g §2); the field mapping is 12g §6.1.
 
 ### 3.3. The zone on another PLC
 
@@ -232,6 +232,5 @@ A `mode`, `setpoint` or `preset` SET answers at once with the value taken — cl
 - **A second AC in one room.** Deferred.
 - **Preset setpoints** — user-editable through the Home API and UI, or admin settings only. → M3.11, M3.12.
 - **Matter writes** to `Presets`, limits and deadband through the device. → M3.13, with 12c-04 §4's Open.
-- **Outdoor temperature from 12h** (the ISM8i's) as an `outdoor` source kind. → M3.3e.
-- **The `unit` kind** and what it reports as supported. → M3.3c.
+- **Outdoor temperature from 12h** (the ISM8i's) as an `outdoor` source kind. → M3.3e. A room with an AC can use `temperature-from-mimb19n-outdoor` (12g §6.2).
 - **`0x0072` with the controllers** — Apple sends Cool instead of Auto (research/matter/11 §2); fall back to `0x0301` with On/Off and Fan Control if it fails. → M3.13.

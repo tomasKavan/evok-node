@@ -8,6 +8,9 @@ Input from Tomas (2026-10-28):
 - **Actuals:** local hardware sensors first; the almanac only where none is available.
 - The almanac provides the **sun position** and **how much light the sun gives, in %**, from visibility and clouds.
 - Light % is the **clear-sky index** (§3.2 A): `100 × GHI / GHI_clear`.
+- "Local first" lives in the almanac's `outdoor` endpoint — one place, averages computed once.
+- Only home devices trigger rules (12b §3), so calendar and sun get home devices too; the almanac's home devices go to 12c-13.
+- One almanac per site, on the central PLC in the basement; every other PLC uses it.
 
 ## 1. Who asks for what
 
@@ -124,10 +127,25 @@ What "how much light the sun gives" can be built from:
 - Hourly fetch for one location = 24 calls/day, plus air quality — far under the limits [I].
 - **Offline by kind:** calendar and sun are local and always available; forecast and warnings are cached with their fetch time and go stale; actuals from hardware need no network [I].
 
+## 6a. Storage — sizes
+
+design/evok-node README lists "Timeseries storage of readings" as a non-goal [V]. Estimates, 8 B per value [I]:
+
+| What is kept | Size | Writes |
+|---|---|---|
+| latest forecast run only — 240 h × ~20 fields, replaced each fetch | ~50 KB, constant | 1 per fetch (≤ 24/day) |
+| rolling actuals for averages and rain sums — 72 h at 5 min × 6 values | ~50 KB, constant | snapshot e.g. hourly |
+| hourly actuals archived for 20 years | ~14 MB raw | 24/day |
+| every forecast run archived for 20 years | ~6.7 GB raw | 24/day, each a whole run |
+
+- The first two need no index and no history: a ring buffer and one replaced blob [I].
+- After an outage the provider fills the gap: Open-Meteo `past_days` 0–92 (§4.2) [V].
+- Long-term history belongs outside the PLC (flash wear, the non-goal) [I].
+
 ## 7. Proposals (not binding)
 
-- **P1 — one almanac per site.** One instance (location, providers) on one PLC; other PLCs import its devices over a remote link (12a §4b) [I].
-- **P2 — actual = local first.** A role takes a hardware source first and the almanac's `current` as fallback; the value says where it came from, e.g. `{ value: 7.2, source: 'local' | 'almanac', at }` [I]. Matches the Input rule.
+- **P1 — one almanac per site** — chosen (Input). One instance (location, providers) on one PLC; other PLCs import its devices over a remote link (12a §4b) [I].
+- **P2 — actual = local first** — chosen (Input). A role takes a hardware source first and the almanac's `current` as fallback; the value says where it came from, e.g. `{ value: 7.2, source: 'local' | 'almanac', at }` [I]. Matches the Input rule.
 - **P3 — light % as A (clear-sky index)** — chosen (Input) with B as a second field; E (per-facade GTI) as a separate reading for shading. Needs a local clear-sky model; Open-Meteo has clear-sky only for satellite data.
 - **P4 — wind for 12c-06:** `{ gustMs, at, kind: 'forecast' | 'measured' }`; forecast gust = max of the hour it ends at.
 - **P5 — rain for 12i §11:** `rainNextMm { h3, h6, h24 }` and probability; `rainPastMm { h24 }` for irrigation.

@@ -311,7 +311,7 @@ Thermal actuators, PWM periods and valve exercise: [09 §4.3](09-water.md).
 
 ### 6.1. Interface chain
 
-For the FJM multi-split actually installed, and corrections to §6.2, see [`../17-mim-b19n.md`](../17-mim-b19n.md): an FJM outdoor unit takes the MIM-B19N without a MIM-R10N; quiet and away (B+28, B+29) are EHS only.
+For the FJM multi-split actually installed, and corrections to §6.2, see [`../18-mim-b19n.md`](../18-mim-b19n.md): an FJM outdoor unit takes the MIM-B19N without a MIM-R10N; quiet and away (B+28, B+29) are EHS only.
 
 | Fact | Source |
 |---|---|

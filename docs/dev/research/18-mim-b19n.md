@@ -1,4 +1,4 @@
-# 17 — Samsung MIM-B19N on an FJM multi-split
+# 18 — Samsung MIM-B19N on an FJM multi-split
 
 **Research, not design.** Facts for the MIM-B19N driver (12g) and the `room-ac-from-mimb19n` template (12c-10 §3.2): the interface on an FJM multi-split, the register map checked against the manual's pages, custom NASA registers, multi-split behaviour, line budget, and Tomas's `mim-b19n` library. The register map and NASA IDs of [matter/11 §6](matter/11-thermostat.md) are not repeated; this note corrects them where they were wrong.
 
