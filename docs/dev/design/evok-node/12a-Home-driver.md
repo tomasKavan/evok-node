@@ -116,8 +116,10 @@ No home `DeviceType` declares `'@'` — every field is named. The whole device i
 | `RoomAirConditioner` | Room Air Conditioner | 12c-10 §2 |
 | `TimerRelay` | — (16a ignores it) | 12c-05 §2 |
 | `RainwaterTank` | — (16a ignores it) | 12c-11 §2 |
+| `Fan` | Fan | 12c-12 §2 |
+| `VentilationUnit` | Fan | 12c-12 §2 |
 
-Every reading and channel above is `subscribe: true`. A source's own staleness never appears per field — it folds into `reachable` (§4.2). The types in full: lights in 12c-01 §2, plug-in units in 12c-02 §2, the switch in 12c-03 §2, the sensors in 12c-04 §2, the timer in 12c-05 §2, the cover in 12c-06 §2, the closure in 12c-07 §2, valves, irrigation and leaks in 12c-08 §2, the lock in 12c-09 §2, the thermostat and room air conditioner in 12c-10 §2, the rainwater tank in 12c-11 §2; the rest follow the same shape.
+Every reading and channel above is `subscribe: true`. A source's own staleness never appears per field — it folds into `reachable` (§4.2). The types in full: lights in 12c-01 §2, plug-in units in 12c-02 §2, the switch in 12c-03 §2, the sensors in 12c-04 §2, the timer in 12c-05 §2, the cover in 12c-06 §2, the closure in 12c-07 §2, valves, irrigation and leaks in 12c-08 §2, the lock in 12c-09 §2, the thermostat and room air conditioner in 12c-10 §2, the rainwater tank in 12c-11 §2, the fan and ventilation unit in 12c-12 §2; the rest follow the same shape.
 
 A function a device type has no evok-node equivalent for yet is simply not a field — never a stub that answers nothing.
 
@@ -251,7 +253,7 @@ Handlers answer from memory, the way every driver does (01): `assemble()` subscr
 
 A `SET` forwarded to a source that can't take it — not up, not answering — throws `SourceUnreachable` (05a §3.5) and is answered `unreachable`. It is never queued and replayed later.
 
-Each built-in `DeviceType` (§2) ships with the templates its own built-in source drivers warrant — the light templates of 12c-01 §3, `switch-from-di` for `GenericSwitch` (12c-03 §3), the role-less `timer` for `TimerRelay` (12c-05 §3), `cover-from-relays` for `WindowCovering` (12c-06 §3), the valve, `irrigation` and `leak-from-di` templates (12c-08 §3), `thermostat` for `Thermostat` (12c-10 §3.1) — and a template is itself a manifest-loaded, `kind`-resolved module (01 §10; `{ "kind": "home-template", "templateKind": "dimmable-from-dali", … }`), so a driver plugin for hardware this driver doesn't know about yet can ship its own template for an existing `DeviceType` without touching this package — the rainwater driver ships `valve-from-rainwater-supply` for `WaterValve` and `leak-from-rainwater-alarm` for `WaterLeakDetector`, with `tank-from-rainwater` and the bundle `rainwater` (12c-11 §3); driver-mimb19n ships `room-ac-from-mimb19n` for `RoomAirConditioner` (12c-10 §3.2). It imports that `DeviceType` from `@evok-node/driver-home`; it never rebuilds one under the same kind (05a §3.5).
+Each built-in `DeviceType` (§2) ships with the templates its own built-in source drivers warrant — the light templates of 12c-01 §3, `switch-from-di` for `GenericSwitch` (12c-03 §3), the role-less `timer` for `TimerRelay` (12c-05 §3), `cover-from-relays` for `WindowCovering` (12c-06 §3), the valve, `irrigation` and `leak-from-di` templates (12c-08 §3), `thermostat` for `Thermostat` (12c-10 §3.1), the fan templates (12c-12 §3) — and a template is itself a manifest-loaded, `kind`-resolved module (01 §10; `{ "kind": "home-template", "templateKind": "dimmable-from-dali", … }`), so a driver plugin for hardware this driver doesn't know about yet can ship its own template for an existing `DeviceType` without touching this package — the rainwater driver ships `valve-from-rainwater-supply` for `WaterValve` and `leak-from-rainwater-alarm` for `WaterLeakDetector`, with `tank-from-rainwater` and the bundle `rainwater` (12c-11 §3); driver-mimb19n ships `room-ac-from-mimb19n` for `RoomAirConditioner` (12c-10 §3.2); driver-airgenio ships `ventilation-from-airgenio` for `VentilationUnit` (12c-12 §3.4). It imports that `DeviceType` from `@evok-node/driver-home`; it never rebuilds one under the same kind (05a §3.5).
 
 ## 3a. Template bundles
 

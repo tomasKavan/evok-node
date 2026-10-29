@@ -6,7 +6,7 @@
 |---|---|---|
 | `OnOffPlugInUnit` | on/off, timed on | On/Off Plug-in Unit `0x010A` |
 
-**For:** a switched load that isn't a light — a socket, a fan, a heater, a small pump.
+**For:** a switched load that isn't a light — a socket, a heater, a small pump.
 
 **Not for:**
 
@@ -14,6 +14,7 @@
 - Equipment that a fast on/off cycle damages — a compressor, a heat-pump, a pump with a minimum off time. It needs a device of its own.
 - Energy metering. No built-in source measures a relay's power, so there is no field for it (research/matter/02 §3).
 - Dimmable loads.
+- A fan: `Fan` (12c-12), so controllers show it as one.
 
 ### 1.1. Behaviour
 

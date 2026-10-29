@@ -22,6 +22,7 @@
 | [`12c-09-Door-lock.md`](12c-Home-main-devices/12c-09-Door-lock.md) | `DoorLock` |
 | [`12c-10-Climate.md`](12c-Home-main-devices/12c-10-Climate.md) | `Thermostat`, `RoomAirConditioner` |
 | [`12c-11-Rainwater-tank.md`](12c-Home-main-devices/12c-11-Rainwater-tank.md) | `RainwaterTank` |
+| [`12c-12-Ventilation.md`](12c-Home-main-devices/12c-12-Ventilation.md) | `Fan`, `VentilationUnit` |
 
 **Job:** one section per home `DeviceType`: fields, built-in templates and Matter mapping, in full.
 12a holds what every type shares; this file holds what one type adds.
@@ -82,8 +83,9 @@ resolution vs Matter (0.01 °C, Percent100ths, log lux), the moving-device patte
 | `RoomAirConditioner` | Room Air Conditioner | the controller of a room with an AC: thermostat fields + the unit, `policy` (AC first above an outdoor breakpoint), stage 2, lockouts, window, `boost`, compensated AC setpoint; `room-ac-from-mimb19n` from driver-mimb19n (12c-10) |
 | `Thermostat` | Thermostat | the controller of a room without an AC: the shared thermostat fields, a 12h zone over a `RemoteLink`; template `thermostat` (12c-10) |
 | `RainwaterTank` | — | overview and simple control of the rainwater driver (12i); templates `tank-from-rainwater`, `valve-from-rainwater-supply` (`WaterValve`, irrigation master), `leak-from-rainwater-alarm` (`WaterLeakDetector`, retention alarm), bundle `rainwater` — all shipped with that driver |
+| `Fan` | Fan | on/off, low/medium/high, %; templates `fan-from-relay`, `fan-from-relays` (one tap at a time), `fan-from-ao` (12c-12) |
+| `VentilationUnit` | Fan | a heat recovery unit: `Fan` fields + auto (demand control on rooms' CO₂), boost, away, night ventilation, temperatures, filter, fault; `ventilation-from-airgenio` from driver-airgenio (12j). Open: Fan vs Air Purifier → M3.13 (12c-12 §6) |
 
-**Decided in their own section:** `Fan` — fit for heat recovery units; `Pump` — deferred, a relay pump is an
-`OnOffPlugInUnit`.
+**Deferred:** `Pump` — a relay pump is an `OnOffPlugInUnit`.
 
 **Inputs:** 12a §2–§4a · 12b §2 · 16a · research/matter · source drivers' `DeviceType`s (08, 09, 10, 12)

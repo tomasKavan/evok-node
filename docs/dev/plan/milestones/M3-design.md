@@ -19,6 +19,7 @@ Target numbering in `design/evok-node/` once M3 is done.
 | 12g | MIM-B19N driver | new |
 | 12h | Central heating driver | new |
 | 12i | Rainwater driver | 12i |
+| 12j | AirGENIO driver | 12j |
 | 13 | APIs — common to all, API plugins | 13 + 18 |
 | 13a | Auth & ACL framework | new |
 | 13b | Shell app (mobile/desktop) | new |
@@ -49,9 +50,9 @@ device moves to its target. Matter research per type in `research/matter/`.
 Types: `GenericSwitch`, `OnOffLight`, `DimmableLight`, `ColorTemperatureLight`,
 `ExtendedColorLight`, `OnOffPlugInUnit`, `TimerRelay`, `WindowCovering`, `Closure`, `DoorLock`, `WaterValve`, `IrrigationSystem`, `ContactSensor`,
 `WaterLeakDetector`, `TemperatureSensor`, `HumiditySensor`, `AirQualitySensor`,
-`OccupancySensor`, `LightSensor`, `RoomAirConditioner`, `Thermostat`.
-`Thermostat` and `RoomAirConditioner` in their own step, M3.3b.
-Decided in their step: `Fan` (fit for heat recovery units), `Pump`.
+`OccupancySensor`, `LightSensor`, `RoomAirConditioner`, `Thermostat`, `Fan`, `VentilationUnit`.
+`Thermostat` and `RoomAirConditioner` in their own step, M3.3b; `Fan` and `VentilationUnit` in M3.3f.
+`Pump` deferred: a relay pump is an `OnOffPlugInUnit`.
 One file per type group under `12c-Home-main-devices/`; 12c itself becomes their index as the last step.
 **Done when:** 12c covers every listed type; 12a §2.2, 16a's mapping table and 12b agree
 with it; `research/matter/` holds a note per type with a Matter counterpart.
@@ -81,6 +82,11 @@ with it; `research/matter/` holds a note per type with a Matter counterpart.
 `driver-central-heating`: the building's heating as one system, on the boiler-room PLC. Circuits (mixers 1–5, 1–3 through 12f) and zones (rooms → valves on Unipi outputs). Answers zone requests from thermostats: valve duty cycle, exercise, flow guard (one circuit open or a bypass), summer and availability, setpoint correction on mixers 1–3, fallback to open valves when requests stop. Knows no room temperature. How 12c-08's `thermal-valve-from-output` relates to it.
 **Done when:** 12h designed; M3.3b's zone contract matches it.
 **Refs:** research/matter/11 §5, §7 · research/matter/09 §4.3 · 12c-08 · 12f · 08 · 09
+
+### M3.3f — AirGENIO driver and ventilation   `area/ventilation`
+`driver-airgenio`: a 2VV heat recovery unit with AirGENIO COMFORT control over Modbus RTU, through a Raw Relay Driver — raw devices `airgenio.unit`, `.service`, `.info`; polling, writes, external changes, the unit's timer and clock, service settings and software reset, commissioning. Home side: `Fan` for fans on Unipi outputs and `VentilationUnit` with demand control on the rooms' CO₂, boost, away, night ventilation; Matter as Fan.
+**Done when:** 12j and 12c-12 designed; 12a §2.2, 12a §3, 16a and 12c-02 agree.
+**Refs:** research/16 · research/matter/12 · 07 §4, §6, §7 · 07a §4, §8 · 12a §3 · 12c-10
 
 ### M3.4 — Almanac driver   `area/almanac`
 Calendar, weather forecast, sun position. Data sources, offline behaviour. Respective home devices. A wind DeviceType — gusts in m/s with the time they apply to — for `WindowCovering`'s `wind` role (12c-06 §3.4). A rain forecast for the rainwater driver's early transfer (12i §11).
