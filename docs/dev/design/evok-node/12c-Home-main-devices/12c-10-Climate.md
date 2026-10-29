@@ -147,6 +147,7 @@ export const RoomAirConditioner = device('home.RoomAirConditioner', {
 - **One room controller.** Both templates run the same module of driver-home: the loops, the source order, stage 2, lockouts, window, boost and compensation (§1). A template adds only its sources. Another AC brand is another `room-ac-from-…` template on the same module.
 - **`reachable`** (12a §4.2): a `Thermostat` needs its sensor and its zone — without either it can't control. A `RoomAirConditioner` needs only its unit; the rest is handled as §1 says.
 - Several `sensor` sources are averaged; one lost is left out, all lost is "sensor lost". Any `window` source open is open.
+- The `outdoor` source is the BM-2's sensor through `temperature-from-ism8i-outdoor` (12f §6), or an AC's outdoor unit through `temperature-from-mimb19n-outdoor` (12g §6.2).
 
 ### 3.1. `thermostat`
 
@@ -232,5 +233,4 @@ A `mode`, `setpoint` or `preset` SET answers at once with the value taken — cl
 - **A second AC in one room.** Deferred.
 - **Preset setpoints** — user-editable through the Home API and UI, or admin settings only. → M3.11, M3.12.
 - **Matter writes** to `Presets`, limits and deadband through the device. → M3.13, with 12c-04 §4's Open.
-- **Outdoor temperature from 12h** (the ISM8i's) as an `outdoor` source kind. → M3.3e. A room with an AC can use `temperature-from-mimb19n-outdoor` (12g §6.2).
 - **`0x0072` with the controllers** — Apple sends Cool instead of Auto (research/matter/11 §2); fall back to `0x0301` with On/Off and Fan Control if it fails. → M3.13.

@@ -84,7 +84,7 @@ The ISM8i protocol as a library of its own, in its own repository `tomasKavan/wo
 **Refs:** design/libs 01 · research/19 · 05a
 
 ### M3.3e — Central heating driver   `area/heating`
-`driver-central-heating`: the building's heating as one system, on the boiler-room PLC. Circuits (mixers 1–5, 1–3 through 12f) and zones (rooms → valves on Unipi outputs). Answers zone requests from thermostats: valve duty cycle, exercise, flow guard (one circuit open or a bypass), summer and availability, setpoint correction on mixers 1–3, fallback to open valves when requests stop. Knows no room temperature. How 12c-08's `thermal-valve-from-output` relates to it.
+`driver-central-heating`: the building's heating as one system, on the boiler-room PLC. Circuits (mixers 1–5, 1–3 through 12f) and zones (rooms → valves on Unipi outputs). Answers zone requests from thermostats: valve duty cycle, exercise, flow guard (one circuit open or a bypass), summer and availability, setpoint correction on mixers 1–3, fallback to open valves when requests stop. Knows no room temperature. How 12c-08's `thermal-valve-from-output` relates to it. Holds the desired state per circuit and writes through 12f only on a difference — a whole 0.5 K step with hysteresis, at most every 30 min per circuit (12f §5.2).
 **Done when:** 12h designed; M3.3b's zone contract matches it.
 **Refs:** research/matter/11 §5, §7 · research/matter/09 §4.3 · 12c-08 · 12f · 08 · 09
 
