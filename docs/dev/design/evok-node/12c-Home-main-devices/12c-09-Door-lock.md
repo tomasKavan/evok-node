@@ -39,11 +39,12 @@ The **release window** starts at an unlock and lasts `releaseMs` — the lock's 
 
 Every `lock` and `unlock` records who did it in `lastOperation`:
 
-- **`user` is the call's principal** (13a) — never a method argument, which any caller could fill with any name. A rule's call has no user; its source is `rule`.
-- **What a caller must prove is 13a's**, not the device's. For the Home UI (Tomas): an authenticated user confirms; without authentication the UI asks for a PIN, and the identity provider resolves it to a user, who is then the principal. The device trusts the call it gets.
+- **The caller comes as `by`**, an `actor` argument of `lock` and `unlock` (13 §5). The api always overwrites it with its own caller, so no client can name someone else. `lastOperation.user` is `by.id` and `by.name`.
+- **Source from `by`:** realm `matter` → `matter`; any other realm → `app`; no `by` → `rule`.
+- **`unlock` is marked `proof`** (13 §5): the api gets proof before it relays the call. What the proof is — a confirmation by a logged-in user, a PIN the identity provider resolves to a user — is 13a's. The device trusts the call it gets.
 - Opened at the lock — a 2N keypad, card, exit button — the source and user come from the source (§3.2).
 
-**Open:** how a method is marked as needing proof, and how the principal reaches a template's call — M3.6 (13a). Until then `user` stays absent.
+**Open:** what `proof` asks of a caller — M3.6 (13a).
 
 ## 2. Fields
 
@@ -88,8 +89,8 @@ export const DoorLock = device('home.DoorLock', {
   lastOperation: reading(LockOperation, { subscribe: true }),
   alarm:         reading(LockAlarm, { subscribe: true }),
   behavior:      reading(LockBehavior, { subscribe: true }),
-  unlock:        method('mutates', Codecs.void, undefined, { errorKinds: ['blocked'] }),
-  lock:          method('mutates', Codecs.void),
+  unlock:        method('mutates', Codecs.void, Codecs.struct({ by: Codecs.actor() }), { errorKinds: ['blocked'], proof: true }),   // 13 §5
+  lock:          method('mutates', Codecs.void, Codecs.struct({ by: Codecs.actor() })),
 });
 ```
 
@@ -137,8 +138,8 @@ One switch of a 2N Access Unit 2.0 or IP Verso 2.0, through the 2N driver (12e).
 
 | Home | 2N (research/matter/08 §4) |
 |---|---|
-| `unlock` with a user | `grantaccess` for that user — the 2N's access log names them; the user map is 12e's |
-| `unlock` without a user | `switch/ctrl` `trigger`, `message` naming the source |
+| `unlock`, `by` with a user of realm `idp` | `grantaccess` for that user, `by` handed on — the 2N's access log names them; the user map is 12e's |
+| `unlock`, any other `by` or none | `switch/ctrl` `trigger`, `message` naming the source |
 | `lock` | `switch/ctrl` `off` |
 | switch on | `state` `unlocked`, `lastOperation` unlock: source and user from the event that caused it — `UserAuthenticated` → its user and credential kind (`keypad`, `rfid`, `biometric`, `mobileKey`), `RexActivated` → `button`, ours → our source |
 | switch off | the window is over — §1.1 |

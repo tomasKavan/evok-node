@@ -20,14 +20,14 @@ Target numbering in `design/evok-node/` once M3 is done.
 | 12h | Central heating driver | new |
 | 12i | Rainwater driver | 12i |
 | 12j | AirGENIO driver | 12j |
-| 13 | APIs — common to all, API plugins | 13 + 18 |
+| 13 | APIs — common to all, API plugins | 13 |
 | 13a | Auth & ACL framework | new |
 | 13b | Shell app (mobile/desktop) | new |
 | 14 | REMOVED | Compat API |
 | 15 | WS API | 15 Nextgen API |
 | 16 | Inspector UI | 16 |
 | 17 | Inspector UI plugins | 17 |
-| 18 | Home API | 18 API plugins |
+| 18 | Home API | 18 |
 | 19 | Home UI | new |
 | 20 | Matter bridge API | 16a |
 
@@ -99,12 +99,12 @@ Calendar, clock, sun position, light %, weather forecast, warnings, air. Data so
 **Refs:** research/17 · 05a · 12a · 12b · 12i · 12c-06
 
 ### M3.5 — APIs: common contract and API plugins   `area/api`
-What every API must do, whatever it speaks. API as plugin, the same mechanism as drivers. Absorbs 18 API plugins.
-**Done when:** 13 designed; 18's content moved into 13.
-**Refs:** 13 · 18 · 01 §9 · 02 §4–§5 · 03
+What every api must do, whatever it speaks, and how a new one is written. Terms: API module, API plugin, WS extension, relay and mapping apis. State: translation state rebuilt, protocol identity state in `api.<id>`. The gate: auth and ACL in the api; `actor` and `proof` annotations for a driver that needs the user. Consuming drivers: `links()`/`onLink`, introspection, driver loss and return as a client sees it. Errors relayed or mapped. Listening without a declaration. Placement. `ws-kit` as the base of the WS API and the Home API. Writing an api, with MQTT as the example. Absorbs 18 API plugins.
+**Done when:** 13 designed; 18 holds the Home API memo; 01 §8, 03 §4, 05a §3.1/§3.1a/§4, 12c-09 §1.2 and M3.6, M3.8, M3.11 agree.
+**Refs:** 13 · 18 · 01 §2, §8, §9 · 02 §4–§5 · 03 · 05a §3.1a, §4b · 06 §5a · 12c-09 §1.2 · 16a
 
 ### M3.6 — Auth & ACL framework   `area/auth`
-A library APIs use, not an API. Upstream identity provider (authentik). Users, roles, keys, devices, client credentials (PLC to PLC). Authentication: SSO, password, PIN, biometrics; local vs full. Assurance levels and how an API reacts (PIN for a lock): a method marked as needing proof, and the call's principal reaching a template (12c-09 §1.2). The same proof for an access closure's `open` (`garageDoor`, `gate`, `door`; `close` free), and whether a virtual `DoorLock` gates it (12c-07 §6). Then Matter exposure of `DoorLock` and access closures (12c-09 §4, 12c-07 §4). Local DB as a new driver kind. Example flows, including mobile apps and biometrics.
+A library APIs use, not an API. Upstream identity provider (authentik). Users, roles, keys, devices, client credentials (PLC to PLC). Authentication: SSO, password, PIN, biometrics; local vs full. Assurance levels and how an API reacts (PIN for a lock): what 13's `proof` asks of a caller and how a WS extension fills `actor` (13 §5, 12c-09 §1.2). The same proof for an access closure's `open` (`garageDoor`, `gate`, `door`; `close` free), and whether a virtual `DoorLock` gates it (12c-07 §6). Then Matter exposure of `DoorLock` and access closures (12c-09 §4, 12c-07 §4). Local DB as a new driver kind. Example flows, including mobile apps and biometrics.
 **Done when:** 13a designed; research doc for the identity provider exists.
 **Refs:** 13 · 15 · 06 §5a · 12a §4b · 12c-07 §6 · 12c-09 §1.2
 
@@ -119,7 +119,7 @@ What it is and how it's used. Multi-user, multi-PLC, multi-app: what an app (ins
 **Refs:** 13a · 16 · 19
 
 ### M3.8 — WS API   `area/api`
-Renamed from nextgen. Relays internal messaging; per-connection and per-request plugins. Other APIs built on top of it. Authorization through a plugin using 13a. The hello advertises `evokNodeVersion` (12a §4b). Session language (`hello.lang`, `Accept-Language`, `setLang`) and the localization engine resolving `LocalizedText` at the edge (05a §3.1a).
+Renamed from nextgen. Relays internal messaging. `ws-kit` (13 §2): sessions, hello, relay, fan-out, WS extensions (`onConnection`, `onRequest`). The Home API is built on it too. Auth and ACL as WS extensions using 13a, reacting to `actor` and `proof` (13 §5). The hello advertises `evokNodeVersion` (12a §4b). Session language (`hello.lang`, `Accept-Language`, `setLang`) and the localization engine resolving `LocalizedText` at the edge (05a §3.1a).
 **Done when:** 15 designed and renamed; `api-nextgen` renamed in docs.
 **Refs:** 03 · 13 · 13a · 15
 
@@ -134,7 +134,7 @@ Plugin approach. Main plugins: unipi system, unipi local, unipi extension, DALI 
 **Refs:** 16 · 08 · 09 · 11 · 12 · 12a
 
 ### M3.11 — Home API   `area/api`
-Subset of the WS API; understands only the home driver. Relays the subset of management 12a §5 lists.
+On `ws-kit` (13 §2); understands only the home driver. Relays the subset of management 12a §5 lists.
 **Done when:** 18 designed.
 **Refs:** 15 · 12a · 12b · 13a
 

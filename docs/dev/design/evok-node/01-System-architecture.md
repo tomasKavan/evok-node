@@ -63,7 +63,7 @@ This is still the two-kind model: an owning driver is a driver like any other, d
 
 Nothing on the driver↔api boundary may block: an api's query is answered from a driver's in-memory state, never from a live bus read, so a slow answer means the driver is genuinely wedged rather than that the bus was slow this once.
 
-This now holds structurally rather than by convention: every instance has its own event loop (§3), so a blocked promise or a slow handler wedges only that instance, never `main` and never another. `main` still has no logic here — it reads config and hands each component to the runner its config names, nothing more. The two remaining placements are not equally isolated, though: both share one OS process, so a native-code crash — a bug in a serial-port binding's C++ layer, say — takes the whole process down regardless of which thread it happened on; only `child_process`'s own separate process survives that. Choosing it over `worker_thread` for a component whose transport leans on native code, or that does genuinely heavy computation, is the config author's call; 13 says what "heavy" means for an api and 06 for a driver.
+This now holds structurally rather than by convention: every instance has its own event loop (§3), so a blocked promise or a slow handler wedges only that instance, never `main` and never another. `main` still has no logic here — it reads config and hands each component to the runner its config names, nothing more. The two remaining placements are not equally isolated, though: both share one OS process, so a native-code crash — a bug in a serial-port binding's C++ layer, say — takes the whole process down regardless of which thread it happened on; only `child_process`'s own separate process survives that. Choosing it over `worker_thread` is the config author's call; it is recommended for a component that leans on native code or computes for long stretches (13 §3, 06 §9). Nothing checks it.
 
 ## 9. APIs choose their drivers
 
@@ -91,6 +91,7 @@ evok-node can be extended without changing its own code, at two different levels
 | `driver-onboard` | The transport driver for the controller's own onboard I/O. |
 | `driver-extension` | The transport driver for one RS-485/TCP (modbus) extension line. |
 | `api-nextgen` | The open, evok-node-native api. |
+| `ws-kit` | The server side of the WS protocol, the base of the WS API and the Home API: sessions, hello, relay, fan-out, WS extensions (13 §1, 15). |
 | `simulator` | Test-only stand-in for hardware transports. |
 | `client` | TS client retargeting `api-nextgen`'s schema. |
 | `ui` | The inspector SPA, served by `api-nextgen`. |

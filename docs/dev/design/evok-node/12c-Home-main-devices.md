@@ -71,7 +71,7 @@ resolution vs Matter (0.01 °C, Percent100ths, log lux), the moving-device patte
 | `TimerRelay` | — | virtual, no roles; rules start it and react to it; `onFor` stays on lights and plug-in units |
 | `WindowCovering` | Window Covering | 0.01 % closed, as Matter; optional tilt; templates `cover-from-relays`, `cover-from-klf`; wind protection built in |
 | `Closure` | Closure | one type for windows, garage doors, gates (`kind` → Matter tags); templates `closure-from-klf`, `closure-from-uap` (Hörmann UAP1-HCP: pulses for open/close/stop, end contacts, optional travel contact); bundle `velux-klf` with `cover-from-klf`; access kinds (`garageDoor`, `gate`, `door`) not on Matter yet. Open: proof for `open` → M3.6 |
-| `DoorLock` | Door Lock | released for a time, locks by itself, door contact; `lastOperation` with the acting user; `lock-from-relay`, `lock-from-2n`; not on Matter yet. Open: proof and principal (M3.6), 2N roles (M3.6a) |
+| `DoorLock` | Door Lock | released for a time, locks by itself, door contact; `lastOperation` with the acting user; `lock-from-relay`, `lock-from-2n`; not on Matter yet. Open: what `proof` asks (M3.6), 2N roles (M3.6a) |
 | `WaterValve` | Water Valve | Matter-shaped `open`/`close`, timed, `maxOpenS`, always closed after a restart; templates `valve-from-output`, `thermal-valve-from-output` (level as a duty cycle); not shown by Apple Home |
 | `IrrigationSystem` | Irrigation System | zones are `WaterValve`s, one at a time; master valve, pump; no schedules. With a rainwater driver the master is its supply valve (12c-11 §3.2) |
 | `ContactSensor` | Contact Sensor | one template, `contact-from-di` |

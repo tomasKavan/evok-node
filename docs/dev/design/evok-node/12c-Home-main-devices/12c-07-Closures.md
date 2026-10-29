@@ -286,4 +286,4 @@ With `positioning: 'percent'`, a Closure Panel `0x0231` child carries the %: Clo
 
 ## 6. Open
 
-- **Who may open an access closure, and how it is proved** — M3.6 (13a). `open` (and `goTo` toward open) of a `garageDoor`, `gate` or `door` needs the same proof as `DoorLock.unlock` (12c-09 §1.2); `close` and `stop` need none. Whether a (virtual) `DoorLock` also gates it through `blocked.open: 'locked'` is decided there (research/matter/07 §1.8). Until then nothing is gated.
+- **Who may open an access closure, and how it is proved** — M3.6 (13a). `open` (and `goTo` toward open) of a `garageDoor`, `gate` or `door` needs the same proof as `DoorLock.unlock` (12c-09 §1.2); `close` and `stop` need none. `proof` marks a method of a `DeviceType` (13 §5), and `Closure` is one type for every `kind` — how only the access kinds get it is decided there too. Whether a (virtual) `DoorLock` also gates it through `blocked.open: 'locked'` is decided there (research/matter/07 §1.8). Until then nothing is gated.

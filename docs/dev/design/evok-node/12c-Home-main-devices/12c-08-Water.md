@@ -10,7 +10,7 @@
 
 **For:**
 
-- `WaterValve` — a valve on one output: an irrigation zone, a tank inlet, the descaler bypass (a 3-way valve whose "open" is the bypass), a heating circuit's thermal actuator.
+- `WaterValve` — a valve on one output: an irrigation zone, a tank inlet, the descaler bypass (a 3-way valve whose "open" is the bypass), a heating circuit's thermal actuator outside the central heating system. The building's heating zones are the central heating driver's (12h), not `WaterValve`s.
 - `IrrigationSystem` — a set of zones that must not run together, on one supply.
 - `WaterLeakDetector` — a leak module on a DI, a Matter leak sensor.
 

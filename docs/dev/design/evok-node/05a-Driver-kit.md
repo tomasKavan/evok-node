@@ -40,6 +40,7 @@ interface Annotations {                                // for a human form — �
   readonly hint?: LocalizedText;
   readonly default?: Value;                            // a struct member a caller may omit; decode fills it in
   readonly optional?: boolean;                         // a struct member a caller may omit; decode leaves it absent
+  readonly actor?: true;                               // the caller, filled by the api — 13 §5; Codecs.actor() only
 }
 
 interface Semantics extends Annotations {
@@ -89,6 +90,7 @@ const Codecs: {
   readonly void: TypedCodec<void>;   // a `method` with nothing meaningful to return on success — schema { type: 'void' }
   readonly text: (s?: Semantics) => TypedCodec<LocalizedText>;
   readonly schema: (s?: Semantics) => TypedCodec<ValueSchema>;
+  readonly actor: () => TypedCodec<Actor | undefined>;   // optional struct { realm, id?, name? }, annotated actor — 13 §5
   optional<T>(c: TypedCodec<T>): TypedCodec<T | undefined>;   // sets the member's `optional` — §3.1a
   struct<F extends Record<string, TypedCodec<unknown>>>(fields: F, a?: Annotations): TypedCodec<{ readonly [K in keyof F]: Infer<F[K]> }>;
   array<T>(items: TypedCodec<T>, s?: Semantics): TypedCodec<readonly T[]>;
@@ -125,6 +127,7 @@ interface MethodType<R, A = void, E extends string = never> {
   readonly resultSchema: ValueSchema;
   readonly argsCodec?: Codec<A>;    // omitted ⇒ no payload
   readonly argsSchema?: ValueSchema;  // present iff argsCodec is
+  readonly proof?: true;           // the api gets extra proof from its caller before relaying — 13 §5
   readonly errorKinds?: readonly E[];   // the closed, endpoint-owned vocabulary `onCall` (§3.5) may
                                          // resolve as `domainErrorKind` — absent ⇒ `E` is `never`, so
                                          // `CallOutcome`'s domain-error arm isn't constructible at all
@@ -162,6 +165,7 @@ store: method('mutates', Codecs.void, Codecs.struct({
 - `optional` here is a value a caller may omit. `optional()` on a `DeviceType` field (§3.3) is an endpoint a device may not have — a different thing.
 - `enumLabels` has exactly the keys of `enumValues`.
 - `LocalizedText` travels in full, every language; the WS API resolves it for the session's language (15). A value that is itself user-facing text has format `text`; a value that is itself a schema (a template's form) has format `schema`, so the edge finds the text inside it too.
+- `actor` marks the member an api fills with its own caller and never relays from a client (13 §5). Only `Codecs.actor()` sets it, and only as a struct member of a method's arguments; anywhere else it is a packaging mistake, rejected when the codec is built.
 - `{ type: 'void' }` is `Codecs.void`'s schema — a method's result only, on the wire a success with no body. Never a struct member, an array item, or a reading's or channel's schema.
 
 ### 3.2. Building one without repeating the type
@@ -172,7 +176,7 @@ store: method('mutates', Codecs.void, Codecs.struct({
 // @evok-node/module-sdk
 function reading<T>(codec: TypedCodec<T>, opts?: { subscribe?: boolean }): ReadingType<T>;
 function channel<T, TSet = T>(codec: TypedCodec<T>, opts?: { subscribe?: boolean; set?: TypedCodec<TSet> }): ChannelType<T, TSet>;
-function method<R, A = void, E extends string = never>(effect: 'none' | 'mutates', result: TypedCodec<R>, args?: TypedCodec<A>, opts?: { errorKinds?: readonly E[] }): MethodType<R, A, E>;
+function method<R, A = void, E extends string = never>(effect: 'none' | 'mutates', result: TypedCodec<R>, args?: TypedCodec<A>, opts?: { errorKinds?: readonly E[]; proof?: true }): MethodType<R, A, E>;
 ```
 
 `channel(Codecs.bool())` infers `ChannelType<boolean, boolean>` entirely from its argument, `schema` included; nobody writes `<boolean>` or a schema literal anywhere.
@@ -604,6 +608,7 @@ interface FieldEntry {
   readonly schema: ValueSchema;         // duplicated from the field's own EndpointType (§3.1) — see below for why
   readonly setSchema?: ValueSchema;     // channel only, present iff the field's type has one
   readonly argsSchema?: ValueSchema;    // method only, present iff the field's type has one
+  readonly proof?: true;                // method only — 13 §5
 }
 ```
 
@@ -720,7 +725,7 @@ Tier 1 (unit; `basics/03-Testing.md`), against `driver-kit`'s own fixtures — a
 - Wildcard resolution (§6): a `DI.*` subscription picks up a fixture endpoint added after subscribing (a topology-generation bump) and drops one removed, with no re-subscribe from the caller.
 - `bindDevice()`'s checks (§3.5): a fixture `DeviceType` whose own `kind` isn't in the device manifest is fatal at `bindDevice()`, before `attach()`; independently, a fixture `DeviceType` whose exported `kind` disagrees with its manifest entry's `deviceKind` is fatal; a duplicate `tail` is fatal independently of either; binding a second, different `DeviceType` object under a `kind` already bound in this driver is fatal.
 - `resolveDeviceKind()` (§3.5): resolves a fixture `deviceKind` string to the same `DeviceType` a direct import of that fixture would give, and the result binds identically either way; a second call for the same `deviceKind` returns the memoized value, asserted by the fixture's own load-side-effect counter staying at 1; an unregistered `deviceKind` rejects, naming it, before `bindDevice()` ever runs.
-- Introspection payload (§4): `$introspect` on a fixture driver returns `{driverId, driverTypeName, type: 'driver-kit', form: 'full', generation, kinds, devices}`; each kind appears once in `kinds` however many devices use it; each `KindEntry` lists every declared field, `optional()` ones included; each `FieldEntry` is exactly `shape`/`subscribe`/`effect?`/`schema`/`setSchema?`/`argsSchema?`; a device that leaves an `optional()` field unbound lists it in `unbound`; a fixture device with a single `'@'` field still appears as an ordinary `DeviceRef` — assert `codec`/`setCodec`/`argsCodec`/`resultCodec` themselves never leak onto the wire, only their serializable counterparts do.
+- Introspection payload (§4): `$introspect` on a fixture driver returns `{driverId, driverTypeName, type: 'driver-kit', form: 'full', generation, kinds, devices}`; each kind appears once in `kinds` however many devices use it; each `KindEntry` lists every declared field, `optional()` ones included; each `FieldEntry` is exactly `shape`/`subscribe`/`effect?`/`schema`/`setSchema?`/`argsSchema?`/`proof?`; a device that leaves an `optional()` field unbound lists it in `unbound`; a fixture device with a single `'@'` field still appears as an ordinary `DeviceRef` — assert `codec`/`setCodec`/`argsCodec`/`resultCodec` themselves never leak onto the wire, only their serializable counterparts do.
 - Change log (§3.8): each `bindDevice`/`unbindDevice` raises `n` by one and emits a `DriverKitChange` whose `from` is the previous generation; `GET` with `since` inside the last 16 changes answers one merged `change` (bind then unbind of one tail → `null`); `since` 17 changes back, or with another epoch, answers `full`; a `change` carries a `KindEntry` only for a kind first bound after `from`; `options.since` on another address or method, or malformed, is `bad-payload`.
 - `RejectedPayload` (§3.5): a fixture `onSet` throwing it answers `bad-payload`, never `internal-error`; a fixture `onSet` throwing `SourceUnreachable` answers `unreachable`; any other thrown error from `onGet`/`onSet` still answers `internal-error`, unchanged.
 - `DeviceType`/`bindDevice` (§3.3/§3.5): a `primitive`/`array`-shaped `@` declared alongside any sibling field is rejected when the `DeviceType` is built, before any driver binds it; a required field missing from `bindDevice`'s `handlers` is fatal, while the same `DeviceType` binds successfully with only some `optional()` fields supplied; a second `bindDevice()` whose tail falls inside an already-bound device's namespace, outside its declared fields, is fatal; every field handle in one `bindDevice()` call's `BoundDevice` is independently addressable, and `unbindDevice`ing the device's own tail doesn't silently leave a sibling field bound.

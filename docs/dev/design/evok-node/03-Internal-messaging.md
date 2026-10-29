@@ -106,11 +106,15 @@ interface MessagingHandle {
   subscribe(address: Address, onEvent: (event: Event) => void): void;   // upsert — subscribing an address already active replaces its handler
   unsubscribe(address: Address): void;
   listSubscriptions(): readonly Address[];   // this instance's own want-list — not the wire-level $subscriptions (§6.3)
+  links(): readonly { readonly driver: DriverId; readonly up: boolean }[];   // this instance's declared links (§8), live across a reload
+  onLink(onChange: (driver: DriverId, up: boolean) => void): () => void;     // unsubscribe
   onRequest(handler: (req: Request) => Promise<Response>): void;
   emit(tail: string, value: Value): void;   // push a fresh snapshot of one base endpoint — §6 handles delivery
   reportProgress(callId: MessageId, progress: number, description?: string): void;   // fire-and-forget, clamped to [0,1] — §6.4
 }
 ```
+
+`links()` is what the runner wired this handle from (§9) — for an api, its `drivers:`, which never reaches its own `Config`. `up` is the link's connection (§10). `onLink` fires on every change: on `false` when the connection drops, on `true` after the want-list replay (§6.3) has been sent, so a `GET` issued from the callback sees the subscriptions in place. A link added or removed by a reload fires `true` or `false` too. 13 §7 is what an api does with it.
 
 A handler's own `Response.id` and `re` are never load-bearing — the runtime mints the real `id` and sets `re: req.id` itself before anything reaches the wire, overwriting whatever the handler supplied. Keeping the full `Response` shape as the handler's return type, rather than a narrower success/failure pair, is deliberate: a handler that wants `id`/`re` for its own logging can still have them, even though nothing downstream trusts the values it chose.
 
