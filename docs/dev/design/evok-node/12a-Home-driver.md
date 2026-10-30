@@ -92,7 +92,7 @@ Tags are evok-node vocabulary — `position` (`left`/`right`/`top`/`bottom`/`mid
 
 No home `DeviceType` declares `'@'` — every field is named. The whole device is still one round trip: `GET` with `returnFields: '*'` (05a §3.5a, `RemoteDevice.getAll`, 05a §3.8a) for a snapshot, `SUBSCRIBE` on the device's own tail (05a §6) for every field's changes.
 
-| DeviceType | Matter counterpart (16a) | Fields beyond `CommonFields` |
+| DeviceType | Matter counterpart (16a) | Defined in |
 |---|---|---|
 | `GenericSwitch` | Generic Switch | 12c-03 §2 |
 | `OnOffLight` | On/Off Light | 12c-01 §2 |
@@ -125,7 +125,7 @@ No home `DeviceType` declares `'@'` — every field is named. The whole device i
 | `RainSensor` | Rain Sensor | 12c-13 §2 |
 | `Weather` | — (16a ignores it) | 12c-13 §2 |
 
-Every reading and channel above is `subscribe: true`. A source's own staleness never appears per field — it folds into `reachable` (§4.2). The types in full: lights in 12c-01 §2, plug-in units in 12c-02 §2, the switch in 12c-03 §2, the sensors in 12c-04 §2, the timer in 12c-05 §2, the cover in 12c-06 §2, the closure in 12c-07 §2, valves, irrigation and leaks in 12c-08 §2, the lock in 12c-09 §2, the thermostat and room air conditioner in 12c-10 §2, the rainwater tank in 12c-11 §2, the fan and ventilation unit in 12c-12 §2; the rest follow the same shape.
+Every reading and channel above is `subscribe: true`. A source's own staleness never appears per field — it folds into `reachable` (§4.2). Each type in full — fields, templates, Matter, moving — is its file in 12c; the conventions they share are 12c §1.
 
 A function a device type has no evok-node equivalent for yet is simply not a field — never a stub that answers nothing.
 
@@ -259,7 +259,7 @@ Handlers answer from memory, the way every driver does (01): `assemble()` subscr
 
 A `SET` forwarded to a source that can't take it — not up, not answering — throws `SourceUnreachable` (05a §3.5) and is answered `unreachable`. It is never queued and replayed later.
 
-Each built-in `DeviceType` (§2) ships with the templates its own built-in source drivers warrant — the light templates of 12c-01 §3, `switch-from-di` for `GenericSwitch` (12c-03 §3), the role-less `timer` for `TimerRelay` (12c-05 §3), `cover-from-relays` for `WindowCovering` (12c-06 §3), the valve, `irrigation` and `leak-from-di` templates (12c-08 §3), `thermostat` for `Thermostat` (12c-10 §3.1), the fan templates (12c-12 §3) — and a template is itself a manifest-loaded, `kind`-resolved module (01 §10; `{ "kind": "home-template", "templateKind": "dimmable-from-dali", … }`), so a driver plugin for hardware this driver doesn't know about yet can ship its own template for an existing `DeviceType` without touching this package — the rainwater driver ships `valve-from-rainwater-supply` for `WaterValve` and `leak-from-rainwater-alarm` for `WaterLeakDetector`, with `tank-from-rainwater` and the bundle `rainwater` (12c-11 §3); driver-mimb19n ships `room-ac-from-mimb19n` for `RoomAirConditioner` (12c-10 §3.2) and `temperature-from-mimb19n-outdoor` for `TemperatureSensor` (12g §6); driver-ism8i ships `temperature-from-ism8i-outdoor` for `TemperatureSensor` (12f §6); driver-airgenio ships `ventilation-from-airgenio` for `VentilationUnit` (12c-12 §3.4); driver-almanac ships the templates and the bundle `almanac` of 12c-13 §3, among them `temperature-from-almanac` and `humidity-from-almanac` for the 12c-04 sensors. It imports that `DeviceType` from `@evok-node/driver-home`; it never rebuilds one under the same kind (05a §3.5).
+Each built-in `DeviceType` (§2) ships with the templates its own built-in source drivers warrant — listed per type in the 12c index — and a template is itself a manifest-loaded, `kind`-resolved module (01 §10; `{ "kind": "home-template", "templateKind": "dimmable-from-dali", … }`), so a driver plugin for hardware this driver doesn't know about yet can ship its own template for an existing `DeviceType` without touching this package — the rainwater driver ships `valve-from-rainwater-supply` for `WaterValve` (12c-11 §3). It imports that `DeviceType` from `@evok-node/driver-home`; it never rebuilds one under the same kind (05a §3.5).
 
 ## 3a. Template bundles
 
@@ -413,7 +413,7 @@ This driver runs one Matter controller, on its own fabric, built on matter.js. I
 - **Unknown device type** — no home `DeviceType` matches: stored and listed, never bound, never exposed (16a). It can only be unpaired.
 - **Unpairing** calls `decommission()`, which removes this fabric from the device. If the device can't be reached, `delete()` drops it locally only, and the answer says so — the device may need a factory reset.
 
-**Binding.** Which home `DeviceType` an endpoint becomes, and which cluster attribute, command or event each field maps to, is the mapping table (§1). Details per device type are 12c's (M3.3). For every type:
+**Binding.** Which home `DeviceType` an endpoint becomes, and which cluster attribute, command or event each field maps to, is the mapping table (§1). Details per device type: §4 of the type's file in 12c. For every type:
 
 - Values come from the node's matter.js subscription; `onGet` answers the last value reported.
 - A `SET` or call sends the mapped command and answers once the device acks it. A `SET` stores and emits the requested value at once — the target, not the values on the way there, the same as a DALI gear (12 §10). Only a field that moves on its own (`move` on a light) changes step by step.

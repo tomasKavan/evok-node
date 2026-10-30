@@ -1,96 +1,119 @@
 # 12c — Home main devices
 
-> **Memo, not content.** What belongs in this file, and what it gets written from. Written during
-> [M3](../../plan/roadmap.md); do not implement against a memo. Content is written below this memo,
-> section by section; the memo is removed when M3.3 closes.
->
-> **Last step of M3.3:** replace this memo with the index of `12c-Home-main-devices/` and §1 common
-> conventions.
+One section per home `DeviceType`: fields, built-in templates, Matter mapping, what it reports while it moves. 12a holds what every type shares (`CommonFields`, the template mechanism, the Matter binding rule); 16a holds the device-level mapping table. This file is the index of [`12c-Home-main-devices/`](12c-Home-main-devices/) and the conventions the types share.
 
-**Files** — one per type group, in [`12c-Home-main-devices/`](12c-Home-main-devices/):
+## Index
 
-| File | Types |
-|---|---|
-| [`12c-01-Lights.md`](12c-Home-main-devices/12c-01-Lights.md) | `OnOffLight`, `DimmableLight`, `ColorTemperatureLight`, `ExtendedColorLight` |
-| [`12c-02-Plug-in-units.md`](12c-Home-main-devices/12c-02-Plug-in-units.md) | `OnOffPlugInUnit` |
-| [`12c-03-Generic-switch.md`](12c-Home-main-devices/12c-03-Generic-switch.md) | `GenericSwitch` |
-| [`12c-04-Sensors.md`](12c-Home-main-devices/12c-04-Sensors.md) | `ContactSensor`, `OccupancySensor`, `TemperatureSensor`, `HumiditySensor`, `LightSensor`, `AirQualitySensor` |
-| [`12c-05-Timer-relay.md`](12c-Home-main-devices/12c-05-Timer-relay.md) | `TimerRelay` |
-| [`12c-06-Window-covering.md`](12c-Home-main-devices/12c-06-Window-covering.md) | `WindowCovering` |
-| [`12c-07-Closures.md`](12c-Home-main-devices/12c-07-Closures.md) | `Closure` |
-| [`12c-08-Water.md`](12c-Home-main-devices/12c-08-Water.md) | `WaterValve`, `IrrigationSystem`, `WaterLeakDetector` |
-| [`12c-09-Door-lock.md`](12c-Home-main-devices/12c-09-Door-lock.md) | `DoorLock` |
-| [`12c-10-Climate.md`](12c-Home-main-devices/12c-10-Climate.md) | `Thermostat`, `RoomAirConditioner` |
-| [`12c-11-Rainwater-tank.md`](12c-Home-main-devices/12c-11-Rainwater-tank.md) | `RainwaterTank` |
-| [`12c-12-Ventilation.md`](12c-Home-main-devices/12c-12-Ventilation.md) | `Fan`, `VentilationUnit` |
-| [`12c-13-Almanac.md`](12c-Home-main-devices/12c-13-Almanac.md) | `Calendar`, `Clock`, `Sun`, `WindSensor`, `RainSensor`, `Weather` |
-
-**Job:** one section per home `DeviceType`: fields, built-in templates and Matter mapping, in full.
-12a holds what every type shares; this file holds what one type adds.
-
-**Not here — stays in 12a / 16a:** `CommonFields`, `exposed`/`controllable`, tags (12a §2.1);
-the template mechanism and multi-source roles (12a §3); the general Matter binding rule — a `SET`
-stores the target, error mapping (12a §4a); the device-level mapping table (16a).
-
-**Moves here from 12a** (12a keeps a link, never a copy). Each part moves when its type's section
-is written, so 12a never points at an empty section:
-
-| From | What moves | What stays in 12a |
+| File | Types | Templates |
 |---|---|---|
-| §2.2 table | the "Fields beyond `CommonFields`" column | the list of types (kind → 12c section); the Matter counterpart is in 16a |
-| §2.2 code | `SwitchState`, `GenericSwitch`, `DimmableLight`, the shared `onOffField`/`levelField`/`moveField`/`stopField` | — |
-| §2.2 prose | the `lastEvent` press sequences, how `move` works, the `Timer` paragraph (moved: 12c-05) | the general rules: no `'@'`, one round trip, every reading/channel `subscribe: true`, staleness folds into `reachable`, no stub fields |
-| §2.3 | — | the whole rule; `multiPressMax` stays as its example |
-| §3 | the list of built-in templates per type, the `switch-from-di` and `dimmable-from-dali` workflows | the template mechanism; roles in its examples stay as one-line illustrations |
-| §4a | — | the general binding rule; "only a field that moves on its own changes step by step" |
+| [`12c-01-Lights.md`](12c-Home-main-devices/12c-01-Lights.md) | `OnOffLight`, `DimmableLight`, `ColorTemperatureLight`, `ExtendedColorLight` | `onoff-from-output`, `onoff-from-dali`, `dimmable-from-dali`, `dimmable-from-ao`, `tunable-white-2dali`, `tunable-rgbw-4dali` |
+| [`12c-02-Plug-in-units.md`](12c-Home-main-devices/12c-02-Plug-in-units.md) | `OnOffPlugInUnit` | `plug-from-output` |
+| [`12c-03-Generic-switch.md`](12c-Home-main-devices/12c-03-Generic-switch.md) | `GenericSwitch` | `switch-from-di` |
+| [`12c-04-Sensors.md`](12c-Home-main-devices/12c-04-Sensors.md) | `ContactSensor`, `OccupancySensor`, `TemperatureSensor`, `HumiditySensor`, `LightSensor`, `AirQualitySensor` | `contact-from-di`, `occupancy-from-di`, `light-from-sensor`, `light-from-ai`, `temperature-from-sensor`, `temperature-from-ai`, `humidity-from-sensor`, `humidity-from-ai`, `air-quality-from-iaq`; bundle `iaq-unipi` |
+| [`12c-05-Timer-relay.md`](12c-Home-main-devices/12c-05-Timer-relay.md) | `TimerRelay` | `timer` (no roles) |
+| [`12c-06-Window-covering.md`](12c-Home-main-devices/12c-06-Window-covering.md) | `WindowCovering` | `cover-from-relays`, `cover-from-klf` |
+| [`12c-07-Closures.md`](12c-Home-main-devices/12c-07-Closures.md) | `Closure` | `closure-from-klf`, `closure-from-uap`; bundle `velux-klf` |
+| [`12c-08-Water.md`](12c-Home-main-devices/12c-08-Water.md) | `WaterValve`, `IrrigationSystem`, `WaterLeakDetector` | `valve-from-output`, `thermal-valve-from-output`, `irrigation`, `leak-from-di` |
+| [`12c-09-Door-lock.md`](12c-Home-main-devices/12c-09-Door-lock.md) | `DoorLock` | `lock-from-relay`, `lock-from-2n` |
+| [`12c-10-Climate.md`](12c-Home-main-devices/12c-10-Climate.md) | `Thermostat`, `RoomAirConditioner` | `thermostat`; `room-ac-from-mimb19n` (driver-mimb19n) |
+| [`12c-11-Rainwater-tank.md`](12c-Home-main-devices/12c-11-Rainwater-tank.md) | `RainwaterTank` | `tank-from-rainwater`, `valve-from-rainwater-supply`, `leak-from-rainwater-alarm`; bundle `rainwater` — all driver-rainwater |
+| [`12c-12-Ventilation.md`](12c-Home-main-devices/12c-12-Ventilation.md) | `Fan`, `VentilationUnit` | `fan-from-relay`, `fan-from-relays`, `fan-from-ao`; `ventilation-from-airgenio` (driver-airgenio) |
+| [`12c-13-Almanac.md`](12c-Home-main-devices/12c-13-Almanac.md) | `Calendar`, `Clock`, `Sun`, `WindSensor`, `RainSensor`, `Weather` | `*-from-almanac`, `temperature-from-almanac`, `humidity-from-almanac`; bundle `almanac` — all driver-almanac |
 
-**§1 Common conventions** — only what several types share and 12a doesn't say: units and
-resolution vs Matter (0.01 °C, Percent100ths, log lux), the moving-device pattern
-`{current, target, motion}`, `unknown` in enums.
-
-**Section shape, per type:**
-
-| Sub | Holds |
-|---|---|
-| Intro | what the device is for, and what it is not |
-| Fields | `device(...)` in TS, units, ranges |
-| Templates | built-in ones: kind, roles, settings, and the workflow — what it does on each source change and each `SET`/call |
-| Matter | field ↔ attribute/command/event, value conversion. Part of the mapping table (16a, `driver-home/matter-map`). A type with none says so |
-| Moving/target | what `GET`/subscribe report while the device moves to its target (Matter `CurrentLevel` and its like) |
-
-**Types and what is known to be open:**
-
-| DeviceType | Matter | Known now |
-|---|---|---|
-| `GenericSwitch` | Generic Switch | momentary only; one template, `switch-from-di` |
-| `OnOffLight` | On/Off Light | |
-| `DimmableLight` | Dimmable Light | |
-| `ColorTemperatureLight` | Color Temperature Light | |
-| `ExtendedColorLight` | Extended Color Light | one template, `tunable-rgbw-4dali` |
-| `OnOffPlugInUnit` | On/Off Plug-in Unit | |
-| `TimerRelay` | — | virtual, no roles; rules start it and react to it; `onFor` stays on lights and plug-in units |
-| `WindowCovering` | Window Covering | 0.01 % closed, as Matter; optional tilt; templates `cover-from-relays`, `cover-from-klf`; wind protection built in |
-| `Closure` | Closure | one type for windows, garage doors, gates (`kind` → Matter tags); templates `closure-from-klf`, `closure-from-uap` (Hörmann UAP1-HCP: pulses for open/close/stop, end contacts, optional travel contact); bundle `velux-klf` with `cover-from-klf`; access kinds (`garageDoor`, `gate`, `door`) not on Matter yet. Open: proof for `open` → M3.6 |
-| `DoorLock` | Door Lock | released for a time, locks by itself, door contact; `lastOperation` with the acting user; `lock-from-relay`, `lock-from-2n`; not on Matter yet. Open: what `proof` asks (M3.6), 2N roles (M3.6a) |
-| `WaterValve` | Water Valve | Matter-shaped `open`/`close`, timed, `maxOpenS`, always closed after a restart; templates `valve-from-output`, `thermal-valve-from-output` (level as a duty cycle); not shown by Apple Home |
-| `IrrigationSystem` | Irrigation System | zones are `WaterValve`s, one at a time; master valve, pump; no schedules. With a rainwater driver the master is its supply valve (12c-11 §3.2) |
-| `ContactSensor` | Contact Sensor | one template, `contact-from-di` |
-| `WaterLeakDetector` | Water Leak Detector | one template, `leak-from-di`; no latch |
-| `TemperatureSensor` | Temperature Sensor | `unipi.temp` (1-Wire, xG18, IAQ) or `unipi.ai` (Pt1000, linear) |
-| `HumiditySensor` | Humidity Sensor | `unipi.humidity` or `unipi.ai` |
-| `AirQualitySensor` | Air Quality Sensor | level derived from CO₂ / VOC index; optional `co2`, `pm25`, `vocIndex`, `temperature`, `humidity`; IAQ as a bundle (`iaq-unipi`) |
-| `OccupancySensor` | Occupancy Sensor | one template, `occupancy-from-di`; `HoldTime` read-only — Open, M3.13 |
-| `LightSensor` | Light Sensor | `unipi.lux` or `unipi.ai` |
-| `RoomAirConditioner` | Room Air Conditioner | the controller of a room with an AC: thermostat fields + the unit, `policy` (AC first above an outdoor breakpoint), stage 2, lockouts, window, `boost`, compensated AC setpoint; `room-ac-from-mimb19n` from driver-mimb19n (12c-10) |
-| `Thermostat` | Thermostat | the controller of a room without an AC: the shared thermostat fields, a 12h zone over a `RemoteLink`; template `thermostat` (12c-10) |
-| `RainwaterTank` | — | overview and simple control of the rainwater driver (12i); templates `tank-from-rainwater`, `valve-from-rainwater-supply` (`WaterValve`, irrigation master), `leak-from-rainwater-alarm` (`WaterLeakDetector`, retention alarm), bundle `rainwater` — all shipped with that driver |
-| `Fan` | Fan | on/off, low/medium/high, %; templates `fan-from-relay`, `fan-from-relays` (one tap at a time), `fan-from-ao` (12c-12) |
-| `VentilationUnit` | Fan | a heat recovery unit: `Fan` fields + auto (demand control on rooms' CO₂), boost, away, night ventilation, temperatures, filter, fault; `ventilation-from-airgenio` from driver-airgenio (12j). Open: Fan vs Air Purifier → M3.13 (12c-12 §6) |
-| `Calendar`, `Clock`, `Sun` | — | from the almanac driver (12d); rules trigger on them — a schedule is a rule on `Clock` (12c-13 §1.2) |
-| `WindSensor` | — | the gust with its time, for `WindowCovering`'s `wind` role; `wind-from-almanac` |
-| `RainSensor` | Rain Sensor | raining, past and coming rain; `rain-from-almanac` |
-| `Weather` | — | the Home UI's weather tile; `weather-from-almanac`; bundle `almanac` (12c-13 §3.6) |
+Templates for these types shipped in other drivers' docs: `temperature-from-mimb19n-outdoor` (12g §6.2) and `temperature-from-ism8i-outdoor` (12f §6), both `TemperatureSensor`. A template without a driver named is `@evok-node/driver-home`'s.
 
 **Deferred:** `Pump` — a relay pump is an `OnOffPlugInUnit`.
 
-**Inputs:** 12a §2–§4a · 12b §2 · 16a · research/matter · source drivers' `DeviceType`s (08, 09, 10, 12)
+### Shape of a type file
+
+| § | Holds |
+|---|---|
+| 1 Scope | what the device is for and what it is not; its behaviour per call |
+| 2 Fields | `device(...)` in TS, units, ranges |
+| 3 Templates | kind, roles, settings, and what it does on each source change and each `SET`/call |
+| 4 Matter | field ↔ attribute/command/event, value conversion — the per-type part of the mapping table (16a, `driver-home/matter-map`). A type with none says so |
+| 5 Moving and target | what `GET`/subscribe report while the device moves to its target |
+| 6 Open | only when something is open |
+
+### Deferred Opens
+
+| Where | What | Closed by |
+|---|---|---|
+| 12c-04 §4 | Matter-writable attributes (`HoldTime`, a light's `behavior`, `DefaultOpenDuration`) through the device | M3.13 |
+| 12c-07 §6 | proof for an access closure's `open`; gating by a `DoorLock` | M3.6 |
+| 12c-09 §1.2, §3.2 | how a method needs proof and the principal reaches a template; 2N roles and user map | M3.6, M3.6a |
+| 12c-10 §6 | preset setpoints editable by users; Matter writes; `0x0072` with controllers | M3.11, M3.12, M3.13 |
+| 12c-12 §6 | Fan vs Air Purifier for `VentilationUnit` | M3.13 |
+| 12c-13 §6 | built-in time rule kinds; a hardware `WindSensor` template | when first needed |
+
+## 1. Common conventions
+
+What several types share and 12a doesn't say. A type file states only where it departs.
+
+### 1.1. Units
+
+- **Natural units in the codec**, the unit in its `unit` annotation; 16a converts to Matter's encoding (exact rules: 12c-04 §4).
+
+  | Value | Home field | Matter (16a converts) |
+  |---|---|---|
+  | temperature | `float32` °C | `int16` 0.01 °C |
+  | illuminance | `float32` lx | `uint16` 10 000 × log₁₀(lx) + 1 |
+  | humidity | `float32` % | `uint16` 0.01 % |
+
+- **Kept in Matter's own units** where a conversion would only lose precision or invert a direction: a cover's or closure's position as `uint16` 0.01 % **closed** (0 = open, 10000 = closed), a light's `level` 1–254, colour temperature in mireds.
+- **Percent:** a measured % is `float32` (`humidity`, a tank's `percent`); a commanded or computed % is `uint8` (a fan's `percent`, a valve's `level`, `hydronicLevel`).
+- **The unit goes in the name** when the name doesn't already say it: `remainingMs`, `holdTimeS`, `defaultOpenS`, `boostMin`, `deadbandK`, `capacityL`, `acAboveC`. Durations in s where Matter has s (`onFor`, a valve's `open`), in ms where timing is the device's point (`TimerRelay`, `DoorLock.releaseMs`, fades).
+
+### 1.2. Unknown
+
+- **A value that may not be known is `optional`: absent ⇒ unknown** — `lift.current` after a restart, `WaterValve.state.current`, `Thermostat.temperature`.
+- **`'unknown'` is an enum value** only for the main state of a device a UI shows as such: `airQuality`, `Closure.position.state`, `DoorLock.state` and `door`.
+- A source's own staleness is never a field: it folds into `reachable` (12a §4.2).
+
+### 1.3. Moving to a target
+
+```ts
+{ current?: T,          // where it is; absent ⇒ unknown
+  target: T,            // where it goes; set at once by the SET or call (12a §4a)
+  motion?: 'stopped' | 'opening' | 'closing' }
+```
+
+| Part | Reports |
+|---|---|
+| `target` | at once, on every SET or call |
+| `current` | once a second while moving, and at the stop |
+| `motion` | at every start and stop |
+
+- Used by `WindowCovering.lift`/`tilt`, `Closure.position` (with `state` beside it), `WaterValve.state`/`level` (no `motion`). 16a reports Matter's current attributes at most once a second.
+- Where Matter splits setting and current into two attributes, the fields follow Matter: `Fan.percent` / `percentCurrent`.
+- A device that doesn't move answers a SET with the value taken — clamped, rounded, the deadband applied — and reports progress elsewhere (`Thermostat.temperature`, `running`).
+
+### 1.4. Events as values
+
+```ts
+{ ...payload, seq: uint32 /* +1 per event */, at: timestamp }
+```
+
+- One value per event, so two identical events are two values: `GenericSwitch.switch.lastEvent`, `TimerRelay.elapsed`, `DoorLock.lastOperation`, `DoorLock.alarm`.
+- A gap in `seq` means a subscription coalesced events away (03 §6.3). No value until the first event.
+
+### 1.5. Countdowns
+
+`onForRemaining`, `remainingS`, `remainingMs`: 0 ⇒ not running; frozen while paused; emit on every call that changes them and once a second while running — enough for a UI countdown.
+
+### 1.6. Settings a consumer sees
+
+Settings are edited through `manage` only (12a §2.3). Those a consumer must see are one `behavior` reading per type — `features` on `GenericSwitch`, `sensing` on `OccupancySensor`. Never writable through the device.
+
+### 1.7. Recurring fields
+
+| Field | Means |
+|---|---|
+| `optional(...)` | bound only when the origin has it — a template's role, a Matter endpoint's optional cluster (12a §4.1) |
+| `fault` | absent (or `false`) ⇒ none; otherwise the reason or the unit's code |
+| `localChange` | timestamp of the last change not made through evok-node — a unit's own panel or remote |
+| `errorKinds` | a call's domain refusals, listed on the method (`protected`, `interlock`, `blocked`, …) |
+
+### 1.8. `identify`
+
+Bound by lights only: the light blinks itself (12c-01 §2). Every other type leaves it unbound — moving a cover, a door or a load to identify it is unsafe, and blinking a sensor or a fan is useless.

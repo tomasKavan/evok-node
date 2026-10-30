@@ -31,13 +31,13 @@ Home, Google Home, …) can control them.
 **Inputs:** 12a · 13 · 06 §5a
 
 - **Target vs current.** 12a stores a `SET`'s target at once (12a §4a); Matter's `CurrentLevel` and
-  its like mean the current value. How each is reported while a device moves: per type, 12c (M3.3).
+  its like mean the current value. How each is reported while a device moves: §5 of the type's file in 12c (12c §1.3).
 - **Duplicates.** A device two PLCs both bridge shows twice in a controller — the admin's to avoid,
   with `exposed` (12a §4b).
 
 **Mapping table.** One table, implemented once in `@evok-node/driver-home/matter-map` and imported by
 12a §4a and by this api — never copied. Device level below; field ↔ attribute, command or event per
-type is 12c's (M3.3). Every endpoint also carries Descriptor, Identify, BridgedDeviceBasicInformation,
+type is §4 of the type's file in 12c. Every endpoint also carries Descriptor, Identify, BridgedDeviceBasicInformation,
 FixedLabel and UserLabel — on a composed device, BridgedDeviceBasicInformation sits on the parent only (below).
 A device with `battery` bound (12a §2.1) also carries Power Source with the battery feature: `BatChargeLevel`,
 `BatPercentRemaining` = `percent × 2` (null when absent), `BatReplacementNeeded`, `BatReplaceability` unspecified.
