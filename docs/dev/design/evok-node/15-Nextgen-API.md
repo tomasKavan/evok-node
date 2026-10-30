@@ -24,7 +24,7 @@
   against the range it supports.
 - **Session language.** `hello.lang`, else the request's `Accept-Language`, else `en`. `setLang` changes
   it mid-session; the client refetches what it shows.
-- **Localization at the edge.** A per-connection plugin resolves `LocalizedText` (04 §7) to the session's
+- **Localization at the edge.** A WS extension (13 §2) resolves `LocalizedText` (04 §7) to the session's
   language in everything it sends: schema annotations (`label`, `hint`, `enumLabels` — 05a §3.1a),
   values of format `text`, and the schemas inside values of format `schema`. Drivers always answer every
   language, so introspection stays one shared payload.

@@ -40,8 +40,8 @@ Templates for these types shipped in other drivers' docs: `temperature-from-mimb
 | Where | What | Closed by |
 |---|---|---|
 | 12c-04 §4 | Matter-writable attributes (`HoldTime`, a light's `behavior`, `DefaultOpenDuration`) through the device | M3.13 |
-| 12c-07 §6 | proof for an access closure's `open`; gating by a `DoorLock` | M3.6 |
-| 12c-09 §1.2, §3.2 | how a method needs proof and the principal reaches a template; 2N roles and user map | M3.6, M3.6a |
+| 12c-07 §6 | proof for an access closure's `open`, only for access kinds of one `Closure` type; gating by a `DoorLock` | M3.6 |
+| 12c-09 §1.2, §3.2 | what `proof` asks of a caller (13 §5); 2N roles and user map | M3.6, M3.6a |
 | 12c-10 §6 | preset setpoints editable by users; Matter writes; `0x0072` with controllers | M3.11, M3.12, M3.13 |
 | 12c-12 §6 | Fan vs Air Purifier for `VentilationUnit` | M3.13 |
 | 12c-13 §6 | built-in time rule kinds; a hardware `WindSensor` template | when first needed |
