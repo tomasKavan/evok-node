@@ -172,7 +172,8 @@ interface Issue {
 }
 
 type IssueCode =
-  | 'required' | 'type' | 'unknown-field' | 'union-tag'     // shape — always checked
+  | 'required' | 'type' | 'union-tag'                       // shape — always checked
+  | 'unknown-field'                                         // only when binding (§5.1)
   | 'min' | 'max' | 'max-length' | 'pattern' | 'enum'       // limits — only when binding (§5.1)
   | 'sensitive-missing'                                     // a secret ref with no stored value — 02a
   | 'rule';                                                 // ModuleDescriptor.rules — 02 §4
@@ -181,7 +182,7 @@ type IssueCode =
 - **Data in, issues out.** No plugin code runs, so the same function runs in `main`, in the `main` driver and in a browser — a form is checked on every edit without asking the daemon.
 - **Every issue at once**, never only the first: a form marks every wrong field.
 - **A format's own range is shape.** `70000` for a `uint16` is `max` in both modes — the format cannot hold it.
-- **Unknown struct fields are an issue** in both modes: a typo (`scna:` for `scan:`) never passes silently.
+- **Unknown struct fields are an issue when binding**: a typo in config (`scna:` for `scan:`) never passes silently. Advisory leaves them alone.
 - `Codec.validate(wire)` is `checkValue(schema, wire).length === 0` — advisory.
 
 ```yaml
@@ -199,10 +200,10 @@ checkValue(schema, body, { limits: 'binding' }) → [
 
 ### 5.1. Advisory or binding
 
-| Value | Limits | Why |
+| Value | Limits, unknown fields | Why |
 |---|---|---|
 | an endpoint's value, a `SET` payload, a method's arguments | advisory | the device behind it enforces its own limits; a second copy here would drift |
-| a module's config, a template's settings, a rule's options | binding | a human's input with nothing behind it |
+| a module's config; the home driver's template settings and rule options (12a §3, 12b §2) | binding | a human's input with nothing behind it |
 
 ### 5.2. Where it runs
 
@@ -219,6 +220,6 @@ Tier 1 (unit; `basics/03-Testing.md`), `module-sdk` only — no driver, no daemo
 
 - Forms (§4): a struct member with `default` may be omitted and decodes to it; an `optional` one decodes absent; omitting a plain member fails `validate`; `default` with `optional` is rejected when the value type is built; `Values.void`'s schema reaches the wire as `{ type: 'void' }`.
 - `record` (§3): a key outside `keys.pattern` is `pattern` at that key's path; `maxLength` counts entries.
-- `checkValue` (§5): one fixture per `IssueCode`, asserting `path` and `code`; every issue reported at once; advisory skips `min`/`max`/`max-length`/`pattern`/`enum` but never a format's own range or `unknown-field`; `Codec.validate` agrees with `checkValue` on every fixture.
+- `checkValue` (§5): one fixture per `IssueCode`, asserting `path` and `code`; every issue reported at once; advisory skips `unknown-field` and `min`/`max`/`max-length`/`pattern`/`enum`, but never a format's own range; `Codec.validate` agrees with `checkValue` on every fixture.
 - `sensitive` (§4) on anything but `string` or `bytes` is rejected when the value type is built.
 - Annotations (§4): `label`, `hint`, `helpMd` and `enumLabels` reach the schema unchanged — resolving them is the edge's job (15).
