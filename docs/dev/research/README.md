@@ -54,6 +54,7 @@ at commit `47c95c8` (branch `main`, latest tag **3.0.6**, 2025-09-02).
 |---|---|
 | [`modbus-reg-map-notes/`](modbus-reg-map-notes/README.md) | What is *ours* about a Unipi register map: how a source was read, what a transcription inferred, what to verify first. |
 | [`matter/`](matter/README.md) | Matter device types per home `DeviceType` (12a, 12c): spec, real devices, Apple Home support. |
+| [`auth/`](auth/README.md) | Auth and ACL for 13a (M3.6): identity providers (authentik), sessions and tokens, auth levels and step-up, authorization models, replica and offline, client apps; the way forward and decisions. |
 | [`derived/`](derived/) | Generated data: `model-io-census.csv`, DI/DO/RO/AI/AO/LED counts per model and section (83 rows). Use to validate hardware definitions at load time. |
 | [`appendix/`](appendix/) | The two full unedited reports the condensed notes were written from. |
 

@@ -10,6 +10,8 @@ Target numbering in `design/evok-node/` once M3 is done.
 
 | Doc | Content | Today |
 |---|---|---|
+| 02a | Main driver and bootstrap | new |
+| 03a | Values and schemas | new |
 | 12a | Home driver | 12a |
 | 12b | Home rules | 12b |
 | 12c | Home main devices | new |
@@ -117,6 +119,11 @@ A driver for 2N Access Unit 2.0 / IP Verso 2.0 over the HTTP API: switches, door
 What it is and how it's used. Multi-user, multi-PLC, multi-app: what an app (inspector, Home UI) must provide to load in the shell. Platforms, framework. Authorization via 13a, biometrics. Push notifications, Matter BLE pairing.
 **Done when:** 13b designed; framework research doc exists.
 **Refs:** 13a · 16 · 19
+
+### M3.7a — Main driver, dynamic config and bootstrap   `area/main`
+Configuration written from the Inspector; a static-only configuration stays possible. The static and the dynamic file merged by instance id; static instances are read-only; `drivers: ['*']`. The `main` driver: one per system, in a worker, with a control channel to `main` — config, instances, plugins; validate, apply, revisions, rollback, restart, reload. Secrets marked `sensitive`, kept in a secrets file, read back as refs. The bootstrap api sets up the first WS API and then redirects to it. Values and schemas in their own chapter, used for config too: `ValueType` replaces zod; `checkValue`, `rules`, `helpMd`. What the SPA does when the api serving it reloads. Backup as an admin procedure. Plugin install: shape only.
+**Done when:** 02a and 03a designed; 01, 02, 03 §8, 04 §3, 05a, 08 §2, 13 and the 15 and 16 memos agree; `TypedCodec`/`Codecs` renamed to `ValueType`/`Values` everywhere; the backup procedure is in the user docs.
+**Refs:** 01 §2–§4 · 02 · 03 §8–§11 · 04 §3, §7 · 05a §3.1, §3.1a · 06 §5a · 08 §2 · 13 · 15 · 16
 
 ### M3.8 — WS API   `area/api`
 Renamed from nextgen. Relays internal messaging. `ws-kit` (13 §2): sessions, hello, relay, fan-out, WS extensions (`onConnection`, `onRequest`). The Home API is built on it too. Auth and ACL as WS extensions using 13a, reacting to `actor` and `proof` (13 §5). The hello advertises `evokNodeVersion` (12a §4b). Session language (`hello.lang`, `Accept-Language`, `setLang`) and the localization engine resolving `LocalizedText` at the edge (05a §3.1a).
