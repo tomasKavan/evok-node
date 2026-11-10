@@ -38,7 +38,7 @@ In these notes, design documents are written `design 06 §5a` wherever a bare nu
 |---|---|
 | 13 §5 | The gate: every message to a driver has passed an api's auth and ACL. `actor` `{ realm, id?, name? }` is always overwritten by the api; `proof` on a method makes the api get proof first |
 | 13 §2 | WS extensions: `onConnection` (auth, language), `onRequest` (ACL, localization) |
-| 05a §3.1, §3.1a | `proof?: true` in `MethodType`; the `actor` annotation and `Values.actor()` |
+| 05a §3.1, 03a §2–§4 | `proof?: true` in `MethodType`; the `actor` annotation and `Values.actor()` |
 | M3.8 (WS API) | hello carries `evokNodeVersion` and `lang`; ACL subjects, resources, actions; PLC-to-PLC auth belongs to this api |
 | M3.11 (Home API), M3.9 (Inspector) | auth and ACL as WS extensions; write and test actions gated |
 | design 06 §5a | sensitive keys in a second 0600 file; no encryption at rest |

@@ -150,7 +150,7 @@ const DaliFrames = {
 
 ### 5.2. Paired queries — `DaliQuery<T>`
 
-A query and how to read its own answer travel together, never authored separately — same reasoning `ValueType` already applies to a `Codec`/`ValueSchema` pair (05a §3.1):
+A query and how to read its own answer travel together, never authored separately — same reasoning `ValueType` already applies to a `Codec`/`ValueSchema` pair (03a §2):
 
 ```ts
 interface DaliQuery<T> { readonly frame: DaliFrame; decode(a: DaliAnswer | undefined): T; }

@@ -94,7 +94,7 @@ Fatal at `configure()`: `bypass` without `mains`; a `fullMm` above 2000 with a `
 
 ## 3. Settings — KV
 
-Tunable at runtime from the Inspector, which renders the form from the annotations (05a §3.1a). One `SET` of `control.settings` (§4) persists them in KV before it answers, then they apply (06 §7). Nothing in KV ⇒ the defaults.
+Tunable at runtime from the Inspector, which renders the form from the annotations (03a §4). One `SET` of `control.settings` (§4) persists them in KV before it answers, then they apply (06 §7). Nothing in KV ⇒ the defaults.
 
 ```ts
 // @evok-node/driver-rainwater

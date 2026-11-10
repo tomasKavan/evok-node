@@ -106,7 +106,7 @@ interface Actor {
   readonly id?: string;      // the user in that namespace; absent = no user known
   readonly name?: string;
 }
-Values.actor(): ValueType<Actor | undefined>   // an optional struct member, schema annotated `actor: true` (05a §3.1a)
+Values.actor(): ValueType<Actor | undefined>   // an optional struct member, schema annotated `actor: true` (03a §4)
 
 // a method that needs the user and proof — 12c-09
 unlock: method('mutates', Values.void, Values.struct({ by: Values.actor() }), { errorKinds: ['blocked'], proof: true }),

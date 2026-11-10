@@ -131,11 +131,11 @@ A function a device type has no evok-node equivalent for yet is simply not a fie
 
 ### 2.3. Settings live in management, not on the device
 
-How a device *behaves or is assembled* — a `GenericSwitch` template's long-press threshold and multi-press window, a DALI-sourced light's fade time (the template writes it to the gear's own `fadeTime`, 12 §9.1) — is a **setting**: declared by the template as an annotated codec (§3, 05a §3.1a), stored in `DeviceRecord.settings` (§4), edited only through `manage` (§5), never a device field. A device field is only what a consumer needs to read or control at runtime. A setting a consumer still needs to *see* — a switch's `multiPressMax`, which 16a must report — is additionally exposed in a plain `reading` (`features`, 12c-03 §2) whose value comes from `settings`; it is never writable through the device.
+How a device *behaves or is assembled* — a `GenericSwitch` template's long-press threshold and multi-press window, a DALI-sourced light's fade time (the template writes it to the gear's own `fadeTime`, 12 §9.1) — is a **setting**: declared by the template as an annotated value type (§3, 03a §4), stored in `DeviceRecord.settings` (§4), edited only through `manage` (§5), never a device field. A device field is only what a consumer needs to read or control at runtime. A setting a consumer still needs to *see* — a switch's `multiPressMax`, which 16a must report — is additionally exposed in a plain `reading` (`features`, 12c-03 §2) whose value comes from `settings`; it is never writable through the device.
 
 ### 2.4. Forms
 
-What a human fills in to create a device or a rule is one **form** per kind: a `ValueSchema` with the annotations of 05a §3.1a, built by this driver when the template (§3) or rule kind (12b §2) is resolved. A UI renders the form and sends its value back; it knows nothing about the kind behind it.
+What a human fills in to create a device or a rule is one **form** per kind: a `ValueSchema` with the annotations of 03a §4, built by this driver when the template (§3) or rule kind (12b §2) is resolved. A UI renders the form and sends its value back; it knows nothing about the kind behind it.
 
 ```ts
 // @evok-node/driver-home
@@ -227,7 +227,7 @@ interface AssemblyTemplate<F extends Record<string, EndpointType | OptionalEndpo
   readonly label: LocalizedText;     // 04 §7
   readonly hint?: LocalizedText;
   readonly roles: R;                 // e.g. { gear: { types: [DaliGear], min: 1, max: 1, label: 'Gear' } }, { relays: { types: [UnipiRo, UnipiDo], min: 1, max: 4, label: 'Relays' } }
-  readonly settings?: ValueType<S>; // annotated, defaults included (05a §3.1a); absent ⇒ no settings
+  readonly settings?: ValueType<S>; // annotated, defaults included (03a §4); absent ⇒ no settings
   readonly state?: ValueType<St>;   // what the template persists — below; absent ⇒ nothing
   product?(ctx: AssemblyContext<R, S, St>): Promise<Infer<typeof Product> | undefined>;   // §2.1 — read once, when the device is created
   assemble(ctx: AssemblyContext<R, S, St>):

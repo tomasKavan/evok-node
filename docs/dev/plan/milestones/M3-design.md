@@ -126,12 +126,12 @@ Configuration written from the Inspector; a static-only configuration stays poss
 **Refs:** 01 §2–§4 · 02 · 03 §8–§11 · 04 §3, §7 · 05a §3.1, §3.1a · 06 §5a · 08 §2 · 13 · 15 · 16
 
 ### M3.8 — WS API   `area/api`
-Renamed from nextgen. Relays internal messaging. `ws-kit` (13 §2): sessions, hello, relay, fan-out, WS extensions (`onConnection`, `onRequest`). The Home API is built on it too. Auth and ACL as WS extensions using 13a, reacting to `actor` and `proof` (13 §5). The hello advertises `evokNodeVersion` (12a §4b). Session language (`hello.lang`, `Accept-Language`, `setLang`) and the localization engine resolving `LocalizedText` at the edge (05a §3.1a).
+Renamed from nextgen. Relays internal messaging. `ws-kit` (13 §2): sessions, hello, relay, fan-out, WS extensions (`onConnection`, `onRequest`). The Home API is built on it too. Auth and ACL as WS extensions using 13a, reacting to `actor` and `proof` (13 §5). The hello advertises `evokNodeVersion` (12a §4b). Session language (`hello.lang`, `Accept-Language`, `setLang`) and the localization engine resolving `LocalizedText` at the edge (03a §4).
 **Done when:** 15 designed and renamed; `api-nextgen` renamed in docs.
 **Refs:** 03 · 13 · 13a · 15
 
 ### M3.9 — Inspector UI: basics   `area/ui`
-Structure, logic, wireframes, mobile vs desktop, frameworks, design guide. Basic controls for raw driver-kit devices. Logs. Generic forms from annotated schemas and `$refs` (05a §3.1a, §3.10); a ref filter that depends on another field of the same form (DALI bus → gear).
+Structure, logic, wireframes, mobile vs desktop, frameworks, design guide. Basic controls for raw driver-kit devices. Logs. Generic forms from annotated schemas and `$refs` (03a §4, 05a §3.10); a ref filter that depends on another field of the same form (DALI bus → gear).
 **Done when:** 16 designed, wireframes committed.
 **Refs:** 15 · 05a · 04 · 11
 

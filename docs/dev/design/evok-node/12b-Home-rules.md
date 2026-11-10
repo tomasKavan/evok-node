@@ -30,7 +30,7 @@ interface RuleKind<T extends Slots, A extends Slots, O> {
   readonly hint?: LocalizedText;
   readonly triggers: T;                // §3, at least one slot
   readonly actions: A;                 // §3, at least one slot
-  readonly options?: ValueType<O>;    // annotated (05a §3.1a) — §3; absent ⇒ no options
+  readonly options?: ValueType<O>;    // annotated (03a §4) — §3; absent ⇒ no options
   readonly limit?: TriggerLimit;       // §5.4
   run(ctx: RuleContext<T, A, O>): Promise<void>;   // §4
 }
@@ -95,7 +95,7 @@ type Slots = Readonly<Record<string, Slot>>;    // slot key → slot
 
 - `fields` says which field changes trigger a run. Omitted: every field the slot's types declare beyond `CommonFields` (12a §2.1), so renaming a switch never triggers anything. `'*'`: every field, `reachable` included. A named field missing from any of the slot's `types`, or `fields` on an action slot, is a packaging mistake.
 - A device appears at most once per slot. It may be in a trigger slot and an action slot of the same rule at once.
-- Options are one annotated codec (05a §3.1a). A **device option** is a member holding a `home.device` ref (12a §2.4) — one id, or an array of them. Its devices never trigger a run and are read-only in the function; they may also sit in a slot.
+- Options are one annotated value type (03a §4). A **device option** is a member holding a `home.device` ref (12a §2.4) — one id, or an array of them. Its devices never trigger a run and are read-only in the function; they may also sit in a slot.
 - The kind's form (12a §2.4) is built from `triggers`, `actions` and `options`; that is what a UI renders and what `createRule` is checked against.
 - A slot or device option may allow several types. Telling them apart is the function's job, by `kind` (§4).
 
