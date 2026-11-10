@@ -40,15 +40,16 @@ Only `main` ever holds a real pino instance. Every instance runs in its own `wor
 Two sinks always exist, one is optional, and the door stays open for more:
 
 - **stdout, always, as NDJSON.** Under systemd this lands in the journal with no special integration code — structured JSON survives as the message field, and a human reads it with `journalctl -u evok-node | pino-pretty` or `journalctl -o cat -u evok-node`. This is the sink that can never be turned off, because it is what makes a startup failure visible before anything else in this file's own configuration can be trusted (§3.3.1).
-- **a file, if configured.** `logging.file` in `config.yaml` gives a path; rotation is `logrotate`'s job, not ours (`basics/02-Coding.md` §5.1 — prefer the existing tool).
+- **a file, if configured.** `main.logging.file` in `config.yaml` gives a path; rotation is `logrotate`'s job, not ours (`basics/02-Coding.md` §5.1 — prefer the existing tool).
 - **a future collector, deliberately not built now.** pino's transport mechanism (a worker-thread destination, or any writable stream) is the seam: `main` constructs whatever set of destinations `logging` names via `pino.multistream`, and nothing else in the codebase knows a collector exists. Adding one later is a new destination and, if needed, one new optional config key — never a change to how a `Logger` is used.
 
 ```yaml
 # /etc/evok-node/config.yaml
-logging:
-  level: info                              # trace..fatal (§3.6); default info
-  file: /var/log/evok-node/evok-node.log   # optional — omit for stdout/journald only
-  pretty: false                            # dev convenience only; never what's persisted (§3.4)
+main:
+  logging:
+    level: info                              # trace..fatal (§3.6); default info
+    file: /var/log/evok-node/evok-node.log   # optional — omit for stdout/journald only
+    pretty: false                            # dev convenience only; never what's persisted (§3.4)
 
 drivers:
   # ...
@@ -56,17 +57,17 @@ apis:
   # ...
 ```
 
-This adds one optional key to 02 §3's `ConfigFile` schema, validated by `main` itself — same category as `drivers:`/`apis:`, because logging is main's own operational setting, not a module default leaking in. 02 §3 is amended accordingly.
+`logging` is one of `main:`'s keys (02 §3), checked by `main` itself — main's own operational setting, not a module default leaking in. Only the static file holds it (02 §3a).
 
 #### 3.3.1. Bootstrap ordering
 
-`logging.file` cannot be read from a config that has not parsed yet, and a parse failure is exactly the thing most worth logging (02 §5, steps 2–3). So logging starts, before 02 §5's step 1, at stdout-only, level `info` — the one sink that needs no configuration to exist. Once config parsing (02 §5 steps 2–4) succeeds, `main` reconfigures the same `Logger` in place to add the file destination and any non-default level. A config that never parses is therefore still fully logged; it just never gets the file sink.
+`main.logging.file` cannot be read from a config that has not parsed yet, and a parse failure is exactly the thing most worth logging (02 §5, steps 2–3). So logging starts, before 02 §5's step 1, at stdout-only, level `info` — the one sink that needs no configuration to exist. Once config parsing (02 §5 steps 2–4) succeeds, `main` reconfigures the same `Logger` in place to add the file destination and any non-default level. A config that never parses is therefore still fully logged; it just never gets the file sink.
 
 ### 3.4. Format: one canonical shape, any number of views
 
 The canonical, persisted form is structured JSON, one object per line — what gets written to stdout, to the file, and to a collector later. Nothing downstream reformats it, so `jq`, `grep` and a log shipper all keep working against the same shape forever.
 
-Human-readability is a presentation concern layered on top, never a second stored format: `pino-pretty` as a transport when `logging.pretty: true` (meant for a developer's own terminal, not for what a service unit or a collector receives), or piped in ad hoc over `journalctl -f`. There is exactly one thing on disk; there are as many ways to look at it as there are tools that read NDJSON.
+Human-readability is a presentation concern layered on top, never a second stored format: `pino-pretty` as a transport when `main.logging.pretty: true` (meant for a developer's own terminal, not for what a service unit or a collector receives), or piped in ad hoc over `journalctl -f`. There is exactly one thing on disk; there are as many ways to look at it as there are tools that read NDJSON.
 
 ### 3.5. Fields
 

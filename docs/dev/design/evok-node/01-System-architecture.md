@@ -10,7 +10,7 @@ Every running piece of evok-node is a **driver**, an **api**, or **main** — an
 
 - **A driver owns transport endpoints** — a bus, a socket, a line, the filesystem, a process-exec surface; usually exactly one. It polls or listens, holds the only in-memory copy of what it knows, answers queries from that memory, and describes itself through introspection (§6). System configuration and user data are drivers too: their transport is the filesystem and a database file instead of Modbus, and that is the only difference that matters. What a driver must not do is open a resource another driver already owns (§7).
 - **An api is a stateless translator** between the internal message bus and one public protocol. It holds no device state and caches no readings. Whatever it does hold — subscriptions, sessions, a schema cache — is rebuilt on restart, never a second copy of what a driver already owns.
-- **main parses config, spawns, supervises and reloads** — drivers and apis, not itself. It sits on no request path: no client request and no scan result ever passes through main's own code.
+- **main parses config, spawns, supervises and reloads** — drivers and apis, not itself. It sits on no request path: no client request and no scan result ever passes through main's own code. Its face on the bus is a built-in driver, `main` (02a): like any driver it runs in its own worker and is reached through an api; it talks to main itself over a control channel — config, instance state, apply, restart.
 
 Anything that looks like it needs a third kind is a driver whose transport happens not to be Modbus.
 
@@ -87,6 +87,8 @@ evok-node can be extended without changing its own code, at two different levels
 | `hw-definitions` | Platform facts — device/model definitions, generated inventory, address resolution. Depends on nothing but the module contract; never resolves a `kind` against a real `DeviceType` (07a §2). |
 | `modbus-kit` | The Modbus transport (07), *and* `hw-modbus-kit` (07a) — the binder that turns a `hw-definitions`-resolved definition into bound `driver-kit` devices for `driver-onboard`/`driver-extension`. The two stay in separate source subpaths; the package boundary no longer separates them. |
 | `main` | Orchestration: config, the runner, spawn, supervise, reload. |
+| `driver-main` | The `main` driver: config, instance state, apply, restart, over a control channel to `main` (02a). |
+| `api-bootstrap` | Sets up the first WS API, then redirects to it (02a). |
 | `driver-kit` | Shared driver machinery: scan scheduling, the endpoint dispatcher (`bind`/`unbind`/`attach`), handshake. |
 | `driver-onboard` | The transport driver for the controller's own onboard I/O. |
 | `driver-extension` | The transport driver for one RS-485/TCP (modbus) extension line. |

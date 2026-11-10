@@ -31,7 +31,7 @@ drivers:
     ctrl: {}                                 # dali-foxtron-ASCII needs nothing extra — its own schema says so
 ```
 
-Same two-schema sequencing 02 §5 step 4 already uses for a whole driver's body, one level deeper: `main` validates `DaliConfig` itself (`daliCtrlKind`/`transport` known here, `ctrl` opaque); this driver's own `configure()` then resolves `daliCtrlKind` (§3) and validates `ctrl` against that factory's own `schema`. A `ctrl` that doesn't parse, or a `transport.kind` the resolved factory doesn't declare support for (§3's `acceptsTransport`), is fatal at `configure()` — same tier as an unresolvable `daliCtrlKind` itself.
+Same two-schema sequencing 02 §5 step 4 already uses for a whole driver's body, one level deeper: `main` validates `DaliConfig` itself (`daliCtrlKind`/`transport` known here, `ctrl` opaque); this driver's own `configure()` then resolves `daliCtrlKind` (§3) and checks `ctrl` against that factory's own `config` (03a §5, binding). A `ctrl` that doesn't parse, or a `transport.kind` the resolved factory doesn't declare support for (§3's `acceptsTransport`), is fatal at `configure()` — same tier as an unresolvable `daliCtrlKind` itself.
 
 How many DALI buses live behind one `transport` — one, or several multiplexed over it — is entirely the resolved controller's own business, declared inside `ctrl`, never a key this file defines generically. §7 covers what that means for addressing.
 
@@ -68,7 +68,7 @@ interface DaliController {
 
 interface DaliControllerFactory<Config> {
   readonly ctrlKind: string;
-  readonly schema: ZodType<Config>;
+  readonly config: ValueType<Config>;   // 03a
   readonly acceptsTransport: readonly ('line'|'modbus')[];
   create(transport: LineTransport | ModbusTransport, config: Config, deps: { clock: Clock; log: Logger }): ReadonlyMap<number, DaliController>;
 }

@@ -254,6 +254,8 @@ declaredLinks?(config: Config): { readonly drivers: readonly DriverId[] };   // 
 
 Pure and synchronous, callable by `main` on a parsed `Config` before any instance exists — same shape as `isConfigEqual`, for the same reason: `main` needs this before it can spawn anything, and spawning is exactly what it must not do until every config is validated (02 §5).
 
+An api's `drivers:` may hold `'*'`: every driver in the merged config (02 §3a) except `main`, which an api links only by name — `drivers: ['*', main]`. A driver's `declaredLinks` never holds `'*'`. `main` expands it before the graph below is assembled, so the graph holds concrete ids only. Because `'*'` follows the set of drivers, adding or removing one changes the links of every `'*'` api without changing its config — 02 §5.1's links-only bucket.
+
 `main` assembles the full `instanceId → DriverId[]` graph while resolving cross-instance concerns (02 §5, §7): every referenced id must exist in `drivers:`, and a cycle is fatal at parse — a genuine mutual dependency between two drivers' own transports is a configuration mistake, not something the runtime should have to survive. Link existence is consumer-declared; whether a driver needs a *listening* socket at all (§10) is inferred by `main` from the reverse edges of this same graph, never declared by the driver being depended on.
 
 ## 9. `InstanceContext` and the runner

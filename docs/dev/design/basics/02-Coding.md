@@ -52,7 +52,7 @@ They cross serialisation boundaries, so they must survive one. Never type-check 
 ## 3. Boundaries
 
 ### 3.1. Parse, don't validate
-Every external input — HTTP body, socket frame, config file, byte buffer — goes through a **zod** schema at entry and comes out typed. Nothing downstream re-checks, and nothing downstream sees `unknown`. zod for parsing, `z.toJSONSchema()` where a JSON Schema is needed.
+Every external input — HTTP body, socket frame, config file, byte buffer — goes through a schema at entry and comes out typed. Nothing downstream re-checks, and nothing downstream sees `unknown`. A value a module declares — its config, an endpoint's value, a method's arguments, a form — goes through its `ValueType` ([03a](../evok-node/03a-Values-and-schemas.md)); everything else — an envelope frame, an HTTP body, a parsed byte buffer — through **zod**.
 
 ## 4. Time and effects
 
@@ -91,7 +91,7 @@ Four comments are required, and they are the only ones that are:
 
 Mandatory minimum:
 - Node 24 (LTS)
-- `zod` for validations
+- `zod` for validations outside 03a's value types
 - Vue.js 3 and Prime Vue v5 for inspector SPA
 - TBD
 
