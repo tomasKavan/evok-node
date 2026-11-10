@@ -50,7 +50,7 @@ Every `lock` and `unlock` records who did it in `lastOperation`:
 
 ```ts
 // @evok-node/driver-home
-const LockSource = Codecs.string({ enumValues: [
+const LockSource = Values.string({ enumValues: [
   'app',          // Home UI, Home API, Inspector — a call through an API
   'matter',       // a Matter controller (§4)
   'rule',         // 12b
@@ -59,38 +59,38 @@ const LockSource = Codecs.string({ enumValues: [
   'unspecified',  // the source changed without us (§3.1)
 ] });
 
-const LockUser = Codecs.struct({
-  id:   Codecs.optional(Codecs.string()),   // the identity provider's user id
-  name: Codecs.optional(Codecs.string()),
+const LockUser = Values.struct({
+  id:   Values.optional(Values.string()),   // the identity provider's user id
+  name: Values.optional(Values.string()),
 });
 
-const LockOperation = Codecs.struct({
-  type:   Codecs.string({ enumValues: ['lock', 'unlock'] }),
+const LockOperation = Values.struct({
+  type:   Values.string({ enumValues: ['lock', 'unlock'] }),
   source: LockSource,
-  user:   Codecs.optional(LockUser),
-  seq:    Codecs.uint32(),                  // +1 per operation
-  at:     Codecs.timestamp(),
+  user:   Values.optional(LockUser),
+  seq:    Values.uint32(),                  // +1 per operation
+  at:     Values.timestamp(),
 });
 
-const LockAlarm = Codecs.struct({
-  kind: Codecs.string({ enumValues: ['forcedOpen', 'openTooLong', 'tamper'] }),
-  seq:  Codecs.uint32(),
-  at:   Codecs.timestamp(),
+const LockAlarm = Values.struct({
+  kind: Values.string({ enumValues: ['forcedOpen', 'openTooLong', 'tamper'] }),
+  seq:  Values.uint32(),
+  at:   Values.timestamp(),
 });
 
-const LockBehavior = Codecs.struct({        // settings a consumer must see (12a §2.3) — a UI shows the window
-  releaseMs: Codecs.uint32({ min: 1, unit: 'ms' }),
+const LockBehavior = Values.struct({        // settings a consumer must see (12a §2.3) — a UI shows the window
+  releaseMs: Values.uint32({ min: 1, unit: 'ms' }),
 });
 
 export const DoorLock = device('home.DoorLock', {
   ...CommonFields,
-  state:         reading(Codecs.string({ enumValues: ['locked', 'unlocked', 'jammed', 'unknown'] }), { subscribe: true }),
-  door:          optional(reading(Codecs.string({ enumValues: ['open', 'closed', 'unknown'] }), { subscribe: true })),
+  state:         reading(Values.string({ enumValues: ['locked', 'unlocked', 'jammed', 'unknown'] }), { subscribe: true }),
+  door:          optional(reading(Values.string({ enumValues: ['open', 'closed', 'unknown'] }), { subscribe: true })),
   lastOperation: reading(LockOperation, { subscribe: true }),
   alarm:         reading(LockAlarm, { subscribe: true }),
   behavior:      reading(LockBehavior, { subscribe: true }),
-  unlock:        method('mutates', Codecs.void, Codecs.struct({ by: Codecs.actor() }), { errorKinds: ['blocked'], proof: true }),   // 13 §5
-  lock:          method('mutates', Codecs.void, Codecs.struct({ by: Codecs.actor() })),
+  unlock:        method('mutates', Values.void, Values.struct({ by: Values.actor() }), { errorKinds: ['blocked'], proof: true }),   // 13 §5
+  lock:          method('mutates', Values.void, Values.struct({ by: Values.actor() })),
 });
 ```
 

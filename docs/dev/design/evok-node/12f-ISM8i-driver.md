@@ -71,70 +71,70 @@ Bound at `attach()` from config; the table never changes.
 
 ```ts
 // @evok-node/driver-ism8i
-const Celsius = Codecs.float32({ unit: '°C' });
-const K       = Codecs.float32({ unit: 'K' });
-const T       = (c: TypedCodec<any>) => Codecs.optional(c);    // absent ⇒ not reported since start
+const Celsius = Values.float32({ unit: '°C' });
+const K       = Values.float32({ unit: 'K' });
+const T       = (c: ValueType<any>) => Values.optional(c);    // absent ⇒ not reported since start
 
 export const Link = device('ism8i.link', {
-  connected: reading(Codecs.bool(), { subscribe: true }),
-  peer:      reading(T(Codecs.string()), { subscribe: true }),
-  since:     reading(T(Codecs.timestamp()), { subscribe: true }),
-  keepalive: reading(Codecs.struct({ seen: Codecs.bool(), at: T(Codecs.timestamp()) }), { subscribe: true }),
-  firmware:  reading(T(Codecs.string()), { subscribe: true }),
-  writes24h: reading(Codecs.array(Codecs.struct({ key: Codecs.string(), count: Codecs.uint16() })), { subscribe: true }),
-  readAll:   method('mutates', Codecs.void, Codecs.void, { errorKinds: ['notConnected'] }),
+  connected: reading(Values.bool(), { subscribe: true }),
+  peer:      reading(T(Values.string()), { subscribe: true }),
+  since:     reading(T(Values.timestamp()), { subscribe: true }),
+  keepalive: reading(Values.struct({ seen: Values.bool(), at: T(Values.timestamp()) }), { subscribe: true }),
+  firmware:  reading(T(Values.string()), { subscribe: true }),
+  writes24h: reading(Values.array(Values.struct({ key: Values.string(), count: Values.uint16() })), { subscribe: true }),
+  readAll:   method('mutates', Values.void, Values.void, { errorKinds: ['notConnected'] }),
 });
 
 export const System = device('ism8i.system', {
   outdoorTemperature: reading(T(Celsius), { subscribe: true }),                 // 54, the BM-2's sensor
-  fault:              reading(T(Codecs.bool()), { subscribe: true }),           // 53
-  lastFaultCode:      reading(T(Codecs.uint8()), { subscribe: true }),          // 372
-  present:            reading(T(Codecs.struct({                                 // 251, 355, 356
-                        directCircuit: Codecs.bool(), mixerCircuits: Codecs.array(Codecs.uint8()),
-                        mixerModules: Codecs.array(Codecs.uint8()), boilers: Codecs.array(Codecs.uint8()) })), { subscribe: true }),
-  chargeDhw:          method('mutates', Codecs.void, Codecs.void, { errorKinds: ['rateLimited', 'notConnected'] }),   // 194 = 1
+  fault:              reading(T(Values.bool()), { subscribe: true }),           // 53
+  lastFaultCode:      reading(T(Values.uint8()), { subscribe: true }),          // 372
+  present:            reading(T(Values.struct({                                 // 251, 355, 356
+                        directCircuit: Values.bool(), mixerCircuits: Values.array(Values.uint8()),
+                        mixerModules: Values.array(Values.uint8()), boilers: Values.array(Values.uint8()) })), { subscribe: true }),
+  chargeDhw:          method('mutates', Values.void, Values.void, { errorKinds: ['rateLimited', 'notConnected'] }),   // 194 = 1
 });
 
 export const Boiler = device('ism8i.boiler', {
-  fault:              reading(T(Codecs.bool()), { subscribe: true }),
-  state:              reading(T(Codecs.struct({ code: Codecs.uint8(), label: Codecs.string() })), { subscribe: true }),   // 20.105, labels as FHEM's for CGB-2
-  modulation:         reading(T(Codecs.float32({ unit: '%' })), { subscribe: true }),
+  fault:              reading(T(Values.bool()), { subscribe: true }),
+  state:              reading(T(Values.struct({ code: Values.uint8(), label: Values.string() })), { subscribe: true }),   // 20.105, labels as FHEM's for CGB-2
+  modulation:         reading(T(Values.float32({ unit: '%' })), { subscribe: true }),
   boilerTemperature:  reading(T(Celsius), { subscribe: true }),
   headerTemperature:  reading(T(Celsius), { subscribe: true }),
   returnTemperature:  reading(T(Celsius), { subscribe: true }),
   dhwTemperature:     reading(T(Celsius), { subscribe: true }),
   outdoorTemperature: reading(T(Celsius), { subscribe: true }),
   flueGasTemperature: reading(T(Celsius), { subscribe: true }),
-  flame:              reading(T(Codecs.bool()), { subscribe: true }),
-  circuitPump:        reading(T(Codecs.bool()), { subscribe: true }),
-  dhwPump:            reading(T(Codecs.bool()), { subscribe: true }),
-  threeWayValve:      reading(T(Codecs.bool()), { subscribe: true }),            // the raw bit (design/libs 01 §3)
-  pressure:           reading(T(Codecs.float32({ unit: 'bar' })), { subscribe: true }),   // 9.006 Pa / 100 000
+  flame:              reading(T(Values.bool()), { subscribe: true }),
+  circuitPump:        reading(T(Values.bool()), { subscribe: true }),
+  dhwPump:            reading(T(Values.bool()), { subscribe: true }),
+  threeWayValve:      reading(T(Values.bool()), { subscribe: true }),            // the raw bit (design/libs 01 §3)
+  pressure:           reading(T(Values.float32({ unit: 'bar' })), { subscribe: true }),   // 9.006 Pa / 100 000
   boilerSetpoint:     reading(T(Celsius), { subscribe: true }),                  // 364–367
-  outputDemand:       reading(T(Codecs.float32({ unit: '%' })), { subscribe: true }),    // 198 — read-only here
+  outputDemand:       reading(T(Values.float32({ unit: '%' })), { subscribe: true }),    // 198 — read-only here
   setpointDemand:     reading(T(Celsius), { subscribe: true }),                  // 199 — read-only here
 });
 
-const Program    = Codecs.string({ enumValues: ['auto', 'heating', 'standby', 'economy'] });   // 20.102: 0, 1, 2, 3
-const DhwProgram = Codecs.string({ enumValues: ['auto', 'continuous', 'standby'] });           // 20.103: 0, 2, 4
+const Program    = Values.string({ enumValues: ['auto', 'heating', 'standby', 'economy'] });   // 20.102: 0, 1, 2, 3
+const DhwProgram = Values.string({ enumValues: ['auto', 'continuous', 'standby'] });           // 20.103: 0, 2, 4
 
 export const Circuit = device('ism8i.circuit', {
-  fault:              optional(reading(T(Codecs.bool()), { subscribe: true })),  // mixer circuits only
+  fault:              optional(reading(T(Values.bool()), { subscribe: true })),  // mixer circuits only
   roomTemperature:    reading(T(Celsius), { subscribe: true }),                  // empty without a BM-2 in the room
   flowSetpoint:       reading(T(Celsius), { subscribe: true }),                  // 368–371
   program:            channel(T(Program), { subscribe: true }),
-  setpointCorrection: channel(T(Codecs.float32({ min: -4, max: 4, unit: 'K' })), { subscribe: true }),
-  economyFactor:      channel(T(Codecs.float32({ min: 0, max: 10, unit: 'K' })), { subscribe: true }),
-  timeProgram:        channel(T(Codecs.uint8({ min: 1, max: 3 })), { subscribe: true }),   // +5…+7, one of three
+  setpointCorrection: channel(T(Values.float32({ min: -4, max: 4, unit: 'K' })), { subscribe: true }),
+  economyFactor:      channel(T(Values.float32({ min: 0, max: 10, unit: 'K' })), { subscribe: true }),
+  timeProgram:        channel(T(Values.uint8({ min: 1, max: 3 })), { subscribe: true }),   // +5…+7, one of three
   dhwProgram:         channel(T(DhwProgram), { subscribe: true }),
-  dhwSetpoint:        channel(T(Codecs.float32({ min: 25, max: 65, unit: '°C' })), { subscribe: true }),
+  dhwSetpoint:        channel(T(Values.float32({ min: 25, max: 65, unit: '°C' })), { subscribe: true }),
 });
 
 export const MixerModule = device('ism8i.mixerModule', {
-  fault:           reading(T(Codecs.bool()), { subscribe: true }),
+  fault:           reading(T(Values.bool()), { subscribe: true }),
   flowTemperature: reading(T(Celsius), { subscribe: true }),
-  pump:            reading(T(Codecs.bool()), { subscribe: true }),
-  outputA1:        reading(T(Codecs.bool()), { subscribe: true }),
+  pump:            reading(T(Values.bool()), { subscribe: true }),
+  outputA1:        reading(T(Values.bool()), { subscribe: true }),
   inputE1:         reading(T(Celsius), { subscribe: true }),
   inputE2:         reading(T(Celsius), { subscribe: true }),
   dhwTemperature:  reading(T(Celsius), { subscribe: true }),

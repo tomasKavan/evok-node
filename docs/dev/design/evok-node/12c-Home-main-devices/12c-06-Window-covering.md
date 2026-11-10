@@ -52,25 +52,25 @@ Thresholds are set at commissioning: level 2 at the cover's wind-class speed, le
 
 ```ts
 // @evok-node/driver-home
-const Closed = Codecs.uint16({ max: 10000, unit: '0.01%' });   // Matter Percent100ths: 0 = open/up, 10000 = closed/down
-const MetresPerSecond = Codecs.float32({ min: 0, unit: 'm/s' });
+const Closed = Values.uint16({ max: 10000, unit: '0.01%' });   // Matter Percent100ths: 0 = open/up, 10000 = closed/down
+const MetresPerSecond = Values.float32({ min: 0, unit: 'm/s' });
 
-const Moving = Codecs.struct({
-  current: Codecs.optional(Closed),       // absent ⇒ unknown (§1.1)
+const Moving = Values.struct({
+  current: Values.optional(Closed),       // absent ⇒ unknown (§1.1)
   target:  Closed,
-  motion:  Codecs.string({ enumValues: ['stopped', 'opening', 'closing'] }),
+  motion:  Values.string({ enumValues: ['stopped', 'opening', 'closing'] }),
 });
 
-const Wind = Codecs.struct({
-  level:  Codecs.uint8({ max: 2 }),       // highest level risen, acting or not
-  acting: Codecs.uint8({ max: 2 }),       // highest level that acts (protection setting) — what the cover obeys
-  source: Codecs.string({ enumValues: ['ok', 'lost', 'none'] }),   // none ⇒ no wind role
-  gust:   Codecs.optional(MetresPerSecond),
+const Wind = Values.struct({
+  level:  Values.uint8({ max: 2 }),       // highest level risen, acting or not
+  acting: Values.uint8({ max: 2 }),       // highest level that acts (protection setting) — what the cover obeys
+  source: Values.string({ enumValues: ['ok', 'lost', 'none'] }),   // none ⇒ no wind role
+  gust:   Values.optional(MetresPerSecond),
 });
 
-const CoverBehavior = Codecs.struct({     // settings a consumer must see (12a §2.3) — 16a reports them
-  endProductType: Codecs.string({ enumValues: ['exteriorVenetianBlind', 'interiorVenetianBlind', 'rollerShutter', 'rollerShade', 'awning'] }),
-  protection:     Codecs.string({ enumValues: ['none', 'level1', 'level2', 'both'] }),
+const CoverBehavior = Values.struct({     // settings a consumer must see (12a §2.3) — 16a reports them
+  endProductType: Values.string({ enumValues: ['exteriorVenetianBlind', 'interiorVenetianBlind', 'rollerShutter', 'rollerShade', 'awning'] }),
+  protection:     Values.string({ enumValues: ['none', 'level1', 'level2', 'both'] }),
 });
 
 export const WindowCovering = device('home.WindowCovering', {
@@ -79,11 +79,11 @@ export const WindowCovering = device('home.WindowCovering', {
   tilt:      optional(reading(Moving, { subscribe: true })),   // unbound ⇒ no slats
   wind:      reading(Wind, { subscribe: true }),
   behavior:  reading(CoverBehavior, { subscribe: true }),
-  goTo:      method('mutates', Codecs.void, Codecs.struct({ lift: Codecs.optional(Closed), tilt: Codecs.optional(Closed) }), { errorKinds: ['protected', 'interlock'] }),
-  up:        method('mutates', Codecs.void, undefined, { errorKinds: ['protected'] }),
-  down:      method('mutates', Codecs.void, undefined, { errorKinds: ['protected', 'interlock'] }),
-  stop:      method('mutates', Codecs.void, undefined, { errorKinds: ['protected'] }),
-  reference: method('mutates', Codecs.void, Codecs.struct({ end: Codecs.string({ enumValues: ['up', 'down'] }) }), { errorKinds: ['protected', 'interlock'] }),
+  goTo:      method('mutates', Values.void, Values.struct({ lift: Values.optional(Closed), tilt: Values.optional(Closed) }), { errorKinds: ['protected', 'interlock'] }),
+  up:        method('mutates', Values.void, undefined, { errorKinds: ['protected'] }),
+  down:      method('mutates', Values.void, undefined, { errorKinds: ['protected', 'interlock'] }),
+  stop:      method('mutates', Values.void, undefined, { errorKinds: ['protected'] }),
+  reference: method('mutates', Values.void, Values.struct({ end: Values.string({ enumValues: ['up', 'down'] }) }), { errorKinds: ['protected', 'interlock'] }),
 });
 ```
 

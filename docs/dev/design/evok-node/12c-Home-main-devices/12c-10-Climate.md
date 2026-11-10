@@ -75,37 +75,37 @@ The unit's sensor sits at the unit, and its error changes with mode and fan spee
 
 ```ts
 // @evok-node/driver-home
-const Celsius    = Codecs.float32({ min: -273.15, unit: '°C' });       // as 12c-04
-const Percent    = Codecs.uint8({ min: 0, max: 100, unit: '%' });     // as 12c-08
-const SystemMode = Codecs.string({ enumValues: ['off', 'heat', 'cool', 'auto', 'fan', 'dry'] });
-const Preset     = Codecs.string({ enumValues: ['occupied', 'unoccupied', 'sleep', 'wake', 'vacation'] });   // Matter's scenarios
-const Reason     = Codecs.string({ enumValues: ['summer', 'lockout', 'window', 'fault', 'unreachable', 'defrost', 'modeConflict'] });   // the last two: the AC's outdoor unit (12g §6.1)
-const Avail      = Codecs.struct({ ok: Codecs.bool(), reason: Codecs.optional(Reason) });
+const Celsius    = Values.float32({ min: -273.15, unit: '°C' });       // as 12c-04
+const Percent    = Values.uint8({ min: 0, max: 100, unit: '%' });     // as 12c-08
+const SystemMode = Values.string({ enumValues: ['off', 'heat', 'cool', 'auto', 'fan', 'dry'] });
+const Preset     = Values.string({ enumValues: ['occupied', 'unoccupied', 'sleep', 'wake', 'vacation'] });   // Matter's scenarios
+const Reason     = Values.string({ enumValues: ['summer', 'lockout', 'window', 'fault', 'unreachable', 'defrost', 'modeConflict'] });   // the last two: the AC's outdoor unit (12g §6.1)
+const Avail      = Values.struct({ ok: Values.bool(), reason: Values.optional(Reason) });
 
-const ThermostatBehavior = Codecs.struct({   // settings a consumer must see (12a §2.3) — 16a reports them
-  supportedModes:    Codecs.array(SystemMode),
-  deadbandK:         Codecs.float32({ min: 0, max: 12.7, unit: 'K' }),
-  limits:            Codecs.struct({ heatMin: Celsius, heatMax: Celsius,
-                                     coolMin: Codecs.optional(Celsius), coolMax: Codecs.optional(Celsius) }),
-  temperatureSource: Codecs.string({ enumValues: ['sensor', 'ac', 'none'] }),
-  boostMin:          Codecs.optional(Codecs.uint16({ min: 1, unit: 'min' })),   // RoomAirConditioner only
+const ThermostatBehavior = Values.struct({   // settings a consumer must see (12a §2.3) — 16a reports them
+  supportedModes:    Values.array(SystemMode),
+  deadbandK:         Values.float32({ min: 0, max: 12.7, unit: 'K' }),
+  limits:            Values.struct({ heatMin: Celsius, heatMax: Celsius,
+                                     coolMin: Values.optional(Celsius), coolMax: Values.optional(Celsius) }),
+  temperatureSource: Values.string({ enumValues: ['sensor', 'ac', 'none'] }),
+  boostMin:          Values.optional(Values.uint16({ min: 1, unit: 'min' })),   // RoomAirConditioner only
 });
 
 export const ThermostatFields = {
-  temperature:        reading(Codecs.optional(Celsius), { subscribe: true }),        // absent ⇒ no sensor value
+  temperature:        reading(Values.optional(Celsius), { subscribe: true }),        // absent ⇒ no sensor value
   outdoorTemperature: optional(reading(Celsius, { subscribe: true })),               // with an `outdoor` source
   mode:               channel(SystemMode, { subscribe: true }),
-  setpoint:           channel(Codecs.struct({ heat: Celsius, cool: Codecs.optional(Celsius) }), { subscribe: true }),   // cool only with a cooling source
-  preset:             channel(Codecs.optional(Preset), { subscribe: true }),
-  override:           reading(Codecs.optional(Codecs.struct({ until: Codecs.optional(Codecs.timestamp()) })), { subscribe: true }),   // absent ⇒ following the preset
-  running:            reading(Codecs.struct({ heat: Codecs.bool(), heatStage2: Codecs.bool(), cool: Codecs.bool(),
-                                              fan: Codecs.bool(), hydronicLevel: Percent }), { subscribe: true }),
-  available:          reading(Codecs.struct({ hydronic: Codecs.optional(Avail), ac: Codecs.optional(Avail) }), { subscribe: true }),   // per source the device has
+  setpoint:           channel(Values.struct({ heat: Celsius, cool: Values.optional(Celsius) }), { subscribe: true }),   // cool only with a cooling source
+  preset:             channel(Values.optional(Preset), { subscribe: true }),
+  override:           reading(Values.optional(Values.struct({ until: Values.optional(Values.timestamp()) })), { subscribe: true }),   // absent ⇒ following the preset
+  running:            reading(Values.struct({ heat: Values.bool(), heatStage2: Values.bool(), cool: Values.bool(),
+                                              fan: Values.bool(), hydronicLevel: Percent }), { subscribe: true }),
+  available:          reading(Values.struct({ hydronic: Values.optional(Avail), ac: Values.optional(Avail) }), { subscribe: true }),   // per source the device has
   behavior:           reading(ThermostatBehavior, { subscribe: true }),
-  raiseLower:         method('mutates', Codecs.void, Codecs.struct({
-                        mode:   Codecs.string({ enumValues: ['heat', 'cool', 'both'] }),
-                        deltaK: Codecs.float32({ min: -5, max: 5, unit: 'K' }) })),
-  resume:             method('mutates', Codecs.void),                                 // drops the override
+  raiseLower:         method('mutates', Values.void, Values.struct({
+                        mode:   Values.string({ enumValues: ['heat', 'cool', 'both'] }),
+                        deltaK: Values.float32({ min: -5, max: 5, unit: 'K' }) })),
+  resume:             method('mutates', Values.void),                                 // drops the override
 };
 
 export const Thermostat = device('home.Thermostat', {
@@ -116,19 +116,19 @@ export const Thermostat = device('home.Thermostat', {
 export const RoomAirConditioner = device('home.RoomAirConditioner', {
   ...CommonFields,
   ...ThermostatFields,
-  onOff:         channel(Codecs.bool(), { subscribe: true }),
-  policy:        optional(channel(Codecs.struct({
-                   heat:     Codecs.string({ enumValues: ['auto', 'hydronic', 'ac'] }),
-                   acAboveC: Codecs.optional(Celsius) }), { subscribe: true })),       // with a `heating` source
-  boost:         channel(Codecs.struct({ active: Codecs.bool(), until: Codecs.optional(Codecs.timestamp()) }), { subscribe: true }),
-  fanMode:       optional(channel(Codecs.string({ enumValues: ['auto', 'low', 'medium', 'high'] }), { subscribe: true })),
-  swing:         optional(channel(Codecs.struct({ upDown: Codecs.bool(), leftRight: Codecs.optional(Codecs.bool()) }), { subscribe: true })),
-  special:       optional(channel(Codecs.string({ enumValues: ['none', 'quiet', 'eco', 'sleep', 'windFree'] }), { subscribe: true })),
-  keypadLockout: optional(channel(Codecs.bool(), { subscribe: true })),                // the unit's own remote locked
-  filter:        optional(reading(Codecs.struct({ alarm: Codecs.bool() }), { subscribe: true })),
-  clearFilter:   optional(method('mutates', Codecs.void)),
-  fault:         reading(Codecs.optional(Codecs.struct({ code: Codecs.string() })), { subscribe: true }),   // the unit's code; absent ⇒ none
-  localChange:   reading(Codecs.optional(Codecs.timestamp()), { subscribe: true }),     // last change not made through evok-node
+  onOff:         channel(Values.bool(), { subscribe: true }),
+  policy:        optional(channel(Values.struct({
+                   heat:     Values.string({ enumValues: ['auto', 'hydronic', 'ac'] }),
+                   acAboveC: Values.optional(Celsius) }), { subscribe: true })),       // with a `heating` source
+  boost:         channel(Values.struct({ active: Values.bool(), until: Values.optional(Values.timestamp()) }), { subscribe: true }),
+  fanMode:       optional(channel(Values.string({ enumValues: ['auto', 'low', 'medium', 'high'] }), { subscribe: true })),
+  swing:         optional(channel(Values.struct({ upDown: Values.bool(), leftRight: Values.optional(Values.bool()) }), { subscribe: true })),
+  special:       optional(channel(Values.string({ enumValues: ['none', 'quiet', 'eco', 'sleep', 'windFree'] }), { subscribe: true })),
+  keypadLockout: optional(channel(Values.bool(), { subscribe: true })),                // the unit's own remote locked
+  filter:        optional(reading(Values.struct({ alarm: Values.bool() }), { subscribe: true })),
+  clearFilter:   optional(method('mutates', Values.void)),
+  fault:         reading(Values.optional(Values.struct({ code: Values.string() })), { subscribe: true }),   // the unit's code; absent ⇒ none
+  localChange:   reading(Values.optional(Values.timestamp()), { subscribe: true }),     // last change not made through evok-node
 });
 ```
 

@@ -106,10 +106,10 @@ interface Actor {
   readonly id?: string;      // the user in that namespace; absent = no user known
   readonly name?: string;
 }
-Codecs.actor(): TypedCodec<Actor | undefined>   // an optional struct member, schema annotated `actor: true` (05a §3.1a)
+Values.actor(): ValueType<Actor | undefined>   // an optional struct member, schema annotated `actor: true` (05a §3.1a)
 
 // a method that needs the user and proof — 12c-09
-unlock: method('mutates', Codecs.void, Codecs.struct({ by: Codecs.actor() }), { errorKinds: ['blocked'], proof: true }),
+unlock: method('mutates', Values.void, Values.struct({ by: Values.actor() }), { errorKinds: ['blocked'], proof: true }),
 ```
 
 | Annotation | On | The api |

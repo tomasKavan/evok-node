@@ -99,22 +99,22 @@ CO₂  550 → 30 %      CO₂  900 → 65 → 70 %      CO₂ 1400 → 100 %
 
 ```ts
 // @evok-node/driver-home
-const Percent = Codecs.uint8({ min: 0, max: 100, unit: '%' });      // as 12c-10
-const Celsius = Codecs.float32({ min: -273.15, unit: '°C' });       // as 12c-04
-const FanMode = Codecs.string({ enumValues: ['low', 'medium', 'high', 'auto'] });
+const Percent = Values.uint8({ min: 0, max: 100, unit: '%' });      // as 12c-10
+const Celsius = Values.float32({ min: -273.15, unit: '°C' });       // as 12c-04
+const FanMode = Values.string({ enumValues: ['low', 'medium', 'high', 'auto'] });
 
-const FanBehavior = Codecs.struct({        // settings a consumer must see (12a §2.3)
-  modes:   Codecs.array(FanMode, { min: 1 }),
-  levels:  Codecs.struct({ low: Codecs.optional(Percent), medium: Codecs.optional(Percent), high: Percent }),
+const FanBehavior = Values.struct({        // settings a consumer must see (12a §2.3)
+  modes:   Values.array(FanMode, { min: 1 }),
+  levels:  Values.struct({ low: Values.optional(Percent), medium: Values.optional(Percent), high: Percent }),
   minPct:  Percent,                         // lowest speed above 0
   stepPct: Percent,                         // 1 = any value
-  startUp: Codecs.string({ enumValues: ['off', 'on', 'previous'] }),
+  startUp: Values.string({ enumValues: ['off', 'on', 'previous'] }),
 });
 
 export const FanFields = {
-  onOff:          channel(Codecs.bool(), { subscribe: true }),
+  onOff:          channel(Values.bool(), { subscribe: true }),
   mode:           channel(FanMode, { subscribe: true }),                                     // kept while off
-  percent:        channel(Codecs.optional(Percent), { subscribe: true, set: Percent }),       // absent in auto
+  percent:        channel(Values.optional(Percent), { subscribe: true, set: Percent }),       // absent in auto
   percentCurrent: reading(Percent, { subscribe: true }),                                      // 0 when off
 };
 
@@ -124,33 +124,33 @@ export const Fan = device('home.Fan', {
   behavior: reading(FanBehavior, { subscribe: true }),
 });
 
-const VentilationBehavior = Codecs.struct({
-  modes: Codecs.array(FanMode, { min: 1 }),
-  levels: Codecs.struct({ low: Codecs.optional(Percent), medium: Codecs.optional(Percent), high: Percent }),
+const VentilationBehavior = Values.struct({
+  modes: Values.array(FanMode, { min: 1 }),
+  levels: Values.struct({ low: Values.optional(Percent), medium: Values.optional(Percent), high: Percent }),
   minPct: Percent,
   stepPct: Percent,
-  startUp: Codecs.string({ enumValues: ['off', 'on', 'previous'] }),
+  startUp: Values.string({ enumValues: ['off', 'on', 'previous'] }),
   awayPct: Percent,
-  boostMin: Codecs.uint8({ min: 1, max: 60, unit: 'min' }),
+  boostMin: Values.uint8({ min: 1, max: 60, unit: 'min' }),
 });
 
 export const VentilationUnit = device('home.VentilationUnit', {
   ...CommonFields,
   ...FanFields,
   behavior:         reading(VentilationBehavior, { subscribe: true }),
-  boost:            channel(Codecs.struct({ active: Codecs.bool(), until: Codecs.optional(Codecs.timestamp()) }),
-                      { subscribe: true, set: Codecs.struct({ active: Codecs.bool() }) }),
-  away:             channel(Codecs.bool(), { subscribe: true }),
-  nightVentilation: optional(channel(Codecs.struct({ enabled: Codecs.bool(), active: Codecs.bool() }),
-                      { subscribe: true, set: Codecs.struct({ enabled: Codecs.bool() }) })),
-  temperatures:     reading(Codecs.struct({ outdoor: Codecs.optional(Celsius), supply: Codecs.optional(Celsius),
-                      extract: Codecs.optional(Celsius), exhaust: Codecs.optional(Celsius) }), { subscribe: true }),
-  filter:           optional(reading(Codecs.struct({ conditionPct: Codecs.optional(Percent),
-                      change: Codecs.string({ enumValues: ['ok', 'warning', 'critical'] }) }), { subscribe: true })),
-  resetFilter:      optional(method('mutates', Codecs.void)),
-  fault:            reading(Codecs.optional(Codecs.struct({ code: Codecs.string() })), { subscribe: true }),   // absent ⇒ none
-  localChange:      reading(Codecs.optional(Codecs.timestamp()), { subscribe: true }),                         // last change not made through evok-node
-  demand:           optional(reading(Codecs.optional(Codecs.struct({ co2: Codecs.float32({ min: 0, unit: 'ppm' }) })),
+  boost:            channel(Values.struct({ active: Values.bool(), until: Values.optional(Values.timestamp()) }),
+                      { subscribe: true, set: Values.struct({ active: Values.bool() }) }),
+  away:             channel(Values.bool(), { subscribe: true }),
+  nightVentilation: optional(channel(Values.struct({ enabled: Values.bool(), active: Values.bool() }),
+                      { subscribe: true, set: Values.struct({ enabled: Values.bool() }) })),
+  temperatures:     reading(Values.struct({ outdoor: Values.optional(Celsius), supply: Values.optional(Celsius),
+                      extract: Values.optional(Celsius), exhaust: Values.optional(Celsius) }), { subscribe: true }),
+  filter:           optional(reading(Values.struct({ conditionPct: Values.optional(Percent),
+                      change: Values.string({ enumValues: ['ok', 'warning', 'critical'] }) }), { subscribe: true })),
+  resetFilter:      optional(method('mutates', Values.void)),
+  fault:            reading(Values.optional(Values.struct({ code: Values.string() })), { subscribe: true }),   // absent ⇒ none
+  localChange:      reading(Values.optional(Values.timestamp()), { subscribe: true }),                         // last change not made through evok-node
+  demand:           optional(reading(Values.optional(Values.struct({ co2: Values.float32({ min: 0, unit: 'ppm' }) })),
                       { subscribe: true })),                                                                    // with `air` sources; absent ⇒ none reachable
 });
 ```

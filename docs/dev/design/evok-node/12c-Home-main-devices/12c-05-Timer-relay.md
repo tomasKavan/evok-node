@@ -39,30 +39,30 @@ T is the call's `ms`, or `defaultMs` (§3) when absent — always clamped to `ma
 
 ```ts
 // @evok-node/driver-home
-const Ms       = Codecs.uint32({ min: 1, unit: 'ms' });
-const Duration = Codecs.struct({ ms: Codecs.optional(Ms) });   // absent ⇒ defaultMs
+const Ms       = Values.uint32({ min: 1, unit: 'ms' });
+const Duration = Values.struct({ ms: Values.optional(Ms) });   // absent ⇒ defaultMs
 
-const TimerBehavior = Codecs.struct({        // settings a consumer must see (12a §2.3) — the Home UI offers a start from them
+const TimerBehavior = Values.struct({        // settings a consumer must see (12a §2.3) — the Home UI offers a start from them
   defaultMs:    Ms,
-  maxMs:        Codecs.optional(Ms),         // absent ⇒ no cap
-  warnBeforeMs: Codecs.optional(Ms),         // absent ⇒ no warning
-  persistent:   Codecs.bool(),
+  maxMs:        Values.optional(Ms),         // absent ⇒ no cap
+  warnBeforeMs: Values.optional(Ms),         // absent ⇒ no warning
+  persistent:   Values.bool(),
 });
 
 export const TimerRelay = device('home.TimerRelay', {
   ...CommonFields,
-  state:       reading(Codecs.string({ enumValues: ['idle', 'elapsing', 'paused'] }), { subscribe: true }),
-  remainingMs: reading(Codecs.uint32({ unit: 'ms' }), { subscribe: true }),
-  warning:     reading(Codecs.bool(), { subscribe: true }),
-  elapsed:     reading(Codecs.struct({ seq: Codecs.uint32(), at: Codecs.timestamp() }), { subscribe: true }),
+  state:       reading(Values.string({ enumValues: ['idle', 'elapsing', 'paused'] }), { subscribe: true }),
+  remainingMs: reading(Values.uint32({ unit: 'ms' }), { subscribe: true }),
+  warning:     reading(Values.bool(), { subscribe: true }),
+  elapsed:     reading(Values.struct({ seq: Values.uint32(), at: Values.timestamp() }), { subscribe: true }),
   behavior:    reading(TimerBehavior, { subscribe: true }),
-  start:       method('mutates', Codecs.void, Duration),
-  restart:     method('mutates', Codecs.void, Duration),
-  add:         method('mutates', Codecs.void, Duration),
-  toggle:      method('mutates', Codecs.void, Duration),
-  pause:       method('mutates', Codecs.void),
-  resume:      method('mutates', Codecs.void),
-  cancel:      method('mutates', Codecs.void),
+  start:       method('mutates', Values.void, Duration),
+  restart:     method('mutates', Values.void, Duration),
+  add:         method('mutates', Values.void, Duration),
+  toggle:      method('mutates', Values.void, Duration),
+  pause:       method('mutates', Values.void),
+  resume:      method('mutates', Values.void),
+  cancel:      method('mutates', Values.void),
 });
 ```
 

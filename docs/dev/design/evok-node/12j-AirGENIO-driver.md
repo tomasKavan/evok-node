@@ -83,85 +83,85 @@ Bound once at `attach()`; the table never changes. What the unit lacks — a sen
 
 ```ts
 // @evok-node/driver-airgenio
-const Permille = Codecs.uint16({ min: 0, max: 1000, unit: '‰' });
-const Pct      = Codecs.uint8({ min: 0, max: 100, unit: '%' });
-const Celsius  = Codecs.float32({ min: -40, max: 100, unit: '°C' });
-const opt      = Codecs.optional;
+const Permille = Values.uint16({ min: 0, max: 1000, unit: '‰' });
+const Pct      = Values.uint8({ min: 0, max: 100, unit: '%' });
+const Celsius  = Values.float32({ min: -40, max: 100, unit: '°C' });
+const opt      = Values.optional;
 
-const Fault = Codecs.string({ enumValues: [
+const Fault = Values.string({ enumValues: [
   'supplyFan', 'extractFan', 'supplyFilter', 'extractFilter', 'preheater', 'postheater', 'aqsSensor', 'condensate',
   'config', 'sensorOutdoor', 'sensorExt2', 'sensorSupply', 'sensorExtract', 'sensorExhaust', 'sensorRoom', 'global',
 ] });
 
 export const Unit = device('airgenio.unit', {
-  power:       channel(Codecs.bool(), { subscribe: true }),       // 21001 — false = standby
+  power:       channel(Values.bool(), { subscribe: true }),       // 21001 — false = standby
   level:       channel(Permille, { subscribe: true }),            // 21002 — manual mode; §5.2
-  boost:       channel(Codecs.bool(), { subscribe: true }),       // 21009
-  nobody:      channel(Codecs.bool(), { subscribe: true }),       // 21010 — Inspector only; the home template doesn't use it
-  freeCooling: channel(Codecs.bool(), { subscribe: true }),       // 21011 — night ventilation allowed
+  boost:       channel(Values.bool(), { subscribe: true }),       // 21009
+  nobody:      channel(Values.bool(), { subscribe: true }),       // 21010 — Inspector only; the home template doesn't use it
+  freeCooling: channel(Values.bool(), { subscribe: true }),       // 21011 — night ventilation allowed
   setpoint:    channel(Celsius, { subscribe: true }),             // 21003 — range by `service.tempSensor`
   state:  polled({                                                // 15000, 15001
-            on: Codecs.bool(), manual: Codecs.bool(), dcv: Codecs.bool(), fire: Codecs.bool(), boost: Codecs.bool(),
-            nobody: Codecs.bool(), freeCooling: Codecs.bool(), preFreeCooling: Codecs.bool(), timer: Codecs.bool(),
-            calibration: Codecs.bool(), cooldown: Codecs.bool(), directControl: Codecs.bool(), flowReduction: Codecs.bool() },
+            on: Values.bool(), manual: Values.bool(), dcv: Values.bool(), fire: Values.bool(), boost: Values.bool(),
+            nobody: Values.bool(), freeCooling: Values.bool(), preFreeCooling: Values.bool(), timer: Values.bool(),
+            calibration: Values.bool(), cooldown: Values.bool(), directControl: Values.bool(), flowReduction: Values.bool() },
           { subscribe: true }),
   fans:   polled({ supply: Permille, extract: Permille }, { subscribe: true }),            // 15013, 15014
   temps:  polled({ outdoor: opt(Celsius), ext2: opt(Celsius), supply: opt(Celsius),       // 15017–15019 (EXT1–3)
                    extract: opt(Celsius), exhaust: opt(Celsius), room: opt(Celsius) },    // 15022, 15023 (INT1, INT2), 15026
           { subscribe: true }),
   heaters: polled({ preheater: opt(Pct), postheater: opt(Pct) }, { subscribe: true }),     // 15036, 15038 — when fitted
-  filter: polled({ hours: Codecs.uint16(), maxHours: Codecs.uint16(),                     // 25019, 25020
-                   due: Codecs.bool(), warning: Codecs.bool(), error: Codecs.bool() },    // 15000 b13 | 15003 b3; 15002 b4–5; b2–3
+  filter: polled({ hours: Values.uint16(), maxHours: Values.uint16(),                     // 25019, 25020
+                   due: Values.bool(), warning: Values.bool(), error: Values.bool() },    // 15000 b13 | 15003 b3; 15002 b4–5; b2–3
           { subscribe: true }),
-  faults: polled({ active: Codecs.array(Fault) }, { subscribe: true }),                    // §5.3
-  energy: polled({ powerW: opt(Codecs.uint16({ unit: 'W' })), totalKwh: opt(Codecs.uint32({ unit: 'kWh' })) },   // 16005; 16006–16007 L/H — with the energy module
+  faults: polled({ active: Values.array(Fault) }, { subscribe: true }),                    // §5.3
+  energy: polled({ powerW: opt(Values.uint16({ unit: 'W' })), totalKwh: opt(Values.uint32({ unit: 'kWh' })) },   // 16005; 16006–16007 L/H — with the energy module
           { subscribe: true }),
-  limits: reading(Codecs.struct({ min: Permille, max: Permille, step: Permille })),         // 10112, 10111, 10113
-  externalChange: reading(opt(Codecs.struct({ at: Codecs.timestamp(), fields: Codecs.array(Codecs.string()) })), { subscribe: true }),   // §5.5
-  resetFilter: method('mutates', Codecs.void),                                             // 21016 = 1
+  limits: reading(Values.struct({ min: Permille, max: Permille, step: Permille })),         // 10112, 10111, 10113
+  externalChange: reading(opt(Values.struct({ at: Values.timestamp(), fields: Values.array(Values.string()) })), { subscribe: true }),   // §5.5
+  resetFilter: method('mutates', Values.void),                                             // 21016 = 1
 });
 
-const When = Codecs.struct({ month: Codecs.uint8({ min: 1, max: 12 }), day: Codecs.uint8({ min: 1, max: 31 }),
-                             hour: Codecs.uint8({ max: 23 }), minute: Codecs.uint8({ max: 59 }) });
+const When = Values.struct({ month: Values.uint8({ min: 1, max: 12 }), day: Values.uint8({ min: 1, max: 31 }),
+                             hour: Values.uint8({ max: 23 }), minute: Values.uint8({ max: 59 }) });
 
-const Settings = Codecs.struct({
-  ventilationMode: Codecs.string({ enumValues: ['manual', 'dcv'], label: 'Ventilation mode' }),         // 25000
-  tempSensor:      Codecs.string({ enumValues: ['supply', 'extract', 'room'], label: 'Control sensor' }), // 25009
-  boostMin:        Codecs.uint8({ min: 1, max: 60, unit: 'min', label: 'Boost time' }),                 // 20012
+const Settings = Values.struct({
+  ventilationMode: Values.string({ enumValues: ['manual', 'dcv'], label: 'Ventilation mode' }),         // 25000
+  tempSensor:      Values.string({ enumValues: ['supply', 'extract', 'room'], label: 'Control sensor' }), // 25009
+  boostMin:        Values.uint8({ min: 1, max: 60, unit: 'min', label: 'Boost time' }),                 // 20012
   boostFlowPct:    Pct,                                                                                  // 20013
-  boostFromOff:    Codecs.bool({ label: 'Boost button from standby' }),                                 // 20011
-  di4:             Codecs.string({ enumValues: ['fire', 'nobody'], label: 'Input 15/16' }),              // 25008 *
-  nobodyMin:       Codecs.uint8({ min: 1, max: 60, unit: 'min' }),                                       // 20009 *
-  nobodyFlowPct:   Codecs.uint8({ min: 20, max: 50, unit: '%' }),                                        // 20010 *
-  freeCooling:     Codecs.struct({ enabled: Codecs.bool(),                                               // 20014 *
-                     flowPct: Codecs.uint8({ min: 50, max: 100, unit: '%' }),                            // 20015 *
-                     extractC: Codecs.uint8({ min: 12, max: 25, unit: '°C' }),                           // 20016 *
+  boostFromOff:    Values.bool({ label: 'Boost button from standby' }),                                 // 20011
+  di4:             Values.string({ enumValues: ['fire', 'nobody'], label: 'Input 15/16' }),              // 25008 *
+  nobodyMin:       Values.uint8({ min: 1, max: 60, unit: 'min' }),                                       // 20009 *
+  nobodyFlowPct:   Values.uint8({ min: 20, max: 50, unit: '%' }),                                        // 20010 *
+  freeCooling:     Values.struct({ enabled: Values.bool(),                                               // 20014 *
+                     flowPct: Values.uint8({ min: 50, max: 100, unit: '%' }),                            // 20015 *
+                     extractC: Values.uint8({ min: 12, max: 25, unit: '°C' }),                           // 20016 *
                      from: When, to: When }),                                                            // 20017–20024 *
-  supplyDuct:      Codecs.struct({ minC: Codecs.uint8({ min: 15, max: 20, unit: '°C' }),                 // 20035
-                     maxC: Codecs.uint8({ min: 25, max: 45, unit: '°C' }),                               // 20034
-                     reduceFlow: Codecs.bool() }),                                                       // 20045
-  filterMaxHours:  Codecs.uint16({ min: 200, max: 3000, unit: 'h' }),                                    // 25020
-  fire:            Codecs.struct({ fans: Codecs.string({ enumValues: ['off', 'both', 'supply', 'extract'] }),   // 25030 *
+  supplyDuct:      Values.struct({ minC: Values.uint8({ min: 15, max: 20, unit: '°C' }),                 // 20035
+                     maxC: Values.uint8({ min: 25, max: 45, unit: '°C' }),                               // 20034
+                     reduceFlow: Values.bool() }),                                                       // 20045
+  filterMaxHours:  Values.uint16({ min: 200, max: 3000, unit: 'h' }),                                    // 25020
+  fire:            Values.struct({ fans: Values.string({ enumValues: ['off', 'both', 'supply', 'extract'] }),   // 25030 *
                      flowPct: Pct }),                                                                    // 25031 *
 });
 
 export const Service = device('airgenio.service', {
   settings:      channel(Settings, { subscribe: true }),   // a SET writes only the members that differ
-  pendingReset:  reading(Codecs.bool(), { subscribe: true }),   // a * register was written; §5.6
-  softwareReset: method('mutates', Codecs.void),           // 10003 = 1
+  pendingReset:  reading(Values.bool(), { subscribe: true }),   // a * register was written; §5.6
+  softwareReset: method('mutates', Values.void),           // 10003 = 1
 });
 
 export const Info = device('airgenio.info', {
-  fitted: reading(Codecs.struct({
-    exchanger:  Codecs.string({ enumValues: ['none', 'plate', 'rotary', 'enthalpy'] }),          // 10130
-    bypass:     Codecs.string({ enumValues: ['none', 'stepless', 'openClose'] }),                // 10129
-    preheater:  Codecs.string({ enumValues: ['none', 'electric', 'water'] }),                    // 10119
-    postheater: Codecs.string({ enumValues: ['none', 'electric', 'water', 'wco', 'dx'] }),       // 10123
-    energyMeter: Codecs.bool(),                                                                   // 10105
-    sensors:    Codecs.array(Codecs.string()),                                                    // 10144–10153 flags set: 'ext1', 'int2', 'room', …
+  fitted: reading(Values.struct({
+    exchanger:  Values.string({ enumValues: ['none', 'plate', 'rotary', 'enthalpy'] }),          // 10130
+    bypass:     Values.string({ enumValues: ['none', 'stepless', 'openClose'] }),                // 10129
+    preheater:  Values.string({ enumValues: ['none', 'electric', 'water'] }),                    // 10119
+    postheater: Values.string({ enumValues: ['none', 'electric', 'water', 'wco', 'dx'] }),       // 10123
+    energyMeter: Values.bool(),                                                                   // 10105
+    sensors:    Values.array(Values.string()),                                                    // 10144–10153 flags set: 'ext1', 'int2', 'room', …
   })),
-  firmware: reading(Codecs.struct({ unit: Codecs.uint16(), hardware: Codecs.uint16(), panel: Codecs.uint16() })),   // 16029, 16028, 16045
-  clock:    polled({ unit: Codecs.timestamp(), driftS: Codecs.int32({ unit: 's' }) }, { subscribe: true }),        // 17000–17006
+  firmware: reading(Values.struct({ unit: Values.uint16(), hardware: Values.uint16(), panel: Values.uint16() })),   // 16029, 16028, 16045
+  clock:    polled({ unit: Values.timestamp(), driftS: Values.int32({ unit: 's' }) }, { subscribe: true }),        // 17000–17006
 });
 ```
 

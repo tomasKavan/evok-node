@@ -34,22 +34,22 @@ The fields follow Matter's device types (research/matter/04 §1). `vocIndex` is 
 
 ```ts
 // @evok-node/driver-home
-const Celsius  = Codecs.float32({ min: -273.15, unit: '°C' });
-const Percent  = Codecs.float32({ min: 0, max: 100, unit: '%' });
-const Modality = Codecs.string({ enumValues: ['pir', 'ultrasonic', 'physicalContact', 'activeInfrared', 'radar', 'rfSensing', 'vision', 'other'] });
-const AirQualityLevel = Codecs.string({ enumValues: ['unknown', 'good', 'fair', 'moderate', 'poor', 'veryPoor', 'extremelyPoor'] });
+const Celsius  = Values.float32({ min: -273.15, unit: '°C' });
+const Percent  = Values.float32({ min: 0, max: 100, unit: '%' });
+const Modality = Values.string({ enumValues: ['pir', 'ultrasonic', 'physicalContact', 'activeInfrared', 'radar', 'rfSensing', 'vision', 'other'] });
+const AirQualityLevel = Values.string({ enumValues: ['unknown', 'good', 'fair', 'moderate', 'poor', 'veryPoor', 'extremelyPoor'] });
 
 export const ContactSensor = device('home.ContactSensor', {
   ...CommonFields,
-  closed: reading(Codecs.bool(), { subscribe: true }),
+  closed: reading(Values.bool(), { subscribe: true }),
 });
 
 export const OccupancySensor = device('home.OccupancySensor', {
   ...CommonFields,
-  occupied: reading(Codecs.bool(), { subscribe: true }),
-  sensing:  reading(Codecs.struct({                       // settings a consumer must see (12a §2.3)
-              modalities: Codecs.array(Modality, { min: 1 }),
-              holdTimeS:  Codecs.optional(Codecs.uint16({ min: 1, unit: 's' })),   // absent ⇒ the detector's own delay only
+  occupied: reading(Values.bool(), { subscribe: true }),
+  sensing:  reading(Values.struct({                       // settings a consumer must see (12a §2.3)
+              modalities: Values.array(Modality, { min: 1 }),
+              holdTimeS:  Values.optional(Values.uint16({ min: 1, unit: 's' })),   // absent ⇒ the detector's own delay only
             }), { subscribe: true }),
 });
 
@@ -65,15 +65,15 @@ export const HumiditySensor = device('home.HumiditySensor', {
 
 export const LightSensor = device('home.LightSensor', {
   ...CommonFields,
-  illuminance: reading(Codecs.float32({ min: 0, unit: 'lx' }), { subscribe: true }),   // 0 = too dark to measure
+  illuminance: reading(Values.float32({ min: 0, unit: 'lx' }), { subscribe: true }),   // 0 = too dark to measure
 });
 
 export const AirQualitySensor = device('home.AirQualitySensor', {
   ...CommonFields,
   airQuality:  reading(AirQualityLevel, { subscribe: true }),
-  co2:         optional(reading(Codecs.float32({ min: 0, unit: 'ppm' }), { subscribe: true })),
-  pm25:        optional(reading(Codecs.float32({ min: 0, unit: 'µg/m³' }), { subscribe: true })),
-  vocIndex:    optional(reading(Codecs.uint16({ min: 0, max: 500 }), { subscribe: true })),   // relative, unitless — no Matter counterpart
+  co2:         optional(reading(Values.float32({ min: 0, unit: 'ppm' }), { subscribe: true })),
+  pm25:        optional(reading(Values.float32({ min: 0, unit: 'µg/m³' }), { subscribe: true })),
+  vocIndex:    optional(reading(Values.uint16({ min: 0, max: 500 }), { subscribe: true })),   // relative, unitless — no Matter counterpart
   temperature: optional(reading(Celsius, { subscribe: true })),
   humidity:    optional(reading(Percent, { subscribe: true })),
 });

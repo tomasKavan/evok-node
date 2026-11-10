@@ -33,8 +33,8 @@ The on/off part of a light (12c-01 §1.1), nothing more:
 
 ```ts
 // @evok-node/driver-home
-const PlugBehavior = Codecs.struct({        // settings a consumer must see (12a §2.3)
-  startUp: Codecs.string({ enumValues: ['off', 'on', 'toggle', 'previous'] }),
+const PlugBehavior = Values.struct({        // settings a consumer must see (12a §2.3)
+  startUp: Values.string({ enumValues: ['off', 'on', 'toggle', 'previous'] }),
 });
 
 export const OnOffPlugInUnit = device('home.OnOffPlugInUnit', {

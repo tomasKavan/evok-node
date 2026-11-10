@@ -87,30 +87,30 @@ A relay source of the wrong kind is not fatal: its group is not reachable until 
 Edited in the Inspector; one `SET` of `control.settings` persists them in KV before it answers, as 12i §3. Nothing in KV ⇒ the defaults.
 
 ```ts
-const Min = (d: number, label: string, hint?: string) => Codecs.uint16({ unit: 'min', default: d, label, hint });
-const Pct = (d: number, label: string, hint?: string) => Codecs.uint8({ min: 0, max: 100, unit: '%', default: d, label, hint });
+const Min = (d: number, label: string, hint?: string) => Values.uint16({ unit: 'min', default: d, label, hint });
+const Pct = (d: number, label: string, hint?: string) => Values.uint8({ min: 0, max: 100, unit: '%', default: d, label, hint });
 
-const Settings = Codecs.struct({
+const Settings = Values.struct({
   periodRadiatorMin: Min(30, 'Radiator duty period'),
   periodFloorMin:    Min(60, 'Floor duty period'),
   minPulseMin:       Min(6,  'Minimum pulse', 'an on or off phase shorter than this is skipped — about 2× the actuator travel'),
   saturationLowPct:  Pct(10, 'Always off at or below'),
   saturationHighPct: Pct(90, 'Always on at or above'),
   levelStepPct:      Pct(10, 'Level step'),
-  maxSwitchesPerDay: Codecs.uint16({ default: 40, label: 'Relay switches per day', hint: 'rolling 24 h, per relay' }),
-  wearWarning:       Codecs.uint32({ default: 80_000, label: 'Relay wear warning', hint: 'lifetime switches' }),
-  exerciseDays:      Codecs.uint8({ default: 7, label: 'Exercise after days unmoved' }),
+  maxSwitchesPerDay: Values.uint16({ default: 40, label: 'Relay switches per day', hint: 'rolling 24 h, per relay' }),
+  wearWarning:       Values.uint32({ default: 80_000, label: 'Relay wear warning', hint: 'lifetime switches' }),
+  exerciseDays:      Values.uint8({ default: 7, label: 'Exercise after days unmoved' }),
   exerciseMin:       Min(5, 'Exercise time'),
   requestTimeoutMin: Min(15, 'No request ⇒ baseline', 'the room device re-sends every 5 min (12c-10 §3.3)'),
   boostAfterMin:     Min(45, 'Boost after', 'base group at 100 % this long'),
   boostOffPct:       Pct(70, 'Boost off below'),
-  correction: Codecs.struct({
+  correction: Values.struct({
     highPct:  Pct(90, 'Raise when reference at or above'),
     lowPct:   Pct(20, 'Lower when reference at or below'),
     holdMin:  Min(120, 'For at least'),
-    stepK:    Codecs.float32({ default: 0.5, unit: 'K', label: 'Step' }),
-    minK:     Codecs.float32({ default: -4, unit: 'K', label: 'Lowest' }),
-    maxK:     Codecs.float32({ default: 4, unit: 'K', label: 'Highest' }),
+    stepK:    Values.float32({ default: 0.5, unit: 'K', label: 'Step' }),
+    minK:     Values.float32({ default: -4, unit: 'K', label: 'Lowest' }),
+    maxK:     Values.float32({ default: 4, unit: 'K', label: 'Highest' }),
     everyMin: Min(30, 'At most every'),
   }),
 });
@@ -131,44 +131,44 @@ const Settings = Codecs.struct({
 
 ```ts
 // @evok-node/driver-central-heating
-const Percent = Codecs.uint8({ min: 0, max: 100, unit: '%' });
-const K       = Codecs.float32({ unit: 'K' });
-const Mode    = Codecs.string({ enumValues: ['off', 'heat', 'baseline'] });
+const Percent = Values.uint8({ min: 0, max: 100, unit: '%' });
+const K       = Values.float32({ unit: 'K' });
+const Mode    = Values.string({ enumValues: ['off', 'heat', 'baseline'] });
 
 export const Control = device('heating.control', {
   settings: channel(Settings, { subscribe: true }),
-  alarms:   reading(Codecs.struct({ relayWear: Codecs.array(Codecs.string()), relayUnreachable: Codecs.array(Codecs.string()),
-                                    ism8iUnreachable: Codecs.array(Codecs.string()) }), { subscribe: true }),   // tails
+  alarms:   reading(Values.struct({ relayWear: Values.array(Values.string()), relayUnreachable: Values.array(Values.string()),
+                                    ism8iUnreachable: Values.array(Values.string()) }), { subscribe: true }),   // tails
 });
 
 export const Circuit = device('heating.circuit', {
-  season:     channel(Codecs.string({ enumValues: ['heating', 'summer'] }), { subscribe: true }),
-  available:  channel(Codecs.bool(), { subscribe: true }),
-  reference:  reading(Codecs.string()),                                    // the zone's tail
-  correction: optional(reading(Codecs.struct({
+  season:     channel(Values.string({ enumValues: ['heating', 'summer'] }), { subscribe: true }),
+  available:  channel(Values.bool(), { subscribe: true }),
+  reference:  reading(Values.string()),                                    // the zone's tail
+  correction: optional(reading(Values.struct({
                 desired:   K,                                              // this driver's target (§6)
-                reported:  Codecs.optional(K),                             // what 12f reports
-                changedAt: Codecs.optional(Codecs.timestamp()) }), { subscribe: true })),   // bound with `ism8i`
-  zones:      reading(Codecs.array(Codecs.struct({ zone: Codecs.string(), mode: Mode, level: Percent, running: Codecs.bool() })), { subscribe: true }),
+                reported:  Values.optional(K),                             // what 12f reports
+                changedAt: Values.optional(Values.timestamp()) }), { subscribe: true })),   // bound with `ism8i`
+  zones:      reading(Values.array(Values.struct({ zone: Values.string(), mode: Mode, level: Percent, running: Values.bool() })), { subscribe: true }),
 });
 
 export const Zone = device('heating.zone', {
-  request:   channel(Codecs.struct({ mode: Mode, level: Percent }), { subscribe: true }),          // 12c-10 §3.3
-  available: reading(Codecs.struct({ heat: Codecs.bool(),
-               reason: Codecs.optional(Codecs.string({ enumValues: ['summer', 'fault', 'circuitOff'] })) }), { subscribe: true }),
-  running:   reading(Codecs.bool(), { subscribe: true }),                  // a valve of the zone is open
-  fallback:  reading(Codecs.bool(), { subscribe: true }),                  // no request for requestTimeoutMin
-  reference: reading(Codecs.bool()),
-  applied:   reading(Codecs.struct({ mode: Mode, level: Percent, periodMin: Codecs.uint16({ unit: 'min' }) }), { subscribe: true }),
-  groups:    reading(Codecs.array(Codecs.struct({ emitter: Codecs.string(), stage: Codecs.string(),
-               open: Codecs.bool(), since: Codecs.timestamp() })), { subscribe: true }),
+  request:   channel(Values.struct({ mode: Mode, level: Percent }), { subscribe: true }),          // 12c-10 §3.3
+  available: reading(Values.struct({ heat: Values.bool(),
+               reason: Values.optional(Values.string({ enumValues: ['summer', 'fault', 'circuitOff'] })) }), { subscribe: true }),
+  running:   reading(Values.bool(), { subscribe: true }),                  // a valve of the zone is open
+  fallback:  reading(Values.bool(), { subscribe: true }),                  // no request for requestTimeoutMin
+  reference: reading(Values.bool()),
+  applied:   reading(Values.struct({ mode: Mode, level: Percent, periodMin: Values.uint16({ unit: 'min' }) }), { subscribe: true }),
+  groups:    reading(Values.array(Values.struct({ emitter: Values.string(), stage: Values.string(),
+               open: Values.bool(), since: Values.timestamp() })), { subscribe: true }),
 });
 
 export const Relay = device('heating.relay', {
-  on:            reading(Codecs.bool(), { subscribe: true }),
-  switchesToday: reading(Codecs.uint16(), { subscribe: true }),            // rolling 24 h
-  switchesTotal: reading(Codecs.uint32(), { subscribe: true }),
-  stretched:     reading(Codecs.bool(), { subscribe: true }),              // period doubled by the budget (§5.2)
+  on:            reading(Values.bool(), { subscribe: true }),
+  switchesToday: reading(Values.uint16(), { subscribe: true }),            // rolling 24 h
+  switchesTotal: reading(Values.uint32(), { subscribe: true }),
+  stretched:     reading(Values.bool(), { subscribe: true }),              // period doubled by the budget (§5.2)
 });
 ```
 

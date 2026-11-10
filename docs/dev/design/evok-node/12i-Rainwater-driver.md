@@ -98,10 +98,10 @@ Tunable at runtime from the Inspector, which renders the form from the annotatio
 
 ```ts
 // @evok-node/driver-rainwater
-const Pct = (d: number, label: string, hint?: string) => Codecs.float32({ min: 0, max: 100, unit: '%', default: d, label, hint });
-const S   = (d: number, label: string, hint?: string) => Codecs.uint32({ unit: 's', default: d, label, hint });
+const Pct = (d: number, label: string, hint?: string) => Values.float32({ min: 0, max: 100, unit: '%', default: d, label, hint });
+const S   = (d: number, label: string, hint?: string) => Values.uint32({ unit: 's', default: d, label, hint });
 
-const Settings = Codecs.struct({
+const Settings = Values.struct({
   lowPct:            Pct(10, 'Low level', 'used when the low float is not configured or not reachable'),
   highPct:           Pct(90, 'High level', 'used when the high float is not configured or not reachable'),
   refillPct:         Pct(33, 'Refill amount', 'added to the lower tank when it is low'),
@@ -116,8 +116,8 @@ const Settings = Codecs.struct({
   bypassLagS:        S(5,  'Bypass lag', 'bypass off this long after the mains valve closes'),
   settleS:           S(10, 'Upper level settle', 'after the drain closes, before the upper level is read'),
   smoothingS:        S(30, 'Smoothing window'),
-  deadbandMm:        Codecs.uint16({ unit: 'mm', default: 10, label: 'Level deadband' }),
-  earlyTransferMm:   Codecs.float32({ min: 0, unit: 'mm', optional: true, label: 'Early transfer rain', hint: 'rain expected in 6 h at or above this starts a transfer early; absent = off' }),
+  deadbandMm:        Values.uint16({ unit: 'mm', default: 10, label: 'Level deadband' }),
+  earlyTransferMm:   Values.float32({ min: 0, unit: 'mm', optional: true, label: 'Early transfer rain', hint: 'rain expected in 6 h at or above this starts a transfer early; absent = off' }),
   earlyTransferPct:  Pct(50, 'Early transfer level', 'the lower tank at or above this level'),
 });
 ```
@@ -141,63 +141,63 @@ Bound once at `attach()` (05a §3.8); the table never changes. A part not config
 
 ```ts
 // @evok-node/driver-rainwater
-const Mm = Codecs.uint16({ unit: 'mm' });
-const Level = Codecs.struct({
-  mm:      Codecs.optional(Mm),                                         // absent ⇒ no valid value (§6.4)
-  percent: Codecs.optional(Codecs.float32({ min: 0, max: 100, unit: '%' })),
-  litres:  Codecs.optional(Codecs.uint32({ unit: 'l' })),
-  held:    Codecs.bool(),                                               // upper only: not measured now (§6.3)
+const Mm = Values.uint16({ unit: 'mm' });
+const Level = Values.struct({
+  mm:      Values.optional(Mm),                                         // absent ⇒ no valid value (§6.4)
+  percent: Values.optional(Values.float32({ min: 0, max: 100, unit: '%' })),
+  litres:  Values.optional(Values.uint32({ unit: 'l' })),
+  held:    Values.bool(),                                               // upper only: not measured now (§6.3)
 });
-const Mode    = Codecs.string({ enumValues: ['auto', 'manual', 'off'] });
-const Process = Codecs.string({ enumValues: ['idle', 'refillFromUpper', 'refillFromMains', 'fillUpper'] });
-const Alarms  = Codecs.struct({ retentionHigh: Codecs.bool(), refillFailed: Codecs.bool(), cutoff: Codecs.bool(),
-                                sensor: Codecs.bool(), bypass: Codecs.bool() });
-const Tail    = Codecs.string();
-const Parts   = Codecs.struct({                                         // this driver's own tails — for the home bundle (12c-11 §3.4); absent ⇒ not configured
-  lower: Tail, upper: Codecs.optional(Tail), retention: Codecs.optional(Tail), supply: Tail,
-  alarms: Codecs.struct({ retentionHigh: Codecs.optional(Tail), refillFailed: Codecs.optional(Tail), cutoff: Tail,
-                          sensor: Tail, bypass: Codecs.optional(Tail) }),
+const Mode    = Values.string({ enumValues: ['auto', 'manual', 'off'] });
+const Process = Values.string({ enumValues: ['idle', 'refillFromUpper', 'refillFromMains', 'fillUpper'] });
+const Alarms  = Values.struct({ retentionHigh: Values.bool(), refillFailed: Values.bool(), cutoff: Values.bool(),
+                                sensor: Values.bool(), bypass: Values.bool() });
+const Tail    = Values.string();
+const Parts   = Values.struct({                                         // this driver's own tails — for the home bundle (12c-11 §3.4); absent ⇒ not configured
+  lower: Tail, upper: Values.optional(Tail), retention: Values.optional(Tail), supply: Tail,
+  alarms: Values.struct({ retentionHigh: Values.optional(Tail), refillFailed: Values.optional(Tail), cutoff: Tail,
+                          sensor: Tail, bypass: Values.optional(Tail) }),
 });
 
 export const Control = device('rainwater.control', {
   mode:      channel(Mode, { subscribe: true }),
   process:   reading(Process, { subscribe: true }),
-  target:    reading(Codecs.optional(Codecs.struct({ tank: Codecs.string({ enumValues: ['lower', 'upper'] }),
-               percent: Codecs.float32({ unit: '%' }) })), { subscribe: true }),   // the running process's stop level
+  target:    reading(Values.optional(Values.struct({ tank: Values.string({ enumValues: ['lower', 'upper'] }),
+               percent: Values.float32({ unit: '%' }) })), { subscribe: true }),   // the running process's stop level
   settings:  channel(Settings, { subscribe: true }),
   alarms:    reading(Alarms, { subscribe: true }),
   parts:     reading(Parts),
-  refill:    method('mutates', Codecs.void, Codecs.void, { errorKinds: ['notAuto', 'notPossible'] }),
-  fillUpper: method('mutates', Codecs.void, Codecs.void, { errorKinds: ['notAuto', 'notPossible'] }),
-  stop:      method('mutates', Codecs.void),
-  ack:       method('mutates', Codecs.void),
+  refill:    method('mutates', Values.void, Values.void, { errorKinds: ['notAuto', 'notPossible'] }),
+  fillUpper: method('mutates', Values.void, Values.void, { errorKinds: ['notAuto', 'notPossible'] }),
+  stop:      method('mutates', Values.void),
+  ack:       method('mutates', Values.void),
 });
 
 export const Tank = device('rainwater.tank', {
   '@':      reading(Level, { subscribe: true }),                        // smoothed (§6.2)
-  raw:      reading(Codecs.optional(Mm), { subscribe: true }),          // every source value, converted, not smoothed
-  low:      optional(reading(Codecs.bool(), { subscribe: true })),      // the low float: true = the tank is low
-  high:     optional(reading(Codecs.bool(), { subscribe: true })),      // the high float: true = the tank is high
-  capacity: reading(Codecs.struct({ litres: Codecs.uint32({ unit: 'l' }), fullMm: Mm })),   // from config
+  raw:      reading(Values.optional(Mm), { subscribe: true }),          // every source value, converted, not smoothed
+  low:      optional(reading(Values.bool(), { subscribe: true })),      // the low float: true = the tank is low
+  high:     optional(reading(Values.bool(), { subscribe: true })),      // the high float: true = the tank is high
+  capacity: reading(Values.struct({ litres: Values.uint32({ unit: 'l' }), fullMm: Mm })),   // from config
 });
 
 export const Valve = device('rainwater.valve', {
-  '@':      channel(Codecs.bool(), { subscribe: true }),                // true = open; SET in `manual` only (§7)
-  openedAt: reading(Codecs.optional(Codecs.timestamp()), { subscribe: true }),
+  '@':      channel(Values.bool(), { subscribe: true }),                // true = open; SET in `manual` only (§7)
+  openedAt: reading(Values.optional(Values.timestamp()), { subscribe: true }),
 });
 
 export const Pump = device('rainwater.pump', {
-  '@':    channel(Codecs.bool(), { subscribe: true }),                  // powered; SET in `manual` only (§7)
-  cutoff: reading(Codecs.bool(), { subscribe: true }),
+  '@':    channel(Values.bool(), { subscribe: true }),                  // powered; SET in `manual` only (§7)
+  cutoff: reading(Values.bool(), { subscribe: true }),
 });
 
 export const Supply = device('rainwater.supply', {
-  demand:    channel(Codecs.bool(), { subscribe: true }),               // set by the home supply valve (12c-11 §3.2)
-  available: reading(Codecs.bool(), { subscribe: true }),               // §5.2
+  demand:    channel(Values.bool(), { subscribe: true }),               // set by the home supply valve (12c-11 §3.2)
+  available: reading(Values.bool(), { subscribe: true }),               // §5.2
 });
 
 export const Alarm = device('rainwater.alarm', {
-  '@': reading(Codecs.struct({ active: Codecs.bool(), since: Codecs.optional(Codecs.timestamp()) }), { subscribe: true }),
+  '@': reading(Values.struct({ active: Values.bool(), since: Values.optional(Values.timestamp()) }), { subscribe: true }),
 });
 ```
 

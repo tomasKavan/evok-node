@@ -66,57 +66,57 @@ Readings only, as every sensor (12c-04 §1.1). `leak` is `true` while water is d
 
 ```ts
 // @evok-node/driver-home
-const Percent = Codecs.uint8({ min: 0, max: 100, unit: '%' });
-const Seconds = Codecs.uint32({ unit: 's' });
+const Percent = Values.uint8({ min: 0, max: 100, unit: '%' });
+const Seconds = Values.uint32({ unit: 's' });
 
-const ValveState = Codecs.struct({
-  current: Codecs.optional(Codecs.string({ enumValues: ['closed', 'open', 'transitioning'] })),   // absent ⇒ unknown
-  target:  Codecs.string({ enumValues: ['closed', 'open'] }),
+const ValveState = Values.struct({
+  current: Values.optional(Values.string({ enumValues: ['closed', 'open', 'transitioning'] })),   // absent ⇒ unknown
+  target:  Values.string({ enumValues: ['closed', 'open'] }),
 });
 
-const ValveBehavior = Codecs.struct({        // settings a consumer must see (12a §2.3) — 16a reports them
-  defaultOpenS: Codecs.optional(Codecs.uint32({ min: 1, unit: 's' })),   // absent ⇒ an open without seconds stays open
-  maxOpenS:     Codecs.optional(Codecs.uint32({ min: 1, unit: 's' })),   // absent ⇒ no cap
+const ValveBehavior = Values.struct({        // settings a consumer must see (12a §2.3) — 16a reports them
+  defaultOpenS: Values.optional(Values.uint32({ min: 1, unit: 's' })),   // absent ⇒ an open without seconds stays open
+  maxOpenS:     Values.optional(Values.uint32({ min: 1, unit: 's' })),   // absent ⇒ no cap
 });
 
 export const WaterValve = device('home.WaterValve', {
   ...CommonFields,
   state:      reading(ValveState, { subscribe: true }),
-  level:      optional(reading(Codecs.struct({ current: Percent, target: Percent }), { subscribe: true })),   // thermal template only; 0 when closed
+  level:      optional(reading(Values.struct({ current: Percent, target: Percent }), { subscribe: true })),   // thermal template only; 0 when closed
   remainingS: reading(Seconds, { subscribe: true }),                 // 0 ⇒ closed or untimed; emits once a second while timed
-  fault:      reading(Codecs.struct({ timeout: Codecs.bool(),
-                blocked: Codecs.optional(Codecs.bool()) }), { subscribe: true }),   // blocked: open, but its supply delivers nothing — 12c-11 §3.2 only
+  fault:      reading(Values.struct({ timeout: Values.bool(),
+                blocked: Values.optional(Values.bool()) }), { subscribe: true }),   // blocked: open, but its supply delivers nothing — 12c-11 §3.2 only
   behavior:   reading(ValveBehavior, { subscribe: true }),
-  open:       method('mutates', Codecs.void, Codecs.struct({
-                seconds: Codecs.optional(Codecs.uint32({ unit: 's' })),   // 0 ⇒ stays open
-                level:   Codecs.optional(Codecs.uint8({ min: 1, max: 100, unit: '%' })) })),   // ignored without `level`
-  close:      method('mutates', Codecs.void),
+  open:       method('mutates', Values.void, Values.struct({
+                seconds: Values.optional(Values.uint32({ unit: 's' })),   // 0 ⇒ stays open
+                level:   Values.optional(Values.uint8({ min: 1, max: 100, unit: '%' })) })),   // ignored without `level`
+  close:      method('mutates', Values.void),
 });
 
-const Zone = Codecs.string();                // the tail of one of the system's zones (12a §4.1)
+const Zone = Values.string();                // the tail of one of the system's zones (12a §4.1)
 
 export const IrrigationSystem = device('home.IrrigationSystem', {
   ...CommonFields,
-  state:      reading(Codecs.string({ enumValues: ['stopped', 'running', 'paused'] }), { subscribe: true }),
-  activeZone: reading(Codecs.optional(Zone), { subscribe: true }),            // absent ⇒ none open (stopped, paused, between zones)
-  queue:      reading(Codecs.array(Codecs.struct({ zone: Zone, seconds: Seconds })), { subscribe: true }),   // after the active one
+  state:      reading(Values.string({ enumValues: ['stopped', 'running', 'paused'] }), { subscribe: true }),
+  activeZone: reading(Values.optional(Zone), { subscribe: true }),            // absent ⇒ none open (stopped, paused, between zones)
+  queue:      reading(Values.array(Values.struct({ zone: Zone, seconds: Seconds })), { subscribe: true }),   // after the active one
   remainingS: reading(Seconds, { subscribe: true }),                         // the active zone's; frozen while paused
-  run:        method('mutates', Codecs.void, Codecs.struct({
-                zones:         Codecs.optional(Codecs.array(Codecs.struct({ zone: Zone, seconds: Codecs.optional(Codecs.uint32({ min: 1, unit: 's' })) }))),
-                multiplierPct: Codecs.uint16({ min: 1, max: 250, default: 100, unit: '%' }) }),
+  run:        method('mutates', Values.void, Values.struct({
+                zones:         Values.optional(Values.array(Values.struct({ zone: Zone, seconds: Values.optional(Values.uint32({ min: 1, unit: 's' })) }))),
+                multiplierPct: Values.uint16({ min: 1, max: 250, default: 100, unit: '%' }) }),
               { errorKinds: ['unknownZone'] }),
-  pause:      method('mutates', Codecs.void),
-  resume:     method('mutates', Codecs.void),
-  next:       method('mutates', Codecs.void),
-  stop:       method('mutates', Codecs.void),
+  pause:      method('mutates', Values.void),
+  resume:     method('mutates', Values.void),
+  next:       method('mutates', Values.void),
+  stop:       method('mutates', Values.void),
 });
 
 export const WaterLeakDetector = device('home.WaterLeakDetector', {
   ...CommonFields,
-  leak:          reading(Codecs.bool(), { subscribe: true }),                                    // true = leak, as Matter
-  sensorFault:   optional(reading(Codecs.bool(), { subscribe: true })),
-  alarm:         optional(reading(Codecs.struct({ active: Codecs.bool(), suppressed: Codecs.bool() }), { subscribe: true })),   // matter origin only
-  suppressAlarm: optional(method('mutates', Codecs.void)),                                       // matter origin, with Matter's AlarmSuppress
+  leak:          reading(Values.bool(), { subscribe: true }),                                    // true = leak, as Matter
+  sensorFault:   optional(reading(Values.bool(), { subscribe: true })),
+  alarm:         optional(reading(Values.struct({ active: Values.bool(), suppressed: Values.bool() }), { subscribe: true })),   // matter origin only
+  suppressAlarm: optional(method('mutates', Values.void)),                                       // matter origin, with Matter's AlarmSuppress
 });
 ```
 

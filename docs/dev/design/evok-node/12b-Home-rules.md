@@ -30,7 +30,7 @@ interface RuleKind<T extends Slots, A extends Slots, O> {
   readonly hint?: LocalizedText;
   readonly triggers: T;                // §3, at least one slot
   readonly actions: A;                 // §3, at least one slot
-  readonly options?: TypedCodec<O>;    // annotated (05a §3.1a) — §3; absent ⇒ no options
+  readonly options?: ValueType<O>;    // annotated (05a §3.1a) — §3; absent ⇒ no options
   readonly limit?: TriggerLimit;       // §5.4
   run(ctx: RuleContext<T, A, O>): Promise<void>;   // §4
 }
@@ -53,10 +53,10 @@ Only `toggle-on-press` and `on-and-set-delay-off` have options. The `buttons` sl
 `toggle-on-press` options:
 
 ```ts
-Codecs.struct({
-  event:   Codecs.string({ enumValues: ['shortRelease', 'initialPress', 'multiPressComplete'], default: 'shortRelease',
+Values.struct({
+  event:   Values.string({ enumValues: ['shortRelease', 'initialPress', 'multiPressComplete'], default: 'shortRelease',
              label: { en: 'Toggle on', cs: 'Přepnout při' } }),
-  presses: Codecs.uint8({ min: 1, default: 1, label: { en: 'Presses', cs: 'Počet stisků' } }),   // multiPressComplete only: toggles when `count` equals it
+  presses: Values.uint8({ min: 1, default: 1, label: { en: 'Presses', cs: 'Počet stisků' } }),   // multiPressComplete only: toggles when `count` equals it
 })
 ```
 
@@ -73,10 +73,10 @@ The direction lives in the rule's state (§5.5). With no state yet, it points to
 `on-and-set-delay-off` options — `event` and `presses` as `toggle-on-press`, plus the timer call:
 
 ```ts
-Codecs.struct({
+Values.struct({
   event:   …,   // as toggle-on-press
   presses: …,   // as toggle-on-press
-  method:  Codecs.string({ enumValues: ['start', 'restart', 'add', 'toggle'], default: 'restart',
+  method:  Values.string({ enumValues: ['start', 'restart', 'add', 'toggle'], default: 'restart',
              label: { en: 'When running', cs: 'Když běží' } }),   // 12c-05 §1.1
 })
 ```
@@ -100,9 +100,9 @@ type Slots = Readonly<Record<string, Slot>>;    // slot key → slot
 - A slot or device option may allow several types. Telling them apart is the function's job, by `kind` (§4).
 
 ```ts
-options: Codecs.struct({
-  seconds:   Codecs.uint16({ min: 10, max: 3600, unit: 's', default: 120, label: { en: 'Stays on', cs: 'Svítí' } }),
-  luxSensor: Codecs.optional(Codecs.string({ label: { en: 'Only when dark', cs: 'Jen za tmy' },
+options: Values.struct({
+  seconds:   Values.uint16({ min: 10, max: 3600, unit: 's', default: 120, label: { en: 'Stays on', cs: 'Svítí' } }),
+  luxSensor: Values.optional(Values.string({ label: { en: 'Only when dark', cs: 'Jen za tmy' },
                ref: { type: 'home.device', filter: { kinds: ['home.LightSensor'] } } })),   // a device option
 }),
 ```

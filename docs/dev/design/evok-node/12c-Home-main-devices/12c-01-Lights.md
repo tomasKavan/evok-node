@@ -41,28 +41,28 @@ It follows Matter's On/Off and Level Control clusters (research/matter/01 §2–
 
 ```ts
 // @evok-node/driver-home
-const Level      = Codecs.uint8({ min: 1, max: 254 });
-const Mired      = Codecs.uint16({ min: 1, max: 65279, unit: 'mired' });   // 1 000 000 / K
-const Xy         = Codecs.struct({ x: Codecs.float32({ min: 0, max: 1 }), y: Codecs.float32({ min: 0, max: 1 }) });   // CIE 1931
-const Transition = Codecs.optional(Codecs.uint32({ unit: 'ms' }));          // absent ⇒ the default fade
+const Level      = Values.uint8({ min: 1, max: 254 });
+const Mired      = Values.uint16({ min: 1, max: 65279, unit: 'mired' });   // 1 000 000 / K
+const Xy         = Values.struct({ x: Values.float32({ min: 0, max: 1 }), y: Values.float32({ min: 0, max: 1 }) });   // CIE 1931
+const Transition = Values.optional(Values.uint32({ unit: 'ms' }));          // absent ⇒ the default fade
 
-const Behavior = Codecs.struct({            // settings a consumer must see (12a §2.3) — 16a reports them as Matter attributes
-  onLevel:          Codecs.optional(Level),      // absent ⇒ the last level
-  startUp:          Codecs.string({ enumValues: ['off', 'on', 'toggle', 'previous'] }),
-  startUpLevel:     Codecs.optional(Level),      // absent ⇒ the last level
-  startUpColorTemp: Codecs.optional(Mired),      // colour lights; absent ⇒ the last one
-  transitionMs:     Codecs.uint32(),             // the default fade
-  onTransitionMs:   Codecs.optional(Codecs.uint32()),   // absent ⇒ transitionMs
-  offTransitionMs:  Codecs.optional(Codecs.uint32()),
-  moveRate:         Codecs.uint8({ min: 1, unit: 'level/s' }),
+const Behavior = Values.struct({            // settings a consumer must see (12a §2.3) — 16a reports them as Matter attributes
+  onLevel:          Values.optional(Level),      // absent ⇒ the last level
+  startUp:          Values.string({ enumValues: ['off', 'on', 'toggle', 'previous'] }),
+  startUpLevel:     Values.optional(Level),      // absent ⇒ the last level
+  startUpColorTemp: Values.optional(Mired),      // colour lights; absent ⇒ the last one
+  transitionMs:     Values.uint32(),             // the default fade
+  onTransitionMs:   Values.optional(Values.uint32()),   // absent ⇒ transitionMs
+  offTransitionMs:  Values.optional(Values.uint32()),
+  moveRate:         Values.uint8({ min: 1, unit: 'level/s' }),
 });
 
 export const OnOffFields = {               // every light, and OnOffPlugInUnit (12c-02)
-  onOff:          channel(Codecs.bool(), { subscribe: true }),
-  onFor:          method('mutates', Codecs.void, Codecs.struct({
-                    seconds:    Codecs.uint32({ min: 1 }),
-                    onlyWhenOn: Codecs.bool({ default: false }) })),   // Matter AcceptOnlyWhenOn: ignored while off
-  onForRemaining: reading(Codecs.uint32({ unit: 's' }), { subscribe: true }),   // 0 ⇒ not timed; emits once a second while running
+  onOff:          channel(Values.bool(), { subscribe: true }),
+  onFor:          method('mutates', Values.void, Values.struct({
+                    seconds:    Values.uint32({ min: 1 }),
+                    onlyWhenOn: Values.bool({ default: false }) })),   // Matter AcceptOnlyWhenOn: ignored while off
+  onForRemaining: reading(Values.uint32({ unit: 's' }), { subscribe: true }),   // 0 ⇒ not timed; emits once a second while running
 };
 
 const LightFields = {                       // every light
@@ -72,26 +72,26 @@ const LightFields = {                       // every light
 
 const LevelFields = {                       // dimmable and up
   level:       channel(Level, { subscribe: true }),
-  moveToLevel: method('mutates', Codecs.void, Codecs.struct({ level: Level, transitionMs: Transition })),
-  move:        method('mutates', Codecs.void, Codecs.struct({
-                 direction: Codecs.string({ enumValues: ['up', 'down'] }),
-                 rate:      Codecs.optional(Codecs.uint8({ min: 1, unit: 'level/s' })) })),   // absent ⇒ behavior.moveRate
-  stop:        method('mutates', Codecs.void),
+  moveToLevel: method('mutates', Values.void, Values.struct({ level: Level, transitionMs: Transition })),
+  move:        method('mutates', Values.void, Values.struct({
+                 direction: Values.string({ enumValues: ['up', 'down'] }),
+                 rate:      Values.optional(Values.uint8({ min: 1, unit: 'level/s' })) })),   // absent ⇒ behavior.moveRate
+  stop:        method('mutates', Values.void),
 };
 
 const ColorTempFields = {                   // colour temperature and up
   colorTemp:       channel(Mired, { subscribe: true }),
-  colorTempRange:  reading(Codecs.struct({ min: Mired, max: Mired })),   // min = coolest
-  moveToColorTemp: method('mutates', Codecs.void, Codecs.struct({ mireds: Mired, transitionMs: Transition })),
-  moveColorTemp:   method('mutates', Codecs.void, Codecs.struct({
-                     direction: Codecs.string({ enumValues: ['warmer', 'cooler'] }),
-                     rate:      Codecs.optional(Codecs.uint16({ min: 1, unit: 'mired/s' })) })),
+  colorTempRange:  reading(Values.struct({ min: Mired, max: Mired })),   // min = coolest
+  moveToColorTemp: method('mutates', Values.void, Values.struct({ mireds: Mired, transitionMs: Transition })),
+  moveColorTemp:   method('mutates', Values.void, Values.struct({
+                     direction: Values.string({ enumValues: ['warmer', 'cooler'] }),
+                     rate:      Values.optional(Values.uint16({ min: 1, unit: 'mired/s' })) })),
 };
 
 const ColorFields = {                       // extended colour
   color:       channel(Xy, { subscribe: true }),
-  colorMode:   reading(Codecs.string({ enumValues: ['colorTemp', 'xy'] }), { subscribe: true }),   // which one the light shows now
-  moveToColor: method('mutates', Codecs.void, Codecs.struct({ color: Xy, transitionMs: Transition })),
+  colorMode:   reading(Values.string({ enumValues: ['colorTemp', 'xy'] }), { subscribe: true }),   // which one the light shows now
+  moveToColor: method('mutates', Values.void, Values.struct({ color: Xy, transitionMs: Transition })),
 };
 
 export const OnOffLight            = device('home.OnOffLight',            { ...CommonFields, ...LightFields });

@@ -176,14 +176,14 @@ What follows for `switch-from-di` [I]:
 - **P2 — a `features` reading.** Says which events the device produces; 16a builds `FeatureMap` from it, a `matter` device reports its own. Template: from settings.
 
   ```ts
-  features: reading(Codecs.struct({
-    kind:       Codecs.string({ enumValues: ['momentary', 'latching'] }),
-    release:    Codecs.bool(),     // MSR
-    longPress:  Codecs.bool(),     // MSL
-    multiPress: Codecs.bool(),     // MSM; multiPressMax only when true
-    action:     Codecs.bool(),     // AS
+  features: reading(Values.struct({
+    kind:       Values.string({ enumValues: ['momentary', 'latching'] }),
+    release:    Values.bool(),     // MSR
+    longPress:  Values.bool(),     // MSL
+    multiPress: Values.bool(),     // MSM; multiPressMax only when true
+    action:     Values.bool(),     // AS
   })),
-  numberOfPositions: reading(Codecs.uint8({ min: 2 })),
+  numberOfPositions: reading(Values.uint8({ min: 2 })),
   ```
 
 - **P3 — one decision point for gestures.** The template decides (its settings, §9 limits); 16a emits the events from `lastEvent` and does not run matter.js's own state machine with its own timings. Alternative: feed `rawPosition` and copy the settings into matter.js — two clocks, plus poll delay. Needs the [GAP] in §5 closed.

@@ -99,57 +99,57 @@ Bound at `attach()` (05a §3.8), one set per configured MIM and indoor unit; the
 
 ```ts
 // @evok-node/driver-mimb19n
-const Celsius = Codecs.float32({ unit: '°C' });
-const Mode    = Codecs.string({ enumValues: ['auto', 'cool', 'dry', 'fan', 'heat'] });
-const Fan     = Codecs.string({ enumValues: ['auto', 'low', 'medium', 'high'] });
-const HeatCool = Codecs.string({ enumValues: ['cool', 'heat', 'coolMain', 'heatMain'] });
-const Error   = Codecs.optional(Codecs.uint16({ min: 100, max: 999 }));   // absent ⇒ no error
+const Celsius = Values.float32({ unit: '°C' });
+const Mode    = Values.string({ enumValues: ['auto', 'cool', 'dry', 'fan', 'heat'] });
+const Fan     = Values.string({ enumValues: ['auto', 'low', 'medium', 'high'] });
+const HeatCool = Values.string({ enumValues: ['cool', 'heat', 'coolMain', 'heatMain'] });
+const Error   = Values.optional(Values.uint16({ min: 100, max: 999 }));   // absent ⇒ no error
 
-const OutdoorState = Codecs.struct({
-  defrost:  Codecs.bool(),
-  heatCool: Codecs.optional(HeatCool),
+const OutdoorState = Values.struct({
+  defrost:  Values.bool(),
+  heatCool: Values.optional(HeatCool),
   error:    Error,
 });
 
 export const Module = device('mimb19n.module', {
-  error:      reading(Codecs.struct({ address: Codecs.bool(), r1r2: Codecs.bool(), tracking: Codecs.bool() }), { subscribe: true }),   // PDU 0
-  extras:     reading(Codecs.string({ enumValues: ['pending', 'registered', 'failed'] }), { subscribe: true }),                         // §5.1
-  reregister: method('mutates', Codecs.void),
+  error:      reading(Values.struct({ address: Values.bool(), r1r2: Values.bool(), tracking: Values.bool() }), { subscribe: true }),   // PDU 0
+  extras:     reading(Values.string({ enumValues: ['pending', 'registered', 'failed'] }), { subscribe: true }),                         // §5.1
+  reregister: method('mutates', Values.void),
 });
 
 export const Outdoor = device('mimb19n.outdoor', {
   error:        reading(Error, { subscribe: true }),                                                        // PDU 1
-  defrost:      reading(Codecs.bool(), { subscribe: true }),                                                // PDU 2
-  heatCool:     optional(reading(Codecs.optional(HeatCool), { subscribe: true })),                          // 0x8003
-  state:        optional(reading(Codecs.optional(Codecs.string({
+  defrost:      reading(Values.bool(), { subscribe: true }),                                                // PDU 2
+  heatCool:     optional(reading(Values.optional(HeatCool), { subscribe: true })),                          // 0x8003
+  state:        optional(reading(Values.optional(Values.string({
                   enumValues: ['stop', 'safety', 'normal', 'deice', 'prohibit', 'other'] })), { subscribe: true })),   // 0x8001
-  temperature:  optional(reading(Codecs.optional(Celsius), { subscribe: true })),                           // 0x8204
-  compressorHz: optional(reading(Codecs.optional(Codecs.uint16({ unit: 'Hz' })), { subscribe: true })),     // 0x8238
+  temperature:  optional(reading(Values.optional(Celsius), { subscribe: true })),                           // 0x8204
+  compressorHz: optional(reading(Values.optional(Values.uint16({ unit: 'Hz' })), { subscribe: true })),     // 0x8238
 });
 
 export const IndoorUnit = device('mimb19n.indoorUnit', {
-  comm:           reading(Codecs.struct({ exist: Codecs.bool(), typeOk: Codecs.bool(), ready: Codecs.bool(),
-                                          commError: Codecs.bool() }), { subscribe: true }),        // B+0
-  power:          channel(Codecs.bool(), { subscribe: true }),                                      // B+2
+  comm:           reading(Values.struct({ exist: Values.bool(), typeOk: Values.bool(), ready: Values.bool(),
+                                          commError: Values.bool() }), { subscribe: true }),        // B+0
+  power:          channel(Values.bool(), { subscribe: true }),                                      // B+2
   mode:           channel(Mode, { subscribe: true }),                                               // B+3
   fan:            channel(Fan, { subscribe: true }),                                                // B+4
-  swingUpDown:    channel(Codecs.bool(), { subscribe: true }),                                      // B+5
-  swingLeftRight: optional(channel(Codecs.bool(), { subscribe: true })),                            // 0x407E
+  swingUpDown:    channel(Values.bool(), { subscribe: true }),                                      // B+5
+  swingLeftRight: optional(channel(Values.bool(), { subscribe: true })),                            // 0x407E
   setpoint:       channel(Celsius, { subscribe: true }),                                            // B+8
   temperature:    reading(Celsius, { subscribe: true }),                                            // B+9 — the unit's own sensor
   discharge:      reading(Celsius, { subscribe: true }),                                            // B+10
-  windFree:       channel(Codecs.bool(), { subscribe: true }),                                      // B+30: 9 / 0
-  altMode:        optional(channel(Codecs.string({ enumValues: ['none', 'sleep', 'quiet', 'fast'] }), { subscribe: true })),   // 0x4060
-  realMode:       optional(reading(Codecs.optional(Codecs.string({
+  windFree:       channel(Values.bool(), { subscribe: true }),                                      // B+30: 9 / 0
+  altMode:        optional(channel(Values.string({ enumValues: ['none', 'sleep', 'quiet', 'fast'] }), { subscribe: true })),   // 0x4060
+  realMode:       optional(reading(Values.optional(Values.string({
                     enumValues: ['auto', 'cool', 'dry', 'fan', 'heat', 'autoCool', 'autoDry', 'autoFan', 'autoHeat'] })), { subscribe: true })),   // 0x4002
-  thermoOn:       optional(reading(Codecs.bool(), { subscribe: true })),                            // 0x4028
-  defrost:        optional(reading(Codecs.bool(), { subscribe: true })),                            // 0x402E
+  thermoOn:       optional(reading(Values.bool(), { subscribe: true })),                            // 0x4028
+  defrost:        optional(reading(Values.bool(), { subscribe: true })),                            // 0x402E
   outdoor:        reading(OutdoorState, { subscribe: true }),                                       // its MIM's outdoor unit, copied
-  filterAlarm:    reading(Codecs.bool(), { subscribe: true }),                                      // B+6
-  clearFilter:    method('mutates', Codecs.void),                                                   // B+7 = 1
+  filterAlarm:    reading(Values.bool(), { subscribe: true }),                                      // B+6
+  clearFilter:    method('mutates', Values.void),                                                   // B+7 = 1
   error:          reading(Error, { subscribe: true }),                                              // B+13
-  remoteLock:     channel(Codecs.bool(), { subscribe: true }),                                      // B+14: 0x6363 / 0x0000
-  localChange:    reading(Codecs.optional(Codecs.struct({ at: Codecs.timestamp(), fields: Codecs.array(Codecs.string()) })), { subscribe: true }),
+  remoteLock:     channel(Values.bool(), { subscribe: true }),                                      // B+14: 0x6363 / 0x0000
+  localChange:    reading(Values.optional(Values.struct({ at: Values.timestamp(), fields: Values.array(Values.string()) })), { subscribe: true }),
   features:       reading(Features),                                                                // the model's row (§2), as data
 });
 ```

@@ -112,125 +112,125 @@ Bound once at `attach()`. `air` and `warnings` are bound only when the master co
 
 ```ts
 // @evok-node/driver-almanac
-const opt     = Codecs.optional;
-const Ts      = Codecs.timestamp();
-const Pct     = Codecs.float32({ min: 0, max: 100, unit: '%' });
-const Celsius = Codecs.float32({ unit: '°C' });
-const Deg     = Codecs.float32({ unit: '°' });
-const Ms      = Codecs.float32({ min: 0, unit: 'm/s' });
-const Mm      = Codecs.float32({ min: 0, unit: 'mm' });
-const MmH     = Codecs.float32({ min: 0, unit: 'mm/h' });
-const Wm2     = Codecs.float32({ min: 0, unit: 'W/m²' });
-const MinMax  = Codecs.struct({ min: Celsius, max: Celsius });
-const Source  = Codecs.string({ enumValues: ['local', 'model', 'forecast'] });   // §4.5
-const Sourced = <T>(c: TypedCodec<T>) => Codecs.struct({ value: opt(c), source: Source, at: Ts, stale: Codecs.bool() });
-const DateStr = Codecs.string();                                                // 'YYYY-MM-DD', local date in `timeZone`
-const LocationCodec = Codecs.struct({ lat: Codecs.float64(), lon: Codecs.float64(), elevationM: opt(Codecs.float32({ unit: 'm' })), timeZone: Codecs.string() });
+const opt     = Values.optional;
+const Ts      = Values.timestamp();
+const Pct     = Values.float32({ min: 0, max: 100, unit: '%' });
+const Celsius = Values.float32({ unit: '°C' });
+const Deg     = Values.float32({ unit: '°' });
+const Ms      = Values.float32({ min: 0, unit: 'm/s' });
+const Mm      = Values.float32({ min: 0, unit: 'mm' });
+const MmH     = Values.float32({ min: 0, unit: 'mm/h' });
+const Wm2     = Values.float32({ min: 0, unit: 'W/m²' });
+const MinMax  = Values.struct({ min: Celsius, max: Celsius });
+const Source  = Values.string({ enumValues: ['local', 'model', 'forecast'] });   // §4.5
+const Sourced = <T>(c: ValueType<T>) => Values.struct({ value: opt(c), source: Source, at: Ts, stale: Values.bool() });
+const DateStr = Values.string();                                                // 'YYYY-MM-DD', local date in `timeZone`
+const LocationCodec = Values.struct({ lat: Values.float64(), lon: Values.float64(), elevationM: opt(Values.float32({ unit: 'm' })), timeZone: Values.string() });
 
 export const Status = device('almanac.status', {
-  role:    reading(Codecs.string({ enumValues: ['master', 'replica'] })),
-  master:  optional(reading(Codecs.struct({ url: Codecs.string(), up: Codecs.bool(), syncedAt: opt(Ts) }), { subscribe: true })),
-  config:  reading(opt(Codecs.struct({ location: LocationCodec, calendar: Codecs.struct({ country: Codecs.string(), region: opt(Codecs.string()) }),
+  role:    reading(Values.string({ enumValues: ['master', 'replica'] })),
+  master:  optional(reading(Values.struct({ url: Values.string(), up: Values.bool(), syncedAt: opt(Ts) }), { subscribe: true })),
+  config:  reading(opt(Values.struct({ location: LocationCodec, calendar: Values.struct({ country: Values.string(), region: opt(Values.string()) }),
              sunnyPct: Pct })), { subscribe: true }),                         // what a replica takes (§6); absent on a replica before its first sync
-  credits: reading(Codecs.array(Codecs.text()), { subscribe: true }),          // CC BY attribution of the providers in use, for the UIs
-  parts:   reading(Codecs.struct({ air: Codecs.bool(), warnings: Codecs.bool() }), { subscribe: true }),
+  credits: reading(Values.array(Values.text()), { subscribe: true }),          // CC BY attribution of the providers in use, for the UIs
+  parts:   reading(Values.struct({ air: Values.bool(), warnings: Values.bool() }), { subscribe: true }),
 });
 
-const Holiday = Codecs.struct({ name: Codecs.text(), type: Codecs.string({ enumValues: ['public', 'bank', 'optional', 'observance'] }) });
-const Day = Codecs.struct({
+const Holiday = Values.struct({ name: Values.text(), type: Values.string({ enumValues: ['public', 'bank', 'optional', 'observance'] }) });
+const Day = Values.struct({
   date:     DateStr,
-  weekday:  Codecs.string({ enumValues: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] }),
-  isoWeek:  Codecs.uint8({ min: 1, max: 53 }),
-  kind:     Codecs.string({ enumValues: ['workday', 'weekend', 'publicHoliday'] }),
-  holidays: Codecs.array(Holiday),                                   // [] = none
-  dst:      opt(Codecs.struct({ shiftMin: Codecs.int16(), at: Ts })), // the day of a change
+  weekday:  Values.string({ enumValues: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] }),
+  isoWeek:  Values.uint8({ min: 1, max: 53 }),
+  kind:     Values.string({ enumValues: ['workday', 'weekend', 'publicHoliday'] }),
+  holidays: Values.array(Holiday),                                   // [] = none
+  dst:      opt(Values.struct({ shiftMin: Values.int16(), at: Ts })), // the day of a change
 });
 
 export const Calendar = device('almanac.calendar', {
   today:    reading(Day, { subscribe: true }),
   tomorrow: reading(Day, { subscribe: true }),
-  season:   reading(Codecs.string({ enumValues: ['spring', 'summer', 'autumn', 'winter'] }), { subscribe: true }),   // astronomical
-  timeZone: reading(Codecs.string()),
-  days:     method('reads', Codecs.struct({ from: DateStr, count: Codecs.uint16({ min: 1, max: 400 }) }), Codecs.array(Day),
+  season:   reading(Values.string({ enumValues: ['spring', 'summer', 'autumn', 'winter'] }), { subscribe: true }),   // astronomical
+  timeZone: reading(Values.string()),
+  days:     method('reads', Values.struct({ from: DateStr, count: Values.uint16({ min: 1, max: 400 }) }), Values.array(Day),
               { errorKinds: ['outOfRange'] }),
 });
 
 export const Clock = device('almanac.clock', {
-  now:  reading(Codecs.struct({ hour: Codecs.uint8({ max: 23 }), minute: Codecs.uint8({ max: 59 }), date: DateStr, at: Ts }),
+  now:  reading(Values.struct({ hour: Values.uint8({ max: 23 }), minute: Values.uint8({ max: 59 }), date: DateStr, at: Ts }),
           { subscribe: true }),                                      // every full minute, local wall time
-  hour: reading(Codecs.uint8({ max: 23 }), { subscribe: true }),      // every full hour
+  hour: reading(Values.uint8({ max: 23 }), { subscribe: true }),      // every full hour
 });
 
-const Phase = Codecs.string({ enumValues: [
+const Phase = Values.string({ enumValues: [
   'night', 'astroDawn', 'nauticalDawn', 'civilDawn', 'day', 'civilDusk', 'nauticalDusk', 'astroDusk'] });
-const SunTimes = Codecs.struct({ date: DateStr,
+const SunTimes = Values.struct({ date: DateStr,
   astroDawn: opt(Ts), nauticalDawn: opt(Ts), civilDawn: opt(Ts), sunrise: opt(Ts), solarNoon: Ts,
   sunset: opt(Ts), civilDusk: opt(Ts), nauticalDusk: opt(Ts), astroDusk: opt(Ts) });   // absent = doesn't happen that day
 
 export const Sun = device('almanac.sun', {
-  position: reading(Codecs.struct({ elevation: Deg, azimuth: Deg }), { subscribe: true }),   // compass: 0 = north, clockwise
+  position: reading(Values.struct({ elevation: Deg, azimuth: Deg }), { subscribe: true }),   // compass: 0 = north, clockwise
   phase:    reading(Phase, { subscribe: true }),
-  next:     reading(Codecs.struct({ phase: Phase, at: Ts }), { subscribe: true }),
+  next:     reading(Values.struct({ phase: Phase, at: Ts }), { subscribe: true }),
   times:    reading(SunTimes, { subscribe: true }),                                         // today
-  light:    reading(Codecs.struct({ percent: opt(Pct), ghi: opt(Wm2), ghiClear: Wm2, source: Source, at: Ts }), { subscribe: true }),
-  days:     method('reads', Codecs.struct({ from: DateStr, count: Codecs.uint16({ min: 1, max: 400 }) }), Codecs.array(SunTimes)),
+  light:    reading(Values.struct({ percent: opt(Pct), ghi: opt(Wm2), ghiClear: Wm2, source: Source, at: Ts }), { subscribe: true }),
+  days:     method('reads', Values.struct({ from: DateStr, count: Values.uint16({ min: 1, max: 400 }) }), Values.array(SunTimes)),
 });
 
 export const Outdoor = device('almanac.outdoor', {
   temperature: reading(Sourced(Celsius), { subscribe: true }),
   humidity:    reading(Sourced(Pct), { subscribe: true }),
-  wind:        reading(Sourced(Codecs.struct({ speed: Ms, gust: Ms, direction: Deg })), { subscribe: true }),   // gust: max of the preceding hour
-  rain:        reading(Sourced(Codecs.struct({ mmH: opt(MmH), raining: Codecs.bool() })), { subscribe: true }),
-  averages:    reading(Codecs.struct({ t3h: opt(Celsius), t24h: opt(Celsius) }), { subscribe: true }),
-  rainPast:    reading(Codecs.struct({ h24: opt(Mm), h72: opt(Mm) }), { subscribe: true }),
+  wind:        reading(Sourced(Values.struct({ speed: Ms, gust: Ms, direction: Deg })), { subscribe: true }),   // gust: max of the preceding hour
+  rain:        reading(Sourced(Values.struct({ mmH: opt(MmH), raining: Values.bool() })), { subscribe: true }),
+  averages:    reading(Values.struct({ t3h: opt(Celsius), t24h: opt(Celsius) }), { subscribe: true }),
+  rainPast:    reading(Values.struct({ h24: opt(Mm), h72: opt(Mm) }), { subscribe: true }),
 });
 
-const Sky = Codecs.string({ enumValues: ['clear', 'partlyCloudy', 'cloudy', 'fog', 'drizzle', 'rain', 'snow', 'thunderstorm'] });   // from WMO codes
-const LightDay = Codecs.struct({ date: DateStr, meanPct: opt(Pct), sunnyH: Codecs.float32({ min: 0, unit: 'h' }) });
-const Row = Codecs.struct({ at: Ts, minutes: Codecs.uint8(),          // 15 or 60 — the row's length
+const Sky = Values.string({ enumValues: ['clear', 'partlyCloudy', 'cloudy', 'fog', 'drizzle', 'rain', 'snow', 'thunderstorm'] });   // from WMO codes
+const LightDay = Values.struct({ date: DateStr, meanPct: opt(Pct), sunnyH: Values.float32({ min: 0, unit: 'h' }) });
+const Row = Values.struct({ at: Ts, minutes: Values.uint8(),          // 15 or 60 — the row's length
   temperature: opt(Celsius), humidity: opt(Pct), rainMm: opt(Mm), rainProbability: opt(Pct), wind: opt(Ms), gust: opt(Ms),
-  cloudPct: opt(Pct), ghi: opt(Wm2), lightPct: opt(Pct), sky: opt(Sky), et0Mm: opt(Mm), past: Codecs.bool() });   // past: a ring-buffer actual
+  cloudPct: opt(Pct), ghi: opt(Wm2), lightPct: opt(Pct), sky: opt(Sky), et0Mm: opt(Mm), past: Values.bool() });   // past: a ring-buffer actual
 
 export const Forecast = device('almanac.forecast', {
   issuedAt:  reading(opt(Ts), { subscribe: true }),
   horizon:   reading(opt(Ts), { subscribe: true }),
   sky:       reading(opt(Sky), { subscribe: true }),                                      // the current slot
-  rainNext:  reading(Codecs.struct({ h3: Mm, h6: Mm, h24: Mm, probability6h: Pct }), { subscribe: true }),
-  gustMax:   reading(Codecs.struct({ h6: Ms, h24: Ms, at: Ts }), { subscribe: true }),     // at: when the 24 h maximum is expected
+  rainNext:  reading(Values.struct({ h3: Mm, h6: Mm, h24: Mm, probability6h: Pct }), { subscribe: true }),
+  gustMax:   reading(Values.struct({ h6: Ms, h24: Ms, at: Ts }), { subscribe: true }),     // at: when the 24 h maximum is expected
   thunder6h: reading(Pct, { subscribe: true }),
   frost:     reading(opt(Ts), { subscribe: true }),                                       // first slot ≤ 0 °C within 24 h
-  temp:      reading(Codecs.struct({ today: MinMax, tomorrow: MinMax }), { subscribe: true }),
-  et0:       reading(Codecs.struct({ today: Mm, tomorrow: Mm }), { subscribe: true }),
-  light:     reading(Codecs.struct({ days: Codecs.array(LightDay), next3h: opt(Pct) }), { subscribe: true }),   // today and 2 more, to the horizon
+  temp:      reading(Values.struct({ today: MinMax, tomorrow: MinMax }), { subscribe: true }),
+  et0:       reading(Values.struct({ today: Mm, tomorrow: Mm }), { subscribe: true }),
+  light:     reading(Values.struct({ days: Values.array(LightDay), next3h: opt(Pct) }), { subscribe: true }),   // today and 2 more, to the horizon
   series:    method('reads',
-               Codecs.struct({ from: Ts, hours: Codecs.uint16({ min: 1, max: 312 }), fields: opt(Codecs.array(Codecs.string())) }),
-               Codecs.array(Row), { errorKinds: ['outOfRange'] }),                        // now − 72 h … horizon
+               Values.struct({ from: Ts, hours: Values.uint16({ min: 1, max: 312 }), fields: opt(Values.array(Values.string())) }),
+               Values.array(Row), { errorKinds: ['outOfRange'] }),                        // now − 72 h … horizon
 });
 
-const WarnType = Codecs.string({ enumValues: ['wind', 'thunderstorm', 'rain', 'snowIce', 'highTemp', 'lowTemp', 'fog', 'fire', 'flood', 'other'] });
-const Level    = Codecs.uint8({ min: 0, max: 4 });   // 0 = none; 1–4 = Meteoalarm green…red
+const WarnType = Values.string({ enumValues: ['wind', 'thunderstorm', 'rain', 'snowIce', 'highTemp', 'lowTemp', 'fog', 'fire', 'flood', 'other'] });
+const Level    = Values.uint8({ min: 0, max: 4 });   // 0 = none; 1–4 = Meteoalarm green…red
 
 export const Warnings = device('almanac.warnings', {
-  active:   reading(Codecs.array(Codecs.struct({ id: Codecs.string(), type: WarnType, level: Level,
-              onset: opt(Ts), expires: opt(Ts), text: Codecs.text() })), { subscribe: true }),
-  maxLevel: reading(Codecs.struct({ wind: Level, thunderstorm: Level, rain: Level, snowIce: Level,
+  active:   reading(Values.array(Values.struct({ id: Values.string(), type: WarnType, level: Level,
+              onset: opt(Ts), expires: opt(Ts), text: Values.text() })), { subscribe: true }),
+  maxLevel: reading(Values.struct({ wind: Level, thunderstorm: Level, rain: Level, snowIce: Level,
               highTemp: Level, lowTemp: Level, fog: Level, fire: Level, flood: Level }), { subscribe: true }),
-  stale:    reading(Codecs.bool(), { subscribe: true }),
+  stale:    reading(Values.bool(), { subscribe: true }),
 });
 
-const UgM3 = Codecs.float32({ min: 0, unit: 'µg/m³' });
-const PollenLevel = Codecs.float32({ min: 0, unit: 'grains/m³' });
+const UgM3 = Values.float32({ min: 0, unit: 'µg/m³' });
+const PollenLevel = Values.float32({ min: 0, unit: 'grains/m³' });
 export const Air = device('almanac.air', {
-  quality: reading(Codecs.struct({ europeanAqi: opt(Codecs.uint16()), pm25: opt(UgM3), pm10: opt(UgM3), at: Ts, stale: Codecs.bool() }),
+  quality: reading(Values.struct({ europeanAqi: opt(Values.uint16()), pm25: opt(UgM3), pm10: opt(UgM3), at: Ts, stale: Values.bool() }),
              { subscribe: true }),
-  pollen:  reading(opt(Codecs.struct({ alder: PollenLevel, birch: PollenLevel, grass: PollenLevel,
+  pollen:  reading(opt(Values.struct({ alder: PollenLevel, birch: PollenLevel, grass: PollenLevel,
              mugwort: PollenLevel, ragweed: PollenLevel })), { subscribe: true }),       // absent out of season
 });
 
 export const Provider = device('almanac.provider', {
-  status: reading(Codecs.struct({ provider: Codecs.string(), lastOk: opt(Ts), error: opt(Codecs.string()),
-            nextAt: Ts, callsToday: Codecs.uint32() }), { subscribe: true }),
-  fetch:  method('mutates', Codecs.void, Codecs.void, { errorKinds: ['tooSoon'] }),     // Inspector: fetch now; ≥ 60 s since the last
+  status: reading(Values.struct({ provider: Values.string(), lastOk: opt(Ts), error: opt(Values.string()),
+            nextAt: Ts, callsToday: Values.uint32() }), { subscribe: true }),
+  fetch:  method('mutates', Values.void, Values.void, { errorKinds: ['tooSoon'] }),     // Inspector: fetch now; ≥ 60 s since the last
 });
 ```
 

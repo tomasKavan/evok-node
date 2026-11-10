@@ -39,27 +39,27 @@ Nothing is saved here: every value is the driver's.
 
 ```ts
 // @evok-node/driver-home
-const TankLevel = Codecs.struct({
-  percent: Codecs.optional(Codecs.float32({ min: 0, max: 100, unit: '%' })),   // absent ⇒ unknown
-  litres:  Codecs.optional(Codecs.uint32({ unit: 'l' })),
-  capacityL: Codecs.uint32({ unit: 'l' }),
+const TankLevel = Values.struct({
+  percent: Values.optional(Values.float32({ min: 0, max: 100, unit: '%' })),   // absent ⇒ unknown
+  litres:  Values.optional(Values.uint32({ unit: 'l' })),
+  capacityL: Values.uint32({ unit: 'l' }),
 });
 
 export const RainwaterTank = device('home.RainwaterTank', {
   ...CommonFields,
-  mode:      channel(Codecs.string({ enumValues: ['auto', 'manual', 'off'] }),
-               { subscribe: true, set: Codecs.string({ enumValues: ['auto', 'off'] }) }),
-  activity:  reading(Codecs.string({ enumValues: ['idle', 'refilling', 'transferring'] }), { subscribe: true }),
+  mode:      channel(Values.string({ enumValues: ['auto', 'manual', 'off'] }),
+               { subscribe: true, set: Values.string({ enumValues: ['auto', 'off'] }) }),
+  activity:  reading(Values.string({ enumValues: ['idle', 'refilling', 'transferring'] }), { subscribe: true }),
   lower:     reading(TankLevel, { subscribe: true }),
   upper:     optional(reading(TankLevel, { subscribe: true })),
   retention: optional(reading(TankLevel, { subscribe: true })),
-  supply:    reading(Codecs.struct({ demand: Codecs.bool(), available: Codecs.bool() }), { subscribe: true }),
-  alarms:    reading(Codecs.struct({ retentionHigh: Codecs.bool(), refillFailed: Codecs.bool(), cutoff: Codecs.bool(),
-               sensor: Codecs.bool(), bypass: Codecs.bool() }), { subscribe: true }),
-  refill:    method('mutates', Codecs.void, Codecs.void, { errorKinds: ['notAuto', 'notPossible'] }),
-  fillUpper: method('mutates', Codecs.void, Codecs.void, { errorKinds: ['notAuto', 'notPossible'] }),
-  stop:      method('mutates', Codecs.void),
-  ack:       method('mutates', Codecs.void),
+  supply:    reading(Values.struct({ demand: Values.bool(), available: Values.bool() }), { subscribe: true }),
+  alarms:    reading(Values.struct({ retentionHigh: Values.bool(), refillFailed: Values.bool(), cutoff: Values.bool(),
+               sensor: Values.bool(), bypass: Values.bool() }), { subscribe: true }),
+  refill:    method('mutates', Values.void, Values.void, { errorKinds: ['notAuto', 'notPossible'] }),
+  fillUpper: method('mutates', Values.void, Values.void, { errorKinds: ['notAuto', 'notPossible'] }),
+  stop:      method('mutates', Values.void),
+  ack:       method('mutates', Values.void),
 });
 ```
 

@@ -154,23 +154,23 @@ interface ModbusWriteMultipleCoilsArgs { unitId: number; address: number; values
 interface ModbusWriteMultipleRegistersArgs { unitId: number; address: number; values: number[] }
 // no `deadline` field on any of these — already on the envelope (03 §2), read via `req.deadline`
 
-const ModbusReadArgsCodec              = Codecs.struct({ unitId: Codecs.uint16(), address: Codecs.uint16(), count: Codecs.uint16() });
-const ModbusSingleCoilArgsCodec        = Codecs.struct({ unitId: Codecs.uint16(), address: Codecs.uint16(), value: Codecs.bool() });
-const ModbusSingleRegisterArgsCodec    = Codecs.struct({ unitId: Codecs.uint16(), address: Codecs.uint16(), value: Codecs.uint16() });
-const ModbusMultipleCoilsArgsCodec     = Codecs.struct({ unitId: Codecs.uint16(), address: Codecs.uint16(), values: Codecs.array(Codecs.bool()) });
-const ModbusMultipleRegistersArgsCodec = Codecs.struct({ unitId: Codecs.uint16(), address: Codecs.uint16(), values: Codecs.array(Codecs.uint16()) });
+const ModbusReadArgsCodec              = Values.struct({ unitId: Values.uint16(), address: Values.uint16(), count: Values.uint16() });
+const ModbusSingleCoilArgsCodec        = Values.struct({ unitId: Values.uint16(), address: Values.uint16(), value: Values.bool() });
+const ModbusSingleRegisterArgsCodec    = Values.struct({ unitId: Values.uint16(), address: Values.uint16(), value: Values.uint16() });
+const ModbusMultipleCoilsArgsCodec     = Values.struct({ unitId: Values.uint16(), address: Values.uint16(), values: Values.array(Values.bool()) });
+const ModbusMultipleRegistersArgsCodec = Values.struct({ unitId: Values.uint16(), address: Values.uint16(), values: Values.array(Values.uint16()) });
 
-export const READ_COILS             = method('none', Codecs.array(Codecs.bool()), ModbusReadArgsCodec, { errorKinds: MODBUS_EXCEPTION_KINDS });
-export const READ_DISCRETE_INPUTS   = method('none', Codecs.array(Codecs.bool()), ModbusReadArgsCodec, { errorKinds: MODBUS_EXCEPTION_KINDS });
-export const READ_HOLDING_REGISTERS = method('none', Codecs.array(Codecs.uint16()), ModbusReadArgsCodec, { errorKinds: MODBUS_EXCEPTION_KINDS });
-export const READ_INPUT_REGISTERS   = method('none', Codecs.array(Codecs.uint16()), ModbusReadArgsCodec, { errorKinds: MODBUS_EXCEPTION_KINDS });
+export const READ_COILS             = method('none', Values.array(Values.bool()), ModbusReadArgsCodec, { errorKinds: MODBUS_EXCEPTION_KINDS });
+export const READ_DISCRETE_INPUTS   = method('none', Values.array(Values.bool()), ModbusReadArgsCodec, { errorKinds: MODBUS_EXCEPTION_KINDS });
+export const READ_HOLDING_REGISTERS = method('none', Values.array(Values.uint16()), ModbusReadArgsCodec, { errorKinds: MODBUS_EXCEPTION_KINDS });
+export const READ_INPUT_REGISTERS   = method('none', Values.array(Values.uint16()), ModbusReadArgsCodec, { errorKinds: MODBUS_EXCEPTION_KINDS });
 
-export const WRITE_SINGLE_COIL        = method('mutates', Codecs.bool(), ModbusSingleCoilArgsCodec, { errorKinds: MODBUS_EXCEPTION_KINDS });
-export const WRITE_SINGLE_REGISTER    = method('mutates', Codecs.uint16(), ModbusSingleRegisterArgsCodec, { errorKinds: MODBUS_EXCEPTION_KINDS });
-export const WRITE_MULTIPLE_COILS     = method('mutates', Codecs.void, ModbusMultipleCoilsArgsCodec, { errorKinds: MODBUS_EXCEPTION_KINDS });
-export const WRITE_MULTIPLE_REGISTERS = method('mutates', Codecs.void, ModbusMultipleRegistersArgsCodec, { errorKinds: MODBUS_EXCEPTION_KINDS });
+export const WRITE_SINGLE_COIL        = method('mutates', Values.bool(), ModbusSingleCoilArgsCodec, { errorKinds: MODBUS_EXCEPTION_KINDS });
+export const WRITE_SINGLE_REGISTER    = method('mutates', Values.uint16(), ModbusSingleRegisterArgsCodec, { errorKinds: MODBUS_EXCEPTION_KINDS });
+export const WRITE_MULTIPLE_COILS     = method('mutates', Values.void, ModbusMultipleCoilsArgsCodec, { errorKinds: MODBUS_EXCEPTION_KINDS });
+export const WRITE_MULTIPLE_REGISTERS = method('mutates', Values.void, ModbusMultipleRegistersArgsCodec, { errorKinds: MODBUS_EXCEPTION_KINDS });
 
-const ModbusHealthArgsCodec = Codecs.struct({ unitId: Codecs.uint16() });   // omitted ⇒ whole-line health, same as ModbusTransport.health() itself
+const ModbusHealthArgsCodec = Values.struct({ unitId: Values.uint16() });   // omitted ⇒ whole-line health, same as ModbusTransport.health() itself
 export const HEALTH = method('none', ModbusHealthCodec, ModbusHealthArgsCodec);   // not a function code — see below
 
 // One Device, nine sibling fields, no '@' — there's no single "primary" operation to root the tail on,

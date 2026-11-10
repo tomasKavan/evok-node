@@ -33,26 +33,26 @@ Events and their order are Matter's Switch cluster (research/matter/03 §3). `fe
 
 ```ts
 // @evok-node/driver-home
-const SwitchEvent = Codecs.struct({
-  type:     Codecs.string({ enumValues: ['initialPress', 'shortRelease', 'longPress', 'longRelease',
+const SwitchEvent = Values.struct({
+  type:     Values.string({ enumValues: ['initialPress', 'shortRelease', 'longPress', 'longRelease',
                                          'multiPressOngoing', 'multiPressComplete'] }),
-  position: Codecs.uint8(),       // the position pressed (Matter NewPosition) or released (PreviousPosition)
-  count:    Codecs.uint8(),       // multiPressOngoing: presses so far · multiPressComplete: the total, 0 = over multiPressMax · else 0
-  seq:      Codecs.uint32(),      // +1 per event — two identical presses are two values, never one
-  at:       Codecs.timestamp(),
+  position: Values.uint8(),       // the position pressed (Matter NewPosition) or released (PreviousPosition)
+  count:    Values.uint8(),       // multiPressOngoing: presses so far · multiPressComplete: the total, 0 = over multiPressMax · else 0
+  seq:      Values.uint32(),      // +1 per event — two identical presses are two values, never one
+  at:       Values.timestamp(),
 });
 
-const SwitchFeatures = Codecs.struct({        // what the switch produces — 16a builds the Matter FeatureMap from it
-  numberOfPositions: Codecs.uint8({ min: 2 }),               // 0 = released; 2 for a plain button
-  release:           Codecs.bool(),                          // shortRelease
-  longPress:         Codecs.bool(),                          // longPress, longRelease
-  multiPress:        Codecs.bool(),                          // multiPressOngoing, multiPressComplete
-  multiPressMax:     Codecs.optional(Codecs.uint8({ min: 2 })),   // present when multiPress
+const SwitchFeatures = Values.struct({        // what the switch produces — 16a builds the Matter FeatureMap from it
+  numberOfPositions: Values.uint8({ min: 2 }),               // 0 = released; 2 for a plain button
+  release:           Values.bool(),                          // shortRelease
+  longPress:         Values.bool(),                          // longPress, longRelease
+  multiPress:        Values.bool(),                          // multiPressOngoing, multiPressComplete
+  multiPressMax:     Values.optional(Values.uint8({ min: 2 })),   // present when multiPress
 });
 
 export const GenericSwitch = device('home.GenericSwitch', {
   ...CommonFields,
-  switch:   reading(Codecs.struct({ position: Codecs.uint8(), lastEvent: SwitchEvent }), { subscribe: true }),
+  switch:   reading(Values.struct({ position: Values.uint8(), lastEvent: SwitchEvent }), { subscribe: true }),
   features: reading(SwitchFeatures, { subscribe: true }),
 });
 ```

@@ -51,7 +51,7 @@ One consequence worth stating on its own: **there is no `perSection` attribute.*
   prescaler: { holdingReg: { addr: 1017, encoding: uint16 } }
   cycle:     { holdingReg: { addr: 1018, encoding: uint16 } }
 ```
-`DOValue`'s `pwm` variant is correspondingly just `struct({ value: Codecs.uint16() })` — no `prescaler`/`cycle` inside it at all.
+`DOValue`'s `pwm` variant is correspondingly just `struct({ value: Values.uint16() })` — no `prescaler`/`cycle` inside it at all.
 
 ## 3a. Tails and labels
 
@@ -99,14 +99,14 @@ Consumers find a unit's devices by the `<unit>.` prefix and the `kind` from intr
 
 ```ts
 // @evok-node/modbus — hw-modbus-kit
-function polled<F extends Record<string, TypedCodec<unknown>>>(
+function polled<F extends Record<string, ValueType<unknown>>>(
   fields: F, opts?: { subscribe?: boolean }
 ): ReadingType<{ [K in keyof F]: Infer<F[K]> } & { polled: { readAt: Date; stale: boolean } }> {
-  return reading(Codecs.struct({ ...fields, polled: Codecs.struct({ readAt: Codecs.timestamp(), stale: Codecs.bool() }) }), opts);
+  return reading(Values.struct({ ...fields, polled: Values.struct({ readAt: Values.timestamp(), stale: Values.bool() }) }), opts);
 }
 ```
 
-Every register-backed `reading`-shaped kind in the catalogue (§10) is built with this, never a bare `reading()` call — that's what makes §3's `polled` rule a fact about this file rather than a convention someone has to remember per field. `unipi.di`'s `@` field: `polled({ value: Codecs.bool(), counter: Codecs.uint32() }, { subscribe: true })`, decoding to `{ value: true, counter: 42, polled: { readAt: ..., stale: false } }`.
+Every register-backed `reading`-shaped kind in the catalogue (§10) is built with this, never a bare `reading()` call — that's what makes §3's `polled` rule a fact about this file rather than a convention someone has to remember per field. `unipi.di`'s `@` field: `polled({ value: Values.bool(), counter: Values.uint32() }, { subscribe: true })`, decoding to `{ value: true, counter: 42, polled: { readAt: ..., stale: false } }`.
 
 A driver not built on this file's scan cache — an event-native one, per 05 §4 — has no reason to use `polled()`; it stays module-sdk's plain `reading()`, and 05 §2's "the driver's own discretion" framing is exactly for that case. Inside `hw-modbus-kit`, there is no discretion: every register-backed reading is scan-cache-backed, so it uses `polled()`. The one reading with no register, `modbus.typeInfo` (§10.4), is a plain `reading()`.
 

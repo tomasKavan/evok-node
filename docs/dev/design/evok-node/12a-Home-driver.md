@@ -39,24 +39,24 @@ Every home `DeviceType` spreads one shared set of fields. Reuse is a plain TypeS
 
 ```ts
 // @evok-node/driver-home
-const Label   = Codecs.struct({ label: Codecs.string(), value: Codecs.string() });
-const Tag     = Codecs.struct({ key: Codecs.string(), value: Codecs.string() });   // e.g. { key: 'position', value: 'left' }, { key: 'index', value: '2' }
-const Product = Codecs.struct({ vendor: Codecs.string(), name: Codecs.string(), serial: Codecs.string() });   // '' = not known
-const Battery = Codecs.struct({
-  level:   Codecs.string({ enumValues: ['ok', 'warning', 'critical'] }),
-  percent: Codecs.optional(Codecs.uint8({ min: 0, max: 100 })),   // absent ⇒ not known
-  replace: Codecs.bool(),                                          // the battery needs replacing
+const Label   = Values.struct({ label: Values.string(), value: Values.string() });
+const Tag     = Values.struct({ key: Values.string(), value: Values.string() });   // e.g. { key: 'position', value: 'left' }, { key: 'index', value: '2' }
+const Product = Values.struct({ vendor: Values.string(), name: Values.string(), serial: Values.string() });   // '' = not known
+const Battery = Values.struct({
+  level:   Values.string({ enumValues: ['ok', 'warning', 'critical'] }),
+  percent: Values.optional(Values.uint8({ min: 0, max: 100 })),   // absent ⇒ not known
+  replace: Values.bool(),                                          // the battery needs replacing
 });
 
 export const CommonFields = {
-  name:         channel(Codecs.string(), { subscribe: true }),
-  userLabels:   channel(Codecs.array(Label), { subscribe: true }),
-  info:         reading(Codecs.struct({ fixedLabels: Codecs.array(Label), tags: Codecs.array(Tag), product: Product })),
-  reachable:    reading(Codecs.bool(), { subscribe: true }),
-  origin:       reading(Codecs.string({ enumValues: ['local', 'matter', 'remote'] })),
-  exposed:      reading(Codecs.bool(), { subscribe: true }),
-  controllable: reading(Codecs.bool(), { subscribe: true }),
-  identify:     optional(method('mutates', Codecs.void, Codecs.struct({ seconds: Codecs.uint16() }))),   // seconds: 0 stops
+  name:         channel(Values.string(), { subscribe: true }),
+  userLabels:   channel(Values.array(Label), { subscribe: true }),
+  info:         reading(Values.struct({ fixedLabels: Values.array(Label), tags: Values.array(Tag), product: Product })),
+  reachable:    reading(Values.bool(), { subscribe: true }),
+  origin:       reading(Values.string({ enumValues: ['local', 'matter', 'remote'] })),
+  exposed:      reading(Values.bool(), { subscribe: true }),
+  controllable: reading(Values.bool(), { subscribe: true }),
+  identify:     optional(method('mutates', Values.void, Values.struct({ seconds: Values.uint16() }))),   // seconds: 0 stops
   battery:      optional(reading(Battery, { subscribe: true })),
 };
 export type CommonKey = keyof typeof CommonFields;
@@ -148,19 +148,19 @@ interface Selection {                          // a template's role (§3), a rul
 }
 
 // template form
-Codecs.struct({
-  sources:  Codecs.struct(mapValues(template.roles, selectionToRefs('home.source'))),
-  settings: template.settings ?? Codecs.struct({}),
+Values.struct({
+  sources:  Values.struct(mapValues(template.roles, selectionToRefs('home.source'))),
+  settings: template.settings ?? Values.struct({}),
 })
 // rule form — 12b §3
-Codecs.struct({
-  triggers: Codecs.struct(mapValues(kind.triggers, selectionToRefs('home.device'))),
-  actions:  Codecs.struct(mapValues(kind.actions,  selectionToRefs('home.device'))),
-  options:  kind.options ?? Codecs.struct({}),
+Values.struct({
+  triggers: Values.struct(mapValues(kind.triggers, selectionToRefs('home.device'))),
+  actions:  Values.struct(mapValues(kind.actions,  selectionToRefs('home.device'))),
+  options:  kind.options ?? Values.struct({}),
 })
 // selectionToRefs(type)(s): an array of
-//   Codecs.string({ ref: { type, filter: { kinds: s.types.map(t => t.kind) } } }), with min/max/label/hint from s;
-//   wrapped in Codecs.optional when s.min is 0
+//   Values.string({ ref: { type, filter: { kinds: s.types.map(t => t.kind) } } }), with min/max/label/hint from s;
+//   wrapped in Values.optional when s.min is 0
 ```
 
 This driver registers two ref types (05a §3.10):
@@ -227,8 +227,8 @@ interface AssemblyTemplate<F extends Record<string, EndpointType | OptionalEndpo
   readonly label: LocalizedText;     // 04 §7
   readonly hint?: LocalizedText;
   readonly roles: R;                 // e.g. { gear: { types: [DaliGear], min: 1, max: 1, label: 'Gear' } }, { relays: { types: [UnipiRo, UnipiDo], min: 1, max: 4, label: 'Relays' } }
-  readonly settings?: TypedCodec<S>; // annotated, defaults included (05a §3.1a); absent ⇒ no settings
-  readonly state?: TypedCodec<St>;   // what the template persists — below; absent ⇒ nothing
+  readonly settings?: ValueType<S>; // annotated, defaults included (05a §3.1a); absent ⇒ no settings
+  readonly state?: ValueType<St>;   // what the template persists — below; absent ⇒ nothing
   product?(ctx: AssemblyContext<R, S, St>): Promise<Infer<typeof Product> | undefined>;   // §2.1 — read once, when the device is created
   assemble(ctx: AssemblyContext<R, S, St>):
     { readonly [K in Exclude<keyof F, CommonKey>]?: BindHandlers<…> } & { readonly identify?: BindHandlers<…> };
@@ -288,7 +288,7 @@ interface TemplateBundle<S = unknown> {
   readonly hint?: LocalizedText;
   readonly anchor: Selection;                     // §2.4, always 1–1 — e.g. { types: [UnipiUnitType], min: 1, max: 1, label: 'Sensor' }
   readonly members: Readonly<Record<string, { readonly templateKind: string; readonly label: LocalizedText }>>;
-  readonly settings?: TypedCodec<S>;              // annotated, defaults included; absent ⇒ none
+  readonly settings?: ValueType<S>;              // annotated, defaults included; absent ⇒ none
   resolve(ctx: BundleContext<S>): Promise<
     | { readonly ok: true; readonly members: Readonly<Record<string, { sources: Value; settings?: Value } | null>> }   // null ⇒ this member is not created
     | { readonly ok: false; readonly reason: LocalizedText }>;                                                      // the anchor isn't one this bundle takes

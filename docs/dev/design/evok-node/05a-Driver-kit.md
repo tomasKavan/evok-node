@@ -22,8 +22,8 @@ interface Codec<T> {
   validate(wire: Value): boolean;
 }
 
-interface TypedCodec<T> { readonly codec: Codec<T>; readonly schema: ValueSchema; }
-type Infer<C> = C extends TypedCodec<infer T> ? T : never;
+interface ValueType<T> { readonly codec: Codec<T>; readonly schema: ValueSchema; }
+type Infer<C> = C extends ValueType<infer T> ? T : never;
 
 type PrimitiveFormat =
   | 'bool' | 'string' | 'bytes'
@@ -40,7 +40,7 @@ interface Annotations {                                // for a human form — �
   readonly hint?: LocalizedText;
   readonly default?: Value;                            // a struct member a caller may omit; decode fills it in
   readonly optional?: boolean;                         // a struct member a caller may omit; decode leaves it absent
-  readonly actor?: true;                               // the caller, filled by the api — 13 §5; Codecs.actor() only
+  readonly actor?: true;                               // the caller, filled by the api — 13 §5; Values.actor() only
 }
 
 interface Semantics extends Annotations {
@@ -66,39 +66,39 @@ interface VoidSchema                        { readonly type: 'void'; }   // a me
 
 `Semantics` is advisory only — `min`/`max`/`step`/`enumValues` are for a generic consumer to render a control correctly (§3.4's `AO`/`DO`), never a second validation layer a driver author has to keep in sync with limits the hardware already enforces itself. `int64`/`uint64` decode to `bigint`, never `number`: `Value` (03 §2) has no `bigint` arm, so their wire form is a decimal string, the same JSON-safe shape as everything else on this boundary — `BigInt(str)` is the whole decode, no big-number library needed. `timestamp` costs nothing new either: it reuses `readAt`'s own existing epoch-seconds convention, just typed as `Date` instead of a raw number callers had to interpret themselves.
 
-`Codecs` is the one place every leaf format and every combinator lives, so an endpoint author never hand-writes a `Codec` or a `ValueSchema` separately — illustrative only, the mechanical parts of the generics are elided the same way §3.3's `DeviceType` example elides them:
+`Values` is the one place every leaf format and every combinator lives, so an endpoint author never hand-writes a `Codec` or a `ValueSchema` separately — illustrative only, the mechanical parts of the generics are elided the same way §3.3's `DeviceType` example elides them:
 
 ```ts
 // @evok-node/module-sdk — illustrative only
-const Codecs: {
-  readonly bool: (s?: Semantics) => TypedCodec<boolean>;
-  readonly string: (s?: Semantics) => TypedCodec<string>;
-  readonly bytes: (s?: Semantics) => TypedCodec<Uint8Array>;
-  readonly int8: (s?: Semantics) => TypedCodec<number>;
-  readonly int16: (s?: Semantics) => TypedCodec<number>;
-  readonly int32: (s?: Semantics) => TypedCodec<number>;
-  readonly int64: (s?: Semantics) => TypedCodec<bigint>;
-  readonly uint8: (s?: Semantics) => TypedCodec<number>;
-  readonly uint16: (s?: Semantics) => TypedCodec<number>;
-  readonly uint32: (s?: Semantics) => TypedCodec<number>;
-  readonly uint64: (s?: Semantics) => TypedCodec<bigint>;
-  readonly float32: (s?: Semantics) => TypedCodec<number>;
-  readonly float64: (s?: Semantics) => TypedCodec<number>;
-  readonly timestamp: (s?: Semantics) => TypedCodec<Date>;
-  readonly tlv8: (s?: Semantics) => TypedCodec<Uint8Array>;
-  readonly json: (s?: Semantics) => TypedCodec<unknown>;
-  readonly void: TypedCodec<void>;   // a `method` with nothing meaningful to return on success — schema { type: 'void' }
-  readonly text: (s?: Semantics) => TypedCodec<LocalizedText>;
-  readonly schema: (s?: Semantics) => TypedCodec<ValueSchema>;
-  readonly actor: () => TypedCodec<Actor | undefined>;   // optional struct { realm, id?, name? }, annotated actor — 13 §5
-  optional<T>(c: TypedCodec<T>): TypedCodec<T | undefined>;   // sets the member's `optional` — §3.1a
-  struct<F extends Record<string, TypedCodec<unknown>>>(fields: F, a?: Annotations): TypedCodec<{ readonly [K in keyof F]: Infer<F[K]> }>;
-  array<T>(items: TypedCodec<T>, s?: Semantics): TypedCodec<readonly T[]>;
-  union<V extends Record<string, TypedCodec<unknown>>>(tag: string, variants: V): TypedCodec<UnionOf<V>>;   // UnionOf<V> tags each Infer<V[K]> with { [tag]: K } — mechanical, omitted here
+const Values: {
+  readonly bool: (s?: Semantics) => ValueType<boolean>;
+  readonly string: (s?: Semantics) => ValueType<string>;
+  readonly bytes: (s?: Semantics) => ValueType<Uint8Array>;
+  readonly int8: (s?: Semantics) => ValueType<number>;
+  readonly int16: (s?: Semantics) => ValueType<number>;
+  readonly int32: (s?: Semantics) => ValueType<number>;
+  readonly int64: (s?: Semantics) => ValueType<bigint>;
+  readonly uint8: (s?: Semantics) => ValueType<number>;
+  readonly uint16: (s?: Semantics) => ValueType<number>;
+  readonly uint32: (s?: Semantics) => ValueType<number>;
+  readonly uint64: (s?: Semantics) => ValueType<bigint>;
+  readonly float32: (s?: Semantics) => ValueType<number>;
+  readonly float64: (s?: Semantics) => ValueType<number>;
+  readonly timestamp: (s?: Semantics) => ValueType<Date>;
+  readonly tlv8: (s?: Semantics) => ValueType<Uint8Array>;
+  readonly json: (s?: Semantics) => ValueType<unknown>;
+  readonly void: ValueType<void>;   // a `method` with nothing meaningful to return on success — schema { type: 'void' }
+  readonly text: (s?: Semantics) => ValueType<LocalizedText>;
+  readonly schema: (s?: Semantics) => ValueType<ValueSchema>;
+  readonly actor: () => ValueType<Actor | undefined>;   // optional struct { realm, id?, name? }, annotated actor — 13 §5
+  optional<T>(c: ValueType<T>): ValueType<T | undefined>;   // sets the member's `optional` — §3.1a
+  struct<F extends Record<string, ValueType<unknown>>>(fields: F, a?: Annotations): ValueType<{ readonly [K in keyof F]: Infer<F[K]> }>;
+  array<T>(items: ValueType<T>, s?: Semantics): ValueType<readonly T[]>;
+  union<V extends Record<string, ValueType<unknown>>>(tag: string, variants: V): ValueType<UnionOf<V>>;   // UnionOf<V> tags each Infer<V[K]> with { [tag]: K } — mechanical, omitted here
 };
 ```
 
-`union`'s decoded value always carries the discriminant itself, merged in — `Codecs.union('mode', { voltage10: Codecs.struct({...}) })` decodes to `{mode: 'voltage10', ...}`, never a bare variant the caller has to re-tag by hand. §3.4 works through a full example. Every driver-declared value type comes from composing `Codecs`' members — never a bare object literal claiming a `schema` it doesn't back with a real `Codec`, and never a `Codec` written by hand without the matching `schema`. `bindDevice()` (§3.5) has no way to check the two agree; keeping them paired through `TypedCodec` rather than authored separately is what actually prevents drift.
+`union`'s decoded value always carries the discriminant itself, merged in — `Values.union('mode', { voltage10: Values.struct({...}) })` decodes to `{mode: 'voltage10', ...}`, never a bare variant the caller has to re-tag by hand. §3.4 works through a full example. Every driver-declared value type comes from composing `Values`' members — never a bare object literal claiming a `schema` it doesn't back with a real `Codec`, and never a `Codec` written by hand without the matching `schema`. `bindDevice()` (§3.5) has no way to check the two agree; keeping them paired through `ValueType` rather than authored separately is what actually prevents drift.
 
 Three shapes, discriminated, each with its methods and `effect` fully implied rather than declared:
 
@@ -147,26 +147,26 @@ A `channel`'s `SET` always returns exactly what it was given — `TSet` — neve
 A schema also describes what a human fills in, so any UI renders an input for a method's arguments, a template's settings or a rule's options (12a §2.4) from the schema alone:
 
 ```ts
-store: method('mutates', Codecs.void, Codecs.struct({
-  romId: Codecs.string({ label: 'Sensor', ref: { type: 'onewire.candidate' } }),        // §3.10
-  label: Codecs.string({ maxLength: 32, default: '', label: { en: 'Label', cs: 'Popis' } }),
-  note:  Codecs.optional(Codecs.string({ label: 'Note' })),
+store: method('mutates', Values.void, Values.struct({
+  romId: Values.string({ label: 'Sensor', ref: { type: 'onewire.candidate' } }),        // §3.10
+  label: Values.string({ maxLength: 32, default: '', label: { en: 'Label', cs: 'Popis' } }),
+  note:  Values.optional(Values.string({ label: 'Note' })),
 })),
 ```
 
 | Struct member | Caller may omit it | After decode |
 |---|---|---|
-| `Codecs.bool()` | no | as sent |
-| `Codecs.bool({ default: false })` | yes | `false` |
-| `Codecs.optional(Codecs.bool())` | yes | absent |
+| `Values.bool()` | no | as sent |
+| `Values.bool({ default: false })` | yes | `false` |
+| `Values.optional(Values.bool())` | yes | absent |
 
 - Annotations are advisory, like `Semantics`: `validate` checks shape; `default` and `optional` only decide what a caller may omit.
 - `default` and `optional` mean something only on a struct member. Both on one member is a packaging mistake, rejected when the codec is built.
 - `optional` here is a value a caller may omit. `optional()` on a `DeviceType` field (§3.3) is an endpoint a device may not have — a different thing.
 - `enumLabels` has exactly the keys of `enumValues`.
 - `LocalizedText` travels in full, every language; the WS API resolves it for the session's language (15). A value that is itself user-facing text has format `text`; a value that is itself a schema (a template's form) has format `schema`, so the edge finds the text inside it too.
-- `actor` marks the member an api fills with its own caller and never relays from a client (13 §5). Only `Codecs.actor()` sets it, and only as a struct member of a method's arguments; anywhere else it is a packaging mistake, rejected when the codec is built.
-- `{ type: 'void' }` is `Codecs.void`'s schema — a method's result only, on the wire a success with no body. Never a struct member, an array item, or a reading's or channel's schema.
+- `actor` marks the member an api fills with its own caller and never relays from a client (13 §5). Only `Values.actor()` sets it, and only as a struct member of a method's arguments; anywhere else it is a packaging mistake, rejected when the codec is built.
+- `{ type: 'void' }` is `Values.void`'s schema — a method's result only, on the wire a success with no body. Never a struct member, an array item, or a reading's or channel's schema.
 
 ### 3.2. Building one without repeating the type
 
@@ -174,12 +174,12 @@ store: method('mutates', Codecs.void, Codecs.struct({
 
 ```ts
 // @evok-node/module-sdk
-function reading<T>(codec: TypedCodec<T>, opts?: { subscribe?: boolean }): ReadingType<T>;
-function channel<T, TSet = T>(codec: TypedCodec<T>, opts?: { subscribe?: boolean; set?: TypedCodec<TSet> }): ChannelType<T, TSet>;
-function method<R, A = void, E extends string = never>(effect: 'none' | 'mutates', result: TypedCodec<R>, args?: TypedCodec<A>, opts?: { errorKinds?: readonly E[]; proof?: true }): MethodType<R, A, E>;
+function reading<T>(codec: ValueType<T>, opts?: { subscribe?: boolean }): ReadingType<T>;
+function channel<T, TSet = T>(codec: ValueType<T>, opts?: { subscribe?: boolean; set?: ValueType<TSet> }): ChannelType<T, TSet>;
+function method<R, A = void, E extends string = never>(effect: 'none' | 'mutates', result: ValueType<R>, args?: ValueType<A>, opts?: { errorKinds?: readonly E[]; proof?: true }): MethodType<R, A, E>;
 ```
 
-`channel(Codecs.bool())` infers `ChannelType<boolean, boolean>` entirely from its argument, `schema` included; nobody writes `<boolean>` or a schema literal anywhere.
+`channel(Values.bool())` infers `ChannelType<boolean, boolean>` entirely from its argument, `schema` included; nobody writes `<boolean>` or a schema literal anywhere.
 
 ### 3.3. `DeviceType<Fields>` — one tail, several fields, one registered kind
 
@@ -199,9 +199,9 @@ function optional<T extends EndpointType>(type: T): OptionalEndpointType<T>;   /
 ```ts
 // di-device.ts — package.json-exposed, reusable by any driver that has this hardware shape
 const DIDevice = device('DI', {
-  '@':          reading(Codecs.struct({ value: Codecs.bool(), counter: Codecs.uint32(), readAt: Codecs.timestamp(), stale: Codecs.bool() }), { subscribe: true }),
-  debounce:     channel(Codecs.uint16({ unit: 'ms' })),
-  directSwitch: optional(channel(Codecs.bool())),   // not every DI channel supports a forced override
+  '@':          reading(Values.struct({ value: Values.bool(), counter: Values.uint32(), readAt: Values.timestamp(), stale: Values.bool() }), { subscribe: true }),
+  debounce:     channel(Values.uint16({ unit: 'ms' })),
+  directSwitch: optional(channel(Values.bool())),   // not every DI channel supports a forced override
 });
 ```
 
@@ -215,26 +215,26 @@ A `Device` is mandatory, not an opt-in convenience: there is no separate way to 
 
 ### 3.4. One endpoint, several mutually exclusive shapes — `union`
 
-Some devices genuinely change datatype depending on runtime state — an analog output wired for voltage or current but never both, a digital output that's either a plain bit or a PWM triple. The tail stays fixed either way — `ao1`, `do1` — because the physical channel is one thing regardless of mode; what varies is which arm of a `Codecs.union` is populated. Introspection (§4) is unaffected by a mode change: it always describes the *whole* union, every variant it could ever take, because that is a static property of the `DeviceType`'s own field — never a per-instance, per-moment thing that would need re-announcing every time the mode flips. What a mode change actually changes is the *value* — plain `GET`/`subscribe` data, exactly the mechanism 03 §6.3 already has for anything else that changes.
+Some devices genuinely change datatype depending on runtime state — an analog output wired for voltage or current but never both, a digital output that's either a plain bit or a PWM triple. The tail stays fixed either way — `ao1`, `do1` — because the physical channel is one thing regardless of mode; what varies is which arm of a `Values.union` is populated. Introspection (§4) is unaffected by a mode change: it always describes the *whole* union, every variant it could ever take, because that is a static property of the `DeviceType`'s own field — never a per-instance, per-moment thing that would need re-announcing every time the mode flips. What a mode change actually changes is the *value* — plain `GET`/`subscribe` data, exactly the mechanism 03 §6.3 already has for anything else that changes.
 
 ```ts
 // AO — one channel, three mutually exclusive value shapes
-const AOValue = Codecs.union('mode', {
-  voltage10:  Codecs.struct({ value: Codecs.uint16({ unit: 'mV', min: 0, max: 10_000, scaler: 1 }) }),
-  voltage2_5: Codecs.struct({ value: Codecs.uint16({ unit: 'mV', min: 0, max: 2_500,  scaler: 1 }) }),
-  current20:  Codecs.struct({ value: Codecs.uint16({ unit: 'uA', min: 4_000, max: 20_000, scaler: 1 }) }),
+const AOValue = Values.union('mode', {
+  voltage10:  Values.struct({ value: Values.uint16({ unit: 'mV', min: 0, max: 10_000, scaler: 1 }) }),
+  voltage2_5: Values.struct({ value: Values.uint16({ unit: 'mV', min: 0, max: 2_500,  scaler: 1 }) }),
+  current20:  Values.struct({ value: Values.uint16({ unit: 'uA', min: 4_000, max: 20_000, scaler: 1 }) }),
 });
 const AO = channel(AOValue, { subscribe: true });
 
 // DO — bool, or a PWM triple written as one unit (duty/prescaler/cycle are computed together — never three separate writes)
-const PwmValue = Codecs.struct({
-  duty:      Codecs.uint16({ min: 0, max: 65_535 }),
-  prescaler: Codecs.uint16({ min: 0, max: 65_535 }),
-  cycle:     Codecs.uint16({ min: 0, max: 65_535 }),
+const PwmValue = Values.struct({
+  duty:      Values.uint16({ min: 0, max: 65_535 }),
+  prescaler: Values.uint16({ min: 0, max: 65_535 }),
+  cycle:     Values.uint16({ min: 0, max: 65_535 }),
 });
-const DOValue = Codecs.union('mode', {
-  bool: Codecs.struct({ value: Codecs.bool() }),
-  pwm:  Codecs.struct({ value: PwmValue }),
+const DOValue = Values.union('mode', {
+  bool: Values.struct({ value: Values.bool() }),
+  pwm:  Values.struct({ value: PwmValue }),
 });
 const DO = channel(DOValue, { subscribe: true });
 ```
@@ -737,5 +737,5 @@ Tier 1 (unit; `basics/03-Testing.md`), against `driver-kit`'s own fixtures — a
 - `isDriverKitIntrospection`/`isDriverKitChange`/`isDeviceRef`/`isFieldEntry`/`matchesDeviceType` (§4a): each guard rejects a malformed or foreign-shaped body without throwing; `isDriverKitIntrospection` rejects a `DeviceRef` whose `kind` is missing from `kinds`; `matchesDeviceType` flags a ref whose `kind` matches but whose kind's field `schema` doesn't, one whose `kind` disagrees outright, and one listing a field the type requires in `unbound`.
 - `followIntrospection` (§4b): delivers a `full` first, then each `change` in order; against a fixture source that drops a change, it calls `get(since)` and delivers the merged `change`; after a fixture restart (new epoch), it delivers a `full`.
 - `watchDevice` (§4b): calls `onResult` once, immediately; again exactly once when a later answer flips `check`'s result; never re-runs `check` for a `change` that doesn't name its tail.
-- Forms (§3.1a): a struct member with `default` may be omitted and decodes to it; an `optional` one decodes absent; omitting a plain member fails `validate`; `default` with `optional` is rejected when the codec is built; `Codecs.void`'s schema reaches the wire as `{ type: 'void' }`.
+- Forms (§3.1a): a struct member with `default` may be omitted and decodes to it; an `optional` one decodes absent; omitting a plain member fails `validate`; `default` with `optional` is rejected when the codec is built; `Values.void`'s schema reaches the wire as `{ type: 'void' }`.
 - Refs (§3.10): `$refs` answers `list(filter)`; an unknown type is `bad-payload`; `checkRefs` reports every unresolved ref inside nested structs and arrays, and nothing for a valid value; with `has` omitted it falls back to `list`; registering one type twice is fatal.

@@ -150,7 +150,7 @@ const DaliFrames = {
 
 ### 5.2. Paired queries — `DaliQuery<T>`
 
-A query and how to read its own answer travel together, never authored separately — same reasoning `TypedCodec` already applies to a `Codec`/`ValueSchema` pair (05a §3.1):
+A query and how to read its own answer travel together, never authored separately — same reasoning `ValueType` already applies to a `Codec`/`ValueSchema` pair (05a §3.1):
 
 ```ts
 interface DaliQuery<T> { readonly frame: DaliFrame; decode(a: DaliAnswer | undefined): T; }
@@ -247,23 +247,23 @@ Bound once per bus, at `bus.<i>.raw` (§7) — never a single shared instance, e
 
 ```ts
 const DaliGear = device('dali.gear', {
-  '@':            channel(Codecs.struct({ intensity: Codecs.uint8({ min: 0, max: 254 }) }), { subscribe: true, set: DaliLevelSetCodec }),
-  fadeTime:       channel(Codecs.uint8({ min: 0, max: 15 })),
-  fadeRate:       channel(Codecs.uint8({ min: 0, max: 15 })),
-  minLevel:       channel(Codecs.uint8()),
-  maxLevel:       channel(Codecs.uint8()),
-  powerOnLevel:       channel(Codecs.uint8()),
-  systemFailureLevel: channel(Codecs.uint8()),
-  groups:         channel(Codecs.array(Codecs.uint8({ min: 0, max: 15 }))),   // array of group numbers, never a bitmask — SET diffs old vs new into ADD/REMOVE-GROUP; always this gear's own bus (§7) — group numbers don't cross buses
+  '@':            channel(Values.struct({ intensity: Values.uint8({ min: 0, max: 254 }) }), { subscribe: true, set: DaliLevelSetCodec }),
+  fadeTime:       channel(Values.uint8({ min: 0, max: 15 })),
+  fadeRate:       channel(Values.uint8({ min: 0, max: 15 })),
+  minLevel:       channel(Values.uint8()),
+  maxLevel:       channel(Values.uint8()),
+  powerOnLevel:       channel(Values.uint8()),
+  systemFailureLevel: channel(Values.uint8()),
+  groups:         channel(Values.array(Values.uint8({ min: 0, max: 15 }))),   // array of group numbers, never a bitmask — SET diffs old vs new into ADD/REMOVE-GROUP; always this gear's own bus (§7) — group numbers don't cross buses
   status:         reading(DaliStatusBitsCodec, { subscribe: true }),           // lamp/ballast failure — the one field the sparse poll exists for, §10
-  dimming:        reading(Codecs.string({ enumValues: ['up', 'down', 'none'] }), { subscribe: true }),
+  dimming:        reading(Values.string({ enumValues: ['up', 'down', 'none'] }), { subscribe: true }),
 });
 // same tail, method fields:
 //   up()/down(): starts a repeating command — §9.3
 //   stop(): cancels it
 ```
 
-`DaliLevelSetCodec = Codecs.struct({ intensity: Codecs.uint8({min:0,max:254}), instant: Codecs.bool({ default: false }) })`.
+`DaliLevelSetCodec = Values.struct({ intensity: Values.uint8({min:0,max:254}), instant: Values.bool({ default: false }) })`.
 
 ### 9.2. `intensity` — 0 is categorically off, never "a low level"
 

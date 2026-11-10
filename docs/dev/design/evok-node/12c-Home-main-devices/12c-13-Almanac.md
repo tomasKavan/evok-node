@@ -58,80 +58,80 @@ Every device follows its almanac endpoint; nothing is saved (12a §3). On a flat
 
 ```ts
 // @evok-node/driver-home
-const opt     = Codecs.optional;
-const Ts      = Codecs.timestamp();
-const DateStr = Codecs.string();                                   // 'YYYY-MM-DD', local
-const Pct     = Codecs.float32({ min: 0, max: 100, unit: '%' });
-const Celsius = Codecs.float32({ min: -273.15, unit: '°C' });   // as 12c-04
-const Deg     = Codecs.float32({ unit: '°' });
-const Ms      = Codecs.float32({ min: 0, unit: 'm/s' });
-const Mm      = Codecs.float32({ min: 0, unit: 'mm' });
-const MmH     = Codecs.float32({ min: 0, unit: 'mm/h' });
-const Source  = Codecs.string({ enumValues: ['local', 'model', 'forecast'] });   // 12d §4.5
+const opt     = Values.optional;
+const Ts      = Values.timestamp();
+const DateStr = Values.string();                                   // 'YYYY-MM-DD', local
+const Pct     = Values.float32({ min: 0, max: 100, unit: '%' });
+const Celsius = Values.float32({ min: -273.15, unit: '°C' });   // as 12c-04
+const Deg     = Values.float32({ unit: '°' });
+const Ms      = Values.float32({ min: 0, unit: 'm/s' });
+const Mm      = Values.float32({ min: 0, unit: 'mm' });
+const MmH     = Values.float32({ min: 0, unit: 'mm/h' });
+const Source  = Values.string({ enumValues: ['local', 'model', 'forecast'] });   // 12d §4.5
 
-const Day = Codecs.struct({
+const Day = Values.struct({
   date: DateStr,
-  weekday: Codecs.string({ enumValues: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] }),
-  kind: Codecs.string({ enumValues: ['workday', 'weekend', 'publicHoliday'] }),
-  holidays: Codecs.array(Codecs.struct({ name: Codecs.text(), type: Codecs.string({ enumValues: ['public', 'bank', 'optional', 'observance'] }) })),
-  dst: opt(Codecs.struct({ shiftMin: Codecs.int16(), at: Ts })),
+  weekday: Values.string({ enumValues: ['mon', 'tue', 'wed', 'thu', 'fri', 'sat', 'sun'] }),
+  kind: Values.string({ enumValues: ['workday', 'weekend', 'publicHoliday'] }),
+  holidays: Values.array(Values.struct({ name: Values.text(), type: Values.string({ enumValues: ['public', 'bank', 'optional', 'observance'] }) })),
+  dst: opt(Values.struct({ shiftMin: Values.int16(), at: Ts })),
 });
 
 export const Calendar = device('home.Calendar', {
   ...CommonFields,
   today:    reading(Day, { subscribe: true }),
   tomorrow: reading(Day, { subscribe: true }),
-  season:   reading(Codecs.string({ enumValues: ['spring', 'summer', 'autumn', 'winter'] }), { subscribe: true }),
+  season:   reading(Values.string({ enumValues: ['spring', 'summer', 'autumn', 'winter'] }), { subscribe: true }),
 });
 
 export const Clock = device('home.Clock', {
   ...CommonFields,
-  now:  reading(Codecs.struct({ hour: Codecs.uint8({ max: 23 }), minute: Codecs.uint8({ max: 59 }), date: DateStr, at: Ts }), { subscribe: true }),
-  hour: reading(Codecs.uint8({ max: 23 }), { subscribe: true }),
+  now:  reading(Values.struct({ hour: Values.uint8({ max: 23 }), minute: Values.uint8({ max: 59 }), date: DateStr, at: Ts }), { subscribe: true }),
+  hour: reading(Values.uint8({ max: 23 }), { subscribe: true }),
 });
 
-const Phase = Codecs.string({ enumValues: [
+const Phase = Values.string({ enumValues: [
   'night', 'astroDawn', 'nauticalDawn', 'civilDawn', 'day', 'civilDusk', 'nauticalDusk', 'astroDusk'] });
 
 export const Sun = device('home.Sun', {
   ...CommonFields,
-  position: reading(Codecs.struct({ elevation: Deg, azimuth: Deg }), { subscribe: true }),   // compass, 0 = north
+  position: reading(Values.struct({ elevation: Deg, azimuth: Deg }), { subscribe: true }),   // compass, 0 = north
   phase:    reading(Phase, { subscribe: true }),
-  next:     reading(Codecs.struct({ phase: Phase, at: Ts }), { subscribe: true }),
-  times:    reading(Codecs.struct({ date: DateStr, civilDawn: opt(Ts), sunrise: opt(Ts), solarNoon: Ts,
+  next:     reading(Values.struct({ phase: Phase, at: Ts }), { subscribe: true }),
+  times:    reading(Values.struct({ date: DateStr, civilDawn: opt(Ts), sunrise: opt(Ts), solarNoon: Ts,
               sunset: opt(Ts), civilDusk: opt(Ts) }), { subscribe: true }),
-  light:    reading(Codecs.struct({ percent: opt(Pct), source: Source, at: Ts }), { subscribe: true }),   // absent below 5° (12d §4.4)
+  light:    reading(Values.struct({ percent: opt(Pct), source: Source, at: Ts }), { subscribe: true }),   // absent below 5° (12d §4.4)
 });
 
 export const WindSensor = device('home.WindSensor', {
   ...CommonFields,
-  wind:     reading(Codecs.struct({ speed: opt(Ms), gust: opt(Ms), direction: opt(Deg), source: Source, at: Ts }), { subscribe: true }),
-  forecast: optional(reading(Codecs.struct({ gustMaxH6: Ms, gustMaxH24: Ms, at: Ts }), { subscribe: true })),
+  wind:     reading(Values.struct({ speed: opt(Ms), gust: opt(Ms), direction: opt(Deg), source: Source, at: Ts }), { subscribe: true }),
+  forecast: optional(reading(Values.struct({ gustMaxH6: Ms, gustMaxH24: Ms, at: Ts }), { subscribe: true })),
 });
 
 export const RainSensor = device('home.RainSensor', {
   ...CommonFields,
-  raining:  reading(Codecs.bool(), { subscribe: true }),
+  raining:  reading(Values.bool(), { subscribe: true }),
   rate:     reading(opt(MmH), { subscribe: true }),
   source:   reading(Source, { subscribe: true }),
-  rainPast: reading(Codecs.struct({ h24: opt(Mm), h72: opt(Mm) }), { subscribe: true }),
-  rainNext: optional(reading(Codecs.struct({ h3: Mm, h6: Mm, h24: Mm, probability6h: Pct }), { subscribe: true })),
+  rainPast: reading(Values.struct({ h24: opt(Mm), h72: opt(Mm) }), { subscribe: true }),
+  rainNext: optional(reading(Values.struct({ h3: Mm, h6: Mm, h24: Mm, probability6h: Pct }), { subscribe: true })),
 });
 
-const Sky = Codecs.string({ enumValues: ['clear', 'partlyCloudy', 'cloudy', 'fog', 'drizzle', 'rain', 'snow', 'thunderstorm'] });
-const DayOutlook = Codecs.struct({ date: DateStr, min: Celsius, max: Celsius, rainMm: Mm, lightPct: opt(Pct), sunnyH: Codecs.float32({ unit: 'h' }) });
+const Sky = Values.string({ enumValues: ['clear', 'partlyCloudy', 'cloudy', 'fog', 'drizzle', 'rain', 'snow', 'thunderstorm'] });
+const DayOutlook = Values.struct({ date: DateStr, min: Celsius, max: Celsius, rainMm: Mm, lightPct: opt(Pct), sunnyH: Values.float32({ unit: 'h' }) });
 
 export const Weather = device('home.Weather', {
   ...CommonFields,
-  now:      reading(Codecs.struct({ temperature: opt(Celsius), humidity: opt(Pct), sky: opt(Sky), source: Source, at: Ts }), { subscribe: true }),
-  days:     reading(Codecs.array(DayOutlook), { subscribe: true }),            // today, tomorrow, +1 — to the horizon
-  warnings: optional(reading(Codecs.array(Codecs.struct({ type: Codecs.string(), level: Codecs.uint8({ min: 1, max: 4 }),
-              onset: opt(Ts), expires: opt(Ts), text: Codecs.text() })), { subscribe: true })),
-  air:      optional(reading(Codecs.struct({ europeanAqi: opt(Codecs.uint16()), pollen: Codecs.bool() }), { subscribe: true })),   // pollen: in season
+  now:      reading(Values.struct({ temperature: opt(Celsius), humidity: opt(Pct), sky: opt(Sky), source: Source, at: Ts }), { subscribe: true }),
+  days:     reading(Values.array(DayOutlook), { subscribe: true }),            // today, tomorrow, +1 — to the horizon
+  warnings: optional(reading(Values.array(Values.struct({ type: Values.string(), level: Values.uint8({ min: 1, max: 4 }),
+              onset: opt(Ts), expires: opt(Ts), text: Values.text() })), { subscribe: true })),
+  air:      optional(reading(Values.struct({ europeanAqi: opt(Values.uint16()), pollen: Values.bool() }), { subscribe: true })),   // pollen: in season
   issuedAt: reading(opt(Ts), { subscribe: true }),
-  credits:  reading(Codecs.array(Codecs.text()), { subscribe: true }),        // shown with the tile
-  series:   method('reads', Codecs.struct({ from: Ts, hours: Codecs.uint16({ min: 1, max: 312 }) }),
-              Codecs.array(Codecs.json()), { errorKinds: ['outOfRange'] }),   // 12d `forecast.series` rows, passed through
+  credits:  reading(Values.array(Values.text()), { subscribe: true }),        // shown with the tile
+  series:   method('reads', Values.struct({ from: Ts, hours: Values.uint16({ min: 1, max: 312 }) }),
+              Values.array(Values.json()), { errorKinds: ['outOfRange'] }),   // 12d `forecast.series` rows, passed through
 });
 ```
 

@@ -34,37 +34,37 @@ Positions are Matter's, as in 12c-06: **0.01 % closed**, `0` = fully open, `1000
 
 ```ts
 // @evok-node/driver-home
-const Closed = Codecs.uint16({ max: 10000, unit: '0.01%' });     // 0 = fully open, 10000 = fully closed (12c-06 §2)
+const Closed = Values.uint16({ max: 10000, unit: '0.01%' });     // 0 = fully open, 10000 = fully closed (12c-06 §2)
 
-const ClosurePosition = Codecs.struct({
-  state:     Codecs.string({ enumValues: ['closed', 'open', 'partial', 'unknown'] }),
-  current:   Codecs.optional(Closed),       // absent ⇒ not known as a %
-  target:    Codecs.optional(Closed),       // absent ⇒ no target (stopped, or after a restart)
-  motion:    Codecs.string({ enumValues: ['stopped', 'opening', 'closing'] }),
-  confirmed: Codecs.optional(Codecs.timestamp()),
+const ClosurePosition = Values.struct({
+  state:     Values.string({ enumValues: ['closed', 'open', 'partial', 'unknown'] }),
+  current:   Values.optional(Closed),       // absent ⇒ not known as a %
+  target:    Values.optional(Closed),       // absent ⇒ no target (stopped, or after a restart)
+  motion:    Values.string({ enumValues: ['stopped', 'opening', 'closing'] }),
+  confirmed: Values.optional(Values.timestamp()),
 });
 
-const Blocked = Codecs.struct({              // why a direction is refused now; absent ⇒ free
-  open:  Codecs.optional(Codecs.string({ enumValues: ['interlock', 'locked'] })),
-  close: Codecs.optional(Codecs.string({ enumValues: ['interlock'] })),
+const Blocked = Values.struct({              // why a direction is refused now; absent ⇒ free
+  open:  Values.optional(Values.string({ enumValues: ['interlock', 'locked'] })),
+  close: Values.optional(Values.string({ enumValues: ['interlock'] })),
 });
 
-const ClosureBehavior = Codecs.struct({      // settings a consumer must see (12a §2.3) — 16a reports them
-  kind:        Codecs.string({ enumValues: ['roofWindow', 'facadeWindow', 'garageDoor', 'gate', 'door'] }),
-  positioning: Codecs.string({ enumValues: ['ends', 'percent'] }),
+const ClosureBehavior = Values.struct({      // settings a consumer must see (12a §2.3) — 16a reports them
+  kind:        Values.string({ enumValues: ['roofWindow', 'facadeWindow', 'garageDoor', 'gate', 'door'] }),
+  positioning: Values.string({ enumValues: ['ends', 'percent'] }),
 });
 
 export const Closure = device('home.Closure', {
   ...CommonFields,
   position: reading(ClosurePosition, { subscribe: true }),
   blocked:  reading(Blocked, { subscribe: true }),
-  fault:    reading(Codecs.optional(Codecs.string({ enumValues: ['notCarriedOut', 'travelTimeout', 'endContacts'] })), { subscribe: true }),
+  fault:    reading(Values.optional(Values.string({ enumValues: ['notCarriedOut', 'travelTimeout', 'endContacts'] })), { subscribe: true }),
   behavior: reading(ClosureBehavior, { subscribe: true }),
-  open:     method('mutates', Codecs.void, undefined, { errorKinds: ['interlock', 'locked'] }),
-  close:    method('mutates', Codecs.void, undefined, { errorKinds: ['interlock'] }),
-  stop:     method('mutates', Codecs.void),
-  goTo:     optional(method('mutates', Codecs.void, Codecs.struct({ position: Closed }), { errorKinds: ['interlock', 'locked'] })),
-  confirm:  optional(method('mutates', Codecs.void, undefined, { errorKinds: ['notCarriedOut'] })),
+  open:     method('mutates', Values.void, undefined, { errorKinds: ['interlock', 'locked'] }),
+  close:    method('mutates', Values.void, undefined, { errorKinds: ['interlock'] }),
+  stop:     method('mutates', Values.void),
+  goTo:     optional(method('mutates', Values.void, Values.struct({ position: Closed }), { errorKinds: ['interlock', 'locked'] })),
+  confirm:  optional(method('mutates', Values.void, undefined, { errorKinds: ['notCarriedOut'] })),
 });
 ```
 

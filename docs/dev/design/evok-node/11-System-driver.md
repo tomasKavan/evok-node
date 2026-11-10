@@ -28,13 +28,13 @@ binding, no `generation` bump past the first one.
 ## 3. Host and identity facts — `info`
 
 ```ts
-const SystemInfo = Codecs.struct({
-  hostname:        Codecs.string(),
-  machineId:        Codecs.string(),                 // /etc/machine-id, verbatim
-  evokNodeVersion:  Codecs.string(),                  // this package's own package.json version
-  osVersion:        Codecs.string(),                  // /etc/os-release, PRETTY_NAME
-  packages:         Codecs.array(Codecs.struct({ name: Codecs.string(), version: Codecs.string() })),  // unipi-* entries, dpkg status db
-  hardware:         Codecs.struct({ model: Codecs.string(), family: Codecs.string(), serialNumber: Codecs.string() }),  // §3.1 — absent when unresolved
+const SystemInfo = Values.struct({
+  hostname:        Values.string(),
+  machineId:        Values.string(),                 // /etc/machine-id, verbatim
+  evokNodeVersion:  Values.string(),                  // this package's own package.json version
+  osVersion:        Values.string(),                  // /etc/os-release, PRETTY_NAME
+  packages:         Values.array(Values.struct({ name: Values.string(), version: Values.string() })),  // unipi-* entries, dpkg status db
+  hardware:         Values.struct({ model: Values.string(), family: Values.string(), serialNumber: Values.string() }),  // §3.1 — absent when unresolved
 });
 const Info = device('info', { '@': reading(SystemInfo, { subscribe: false }) });
 ```
@@ -55,12 +55,12 @@ define; this file only commits to the shape of asking.
 ## 4. Loads — `load`
 
 ```ts
-const SystemLoad = Codecs.struct({
-  cpu:     Codecs.struct({ load1: Codecs.float32(), load5: Codecs.float32(), load15: Codecs.float32() }),   // /proc/loadavg
-  ram:     Codecs.struct({ totalKb: Codecs.uint32(), usedKb: Codecs.uint32(), freeKb: Codecs.uint32() }),   // /proc/meminfo
-  storage: Codecs.array(Codecs.struct({
-    mount: Codecs.string(), device: Codecs.string(), fsType: Codecs.string(),
-    totalKb: Codecs.uint32(), usedKb: Codecs.uint32(), freeKb: Codecs.uint32(),
+const SystemLoad = Values.struct({
+  cpu:     Values.struct({ load1: Values.float32(), load5: Values.float32(), load15: Values.float32() }),   // /proc/loadavg
+  ram:     Values.struct({ totalKb: Values.uint32(), usedKb: Values.uint32(), freeKb: Values.uint32() }),   // /proc/meminfo
+  storage: Values.array(Values.struct({
+    mount: Values.string(), device: Values.string(), fsType: Values.string(),
+    totalKb: Values.uint32(), usedKb: Values.uint32(), freeKb: Values.uint32(),
   })),   // one entry per mounted filesystem in /proc/mounts — layout and usage travel together, never two endpoints
 });
 ```
@@ -74,10 +74,10 @@ next one, same as any other topology-shaped reading.
 ## 5. Network — `network`
 
 ```ts
-const SystemNetwork = Codecs.struct({
-  interfaces: Codecs.array(Codecs.struct({
-    name: Codecs.string(), mac: Codecs.string(), up: Codecs.bool(),
-    addresses: Codecs.array(Codecs.struct({ family: Codecs.string(), address: Codecs.string(), prefix: Codecs.uint8() })),
+const SystemNetwork = Values.struct({
+  interfaces: Values.array(Values.struct({
+    name: Values.string(), mac: Values.string(), up: Values.bool(),
+    addresses: Values.array(Values.struct({ family: Values.string(), address: Values.string(), prefix: Values.uint8() })),
   })),
 });
 ```
