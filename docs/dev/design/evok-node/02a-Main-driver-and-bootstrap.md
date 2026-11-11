@@ -57,7 +57,7 @@ type EntryView = {
 instances: readonly InstanceInfo[];
 type InstanceInfo = {
   key: InstanceKey; id: Id; kind: 'driver' | 'api'; type: string;
-  source: 'static' | 'dynamic' | 'builtin';           // builtin: main, bootstrap
+  source: 'static' | 'dynamic' | 'builtin';           // builtin: main, bootstrap, and kv when no file has it (02 §3b)
   placement: Placement;
   state: 'not-started' | 'running' | 'stopping' | 'stopped' | 'failed';   // the runner's own (02 §6)
   pid?: number; threadId?: number;
@@ -209,7 +209,7 @@ Each step is atomic by itself, so a copy taken between any two is consistent: ev
 An admin procedure, not an api: the user docs are written from this.
 
 - **Config:** the four paths of §5.1. A live copy is safe (§5.2).
-- **The whole box:** also the KV store, `/var/lib/evok-node/kv/*.db` and `*.secrets.db` (06) — stop the daemon, or copy each with `sqlite3 <db> ".backup <file>"`.
+- **The whole box:** also the KV store, `/var/lib/evok-node/kv/*.db` and `*.secrets.db`, and every other `kv-store`'s `path` (06) — stop the daemon, or copy each with `sqlite3 <db> ".backup <file>"`.
 - **Not needed:** `/etc/evok-node/autogen*.yaml` (regenerated) and the hardware definitions (from the package).
 
 ```sh

@@ -256,6 +256,8 @@ Pure and synchronous, callable by `main` on a parsed `Config` before any instanc
 
 An api's `drivers:` may hold `'*'`: every driver in the merged config (02 §3a) except `main`, which an api links only by name — `drivers: ['*', main]`. A driver's `declaredLinks` never holds `'*'`. `main` expands it before the graph below is assembled, so the graph holds concrete ids only. Because `'*'` follows the set of drivers, adding or removing one changes the links of every `'*'` api without changing its config — 02 §5.1's links-only bucket.
 
+**`kv` is linked implicitly** (02 §3b): `main` adds a link to `kv` from every instance but `kv` itself before the graph is checked. `kv` links nothing, so it closes no cycle. `'*'` includes `kv`, like any other driver.
+
 `main` assembles the full `instanceId → DriverId[]` graph while resolving cross-instance concerns (02 §5, §7): every referenced id must exist in `drivers:` or be `main` (02a), and a cycle is fatal at parse — a genuine mutual dependency between two drivers' own transports is a configuration mistake, not something the runtime should have to survive. Link existence is consumer-declared; whether a driver needs a *listening* socket at all (§10) is inferred by `main` from the reverse edges of this same graph, never declared by the driver being depended on.
 
 ## 9. `InstanceContext` and the runner
@@ -275,7 +277,7 @@ interface InstanceContext {
 
 **Startup** is two barriers, reusing the shape reload already has rather than inventing a second one (02 §5, §6; pseudocode in §11):
 
-1. For every instance: `runner.configure(config)` — spawn the hosting environment, wire `ctx` (a socket bound where §10 says one is needed), `createInstance(ctx)`, then `instance.configure(config)`. Every instance's `configure` completes before any instance's `start` begins.
+1. For every instance: `runner.configure(config)` — spawn the hosting environment, wire `ctx` (a socket bound where §10 says one is needed), `createInstance(ctx)`, then `instance.configure(config)`. Every instance's `configure` completes before any instance's `start` begins. `kv` goes first: its `configure` resolves before any other's begins (02 §3b).
 2. For every instance: `runner.start()` — `instance.start()`.
 
 Binding a listening socket happens at step 1, as plumbing, independent of how slow that instance's own `configure`/`start` is — a dependent can connect immediately. What it can't yet get is a real answer, which is `not-ready` (§4, §7), bounded by the caller's own deadline like everything else. The barrier reduces how often that happens; it isn't what makes it safe — `not-ready` and deadline-bounded retry are.
@@ -304,10 +306,12 @@ A module that never calls `reportFatal` isn't unsafe, just uncovered by its own 
 Pseudocode below, not a literal API — it exists to make the ordering unambiguous. `Runner`, `ModuleDescriptor`, `ModuleInstance`, `DriverId` and `computeReloadPlan` are 02's/03's own defined types; the rest (`Instance`, `ConfigById`, `runners`, `registry`, `wireContext`, `closeLinks`/`openLinks`, `env`, `onInstanceLost`, and so on) are this sketch's own scratch names, not new surface.
 
 ```ts
-// main, cold start (02 §5 step 6) — two barriers, no third
+// main, cold start (02 §5 step 6) — two barriers, kv configured ahead of the first
 async function startAll(instances: Instance[]): Promise<void> {
   const runners = instances.map(i => runnerFactory.spawn(i.descriptor, i.id, i.run, i.links));
-  await Promise.all(runners.map((r, i) => r.configure(instances[i].config)));   // barrier 1
+  const kv = instances.findIndex(i => i.id === 'kv');                            // always present — 02 §3b
+  await runners[kv].configure(instances[kv].config);
+  await Promise.all(runners.map((r, i) => i === kv ? undefined : r.configure(instances[i].config)));   // barrier 1
   await Promise.all(runners.map(r => r.start()));                              // barrier 2
 }
 

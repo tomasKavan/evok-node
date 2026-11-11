@@ -16,7 +16,7 @@ Global config is small: which drivers and apis exist, plus main's own operationa
 
 The one property at this level that is not a driver or an api is `main:` — main's own settings: `logging` ([04 §3](04-Common-services.md#3-logging)), `dynamicConfig` and `keepRevisions` (§3a), `bootstrap` (02a). It is optional, and only the static file holds it; absent, `main` logs to stdout/journald only, at `info`, and runs on the static file alone.
 
-`drivers:` and `apis:` are maps keyed by id. The key is the instance's **identity** — the thing reload compares old and new config on (§5). An id is not a device address and not a display name; renaming one is deletion plus creation, not a rename, and anything keyed on that id (the KV-store driver's default namespace, per 06) goes with it. `main` and `bootstrap` are reserved (02a): an entry with either as its id or its `type` is a configuration error.
+`drivers:` and `apis:` are maps keyed by id. The key is the instance's **identity** — the thing reload compares old and new config on (§5). An id is not a device address and not a display name; renaming one is deletion plus creation, not a rename, and anything keyed on that id (its KV namespace, 06 §2) goes with it. `main` and `bootstrap` are reserved (02a): an entry with either as its id or its `type` is a configuration error. `kv` is reserved too, but as an optional entry (§3b).
 
 Every instance, driver or api, carries one property `main` itself understands beyond its id: `run`, the placement (01 §3) — `worker_thread` or `child_process`, defaulting to `worker_thread`. An api carries one more: `drivers`, the driver ids it links to (03 §8) — standardized at this level because 01 §9 states it as a rule for every api, not a per-api convention. `drivers` is a list; `'*'` in it stands for every driver in the merged config except `main`, which is linked only by name (03 §8). A driver's equivalent is never a generic key here; it comes from that driver's own descriptor (§4, 03 §8), because what it needs to say alongside a peer's id is the driver's own business. Everything else under an instance's key is that module's own schema, validated by that module's own rules (§5), never `main`'s.
 
@@ -78,6 +78,28 @@ apis:
 - **`dynamicConfig` absent or `false`** ⇒ the static file alone, exactly as without this section. The `main` driver still runs, read-only (02a).
 
 The dynamic file's own rules — revisions, secrets, write order, where the files live — are 02a's.
+
+## 3b. The `kv` driver
+
+`kv` is the one authoritative KV store (06). Every other instance links to it without naming it.
+
+```yaml
+drivers:
+  kv:                          # optional; absent ⇒ main adds kv: { type: kv-store }
+    type: kv-store             # any other type ⇒ configuration error
+    run: child_process         # replaces the default, as in any entry
+    path: /data/kv.db          # optional for kv — 06 §5
+  archive:                     # another kv-store is allowed
+    type: kv-store
+    path: /data/archive.db     # required for any id but kv
+```
+
+- **Reserved id, optional entry.** Absent ⇒ `main` adds `kv: { type: kv-store }` to the merged config, so the defaults apply. Present ⇒ its `run` and body replace them.
+- **Static file only.** A `kv` entry in the dynamic file is an issue on it and is left out (§5); `kv` keeps the static entry or the defaults. The store never moves because an apply went wrong.
+- **Linked from every instance.** Every driver and api — the `main` driver and the bootstrap api too (02a) — gets a link to `kv`; `kv` itself links nothing. It is an ordinary link and shows in `links()`/`onLink` (03 §4). Naming `kv` in `drivers:` or `declaredLinks` as well is the same link, once.
+- **Configured first** at startup (§5 step 6), so a consumer reading KV in its `configure` is not answered `not-ready`.
+- **Reload as any entry** (§5.1): `kv` changes only when its own entry does (06 §8). Removing the entry changes it back to the defaults; it is never a removal. No other instance is relinked.
+- **Linked is not exposed.** What an api shows its clients is the api's decision (13 §6).
 
 ## 4. Module definition and the manifest
 
@@ -305,10 +327,10 @@ Startup is one sequence, run once, in order:
    issues.push(...(module.descriptor.rules?.(config) ?? []));
    ```
 
-   Two value types, each owning exactly its own keys — the head `main`'s, the body the module's — never one merged one. `main` never sees what is inside `body` beyond its issues. In a dynamic entry, a `sensitive` member holds a secret ref; `main` puts the stored value in its place before this step (02a). For a driver, its declared links come from that parsed `config` itself — `module.descriptor.declaredLinks?.(config)` (03 §8) — never from a key `main` reads directly, the way an api's `drivers` list already was.
+   Two value types, each owning exactly its own keys — the head `main`'s, the body the module's — never one merged one. `main` never sees what is inside `body` beyond its issues. In a dynamic entry, a `sensitive` member holds a secret ref; `main` puts the stored value in its place before this step (02a). For a driver, its declared links come from that parsed `config` itself — `module.descriptor.declaredLinks?.(config)` (03 §8) — never from a key `main` reads directly, the way an api's `drivers` list already was. Two checks are `main`'s, because a module's `rules` never sees its id (§3b): an entry `kv` with a `type` other than `kv-store`, and a `kv-store` under another id without `path`.
 
-5. **Resolve cross-instance concerns** no single module can see on its own (§7) — merging the two files (§3a), where an id in both is an issue on the dynamic entry; expanding every api's `'*'` (03 §8); assembling the full `instanceId → DriverId[]` link topology from every api's `drivers` and every driver's `declaredLinks`, and validating it (03 §8): every referenced id exists in `drivers:` or is `main` (02a), and a cycle is fatal.
-6. **Spawn, configure, start — three passes, not one.** For every instance: `runnerFactory.spawn(module.descriptor, id, type, run, links, pluginManifest)` — `pluginManifest` is the whole `kind → id → {path, export}` table from step 1, every non-`driver`/`api` kind, identical for every instance (§4, §6). Once every instance is spawned: `runner.configure(config)` for every instance, awaiting all of them. Only once every instance is configured: `runner.start()` for every instance (§6, 03 §9). The `main` driver is always one of them, and the bootstrap api one more when `main.bootstrap.enabled` is not `off`; neither is an entry in either file (02a).
+5. **Resolve cross-instance concerns** no single module can see on its own (§7) — merging the two files (§3a), where an id in both is an issue on the dynamic entry; expanding every api's `'*'` (03 §8); adding the `kv` default and its implicit links (§3b); assembling the full `instanceId → DriverId[]` link topology from every api's `drivers` and every driver's `declaredLinks`, and validating it (03 §8): every referenced id exists in `drivers:` or is `main` (02a), and a cycle is fatal.
+6. **Spawn, configure, start — three passes, not one.** For every instance: `runnerFactory.spawn(module.descriptor, id, type, run, links, pluginManifest)` — `pluginManifest` is the whole `kind → id → {path, export}` table from step 1, every non-`driver`/`api` kind, identical for every instance (§4, §6). Once every instance is spawned: `runner.configure(config)` for every instance, awaiting all of them. Only once every instance is configured: `runner.start()` for every instance (§6, 03 §9). The `main` driver is always one of them, and the bootstrap api one more when `main.bootstrap.enabled` is not `off`; neither is an entry in either file (02a). `kv` is always one too (§3b), and its `configure` resolves before any other instance's begins.
 
 Every failure from step 1 through 5 in the manifest or the static file is fatal at startup — a bad manifest, a config file that does not parse, a `type` with no manifest entry, an instance body that fails its own module's value type or rules. None of these degrade; the daemon does not start on any of them. This is deliberately one failure class, whether the mistake is in the manifest or in the config: both mean "this cannot possibly run," never "this runs in a reduced way."
 
@@ -401,9 +423,9 @@ The `main` driver's runner carries one channel more, to `main` itself (02a). It 
 
 ## 7. Resource reservation
 
-`main` does not enforce resource exclusivity — two drivers naming the same serial port, the same TCP host and port, the same explicit KV-store namespace, are not `main`'s problem to solve. It is the developer's and the administrator's responsibility not to configure a collision, and 01 §7's whole point is that the common case (several drivers wanting one bus) has a correct answer that does not need policing: share it through a transport driver rather than opening it twice.
+`main` does not enforce resource exclusivity — two drivers naming the same serial port, the same TCP host and port, two `kv-store` instances on the same `path`, are not `main`'s problem to solve. It is the developer's and the administrator's responsibility not to configure a collision, and 01 §7's whole point is that the common case (several drivers wanting one bus) has a correct answer that does not need policing: share it through a transport driver rather than opening it twice.
 
-What `main` does do: at parse time, warn on a detectable collision — same port, same host:port, same explicit namespace — so a mistake surfaces immediately instead of as a runtime failure days later. A warning is not a gate; an administrator who wants two drivers on one port anyway gets to have it.
+What `main` does do: at parse time, warn on a detectable collision — same port, same host:port, same `kv-store` `path` — so a mistake surfaces immediately instead of as a runtime failure days later. A warning is not a gate; an administrator who wants two drivers on one port anyway gets to have it.
 
 ## 8. Testing
 
@@ -441,9 +463,11 @@ Manifest-root injection: `assembleManifest(rootDir?)` takes the fixture director
 
 ### 8.4. Config parse and validate
 
-Fixtures under `packages/main/tests/fixtures/config/*.yaml`, one issue per file, each targeting one step of §5: `valid.yaml`; `invalid-yaml.yaml`; `bad-skeleton-*.yaml` (bad id / missing `type` / bad `run`); `unknown-type.yaml`; `module-body-invalid.yaml` (body fails `module-ok`'s own value type); `module-rule-fails.yaml` (`module-ok`'s rule); `reserved-id.yaml` (`main`, `bootstrap`); `unknown-top-level.yaml`. Every fixture's test asserts the specific cause, even though §5 treats all of them as one failure class.
+Fixtures under `packages/main/tests/fixtures/config/*.yaml`, one issue per file, each targeting one step of §5: `valid.yaml`; `invalid-yaml.yaml`; `bad-skeleton-*.yaml` (bad id / missing `type` / bad `run`); `unknown-type.yaml`; `module-body-invalid.yaml` (body fails `module-ok`'s own value type); `module-rule-fails.yaml` (`module-ok`'s rule); `reserved-id.yaml` (`main`, `bootstrap`); `kv-wrong-type.yaml`; `kv-store-no-path.yaml` (a `kv-store` under another id); `unknown-top-level.yaml`. Every fixture's test asserts the specific cause, even though §5 treats all of them as one failure class.
 
-Static and dynamic, each a pair of files (§3a): `dynamic-valid` (merged as expected); `dynamic-unparsable` (static instances start, every dynamic one is left out); `dynamic-entry-invalid` (only that entry is left out, the rest start); `dynamic-id-collision` (the dynamic entry is left out, the static one starts); `dynamic-link-to-left-out` (the linking entry starts with that link down); `star-links` (`'*'` expands to every driver but `main`; `main` only by name); `dynamic-off` (the dynamic file is never read); `static-links-dynamic` (a static link to a driver the dynamic part does not deliver is fatal).
+Static and dynamic, each a pair of files (§3a): `dynamic-valid` (merged as expected); `dynamic-unparsable` (static instances start, every dynamic one is left out); `dynamic-entry-invalid` (only that entry is left out, the rest start); `dynamic-id-collision` (the dynamic entry is left out, the static one starts); `dynamic-link-to-left-out` (the linking entry starts with that link down); `star-links` (`'*'` expands to every driver but `main`; `main` only by name); `dynamic-off` (the dynamic file is never read); `static-links-dynamic` (a static link to a driver the dynamic part does not deliver is fatal); `dynamic-kv` (left out; `kv` keeps the static entry or the defaults).
+
+`kv` (§3b): absent ⇒ added with the defaults; present ⇒ its body; every instance but `kv` links it, once even when it also names it; `kv` is configured before any other instance.
 
 ### 8.5. Config equality and the reload plan
 

@@ -44,8 +44,8 @@ An API module is a module like a driver (02 §4): a `ModuleDescriptor`, a `Modul
 ```yaml
 apis:
   ws:     { type: ws,            drivers: ['*', main] }      # every driver, and the main driver (02a)
-  home:   { type: home-api,      drivers: [home, kv] }
-  matter: { type: matter-bridge, drivers: [home, kv] }
+  home:   { type: home-api,      drivers: [home] }           # kv is linked without naming it — 02 §3b
+  matter: { type: matter-bridge, drivers: [home] }
   mqtt:   { type: mqtt,          drivers: [ONB], broker: { url: 'mqtt://nas:1883' } }
 ```
 
@@ -80,14 +80,15 @@ An api holds no device state (01 §2). Everything it holds is one of two kinds:
 Rules:
 
 - An api has no user data besides its identity state. Settings are config; which devices to expose is a driver's (12a's `exposed`).
-- An api with identity state lists the KV driver in `drivers:`.
+- An api keeps its identity state in `kv` (02 §3b), through `kvClient` (06 §3a). It does not list `kv` in `drivers:`.
 - Renaming an api's id is a new namespace (06 §2): a Matter bridge is paired again.
 - The opposite case — evok-node as a protocol **client**, e.g. 12a's own Matter controller (12a §4a) — is a driver, and its fabric is that driver's user data.
 
 ```ts
 // api-matter-bridge, start()
-const fabrics = await kv.get('fabrics')        // api.matter — the KV driver derives it from Origin
-if (fabrics === null) openCommissioningWindow()
+const kv = kvClient(ctx.messaging)
+const fabrics = await kv.get('fabrics')        // namespace api.matter — kv derives it from Origin
+if (fabrics === undefined) openCommissioningWindow()
 ```
 
 ## 5. The gate
@@ -133,16 +134,19 @@ For a relay api, `actor` and `proof` are handled by WS extensions (15): the auth
 
 ```ts
 // 03 §4
-ctx.messaging.links()                  // [{ driver: 'ONB', up: true }, { driver: 'home', up: false }]
+ctx.messaging.links()                  // [{ driver: 'ONB', up: true }, { driver: 'home', up: false }, { driver: 'kv', up: true }]
 ctx.messaging.onLink((driver, up) => …)
 ```
 
-- **The api's drivers are `links()`**, live across a reload. `reload(config)` never carries `drivers:`, so an api learns about an added or removed driver only here.
+- **The api's drivers are `links()`**, live across a reload, `kv` always among them (02 §3b). `reload(config)` never carries `drivers:`, so an api learns about an added or removed driver only here.
 - **The projection is built from introspection** with `followIntrospection` (05a §4b), one per linked driver. It is translation state (§4).
 - **A generic api acts on the value-type vocabulary only** and never switches on `kind` (01 §6). An api for one driver — Home API, Matter bridge — may know that driver's kinds.
 - **A driver the api does not understand is skipped**, not refused (01 §9). A Matter bridge linked to `ONB` exposes nothing from it and logs it once.
 - **One internal subscription per address**, fanned out to every client that wants it; the api does not cache its values.
 - Cross-driver reads go through `module-sdk`'s fan-in helper (03 §2); typed access through `remote`/`remoteDevice` (05a §3.8a).
+- **Linked is not exposed.** An api relays only what its clients should see; hiding the rest is the api's job. ws-kit never relays `kv`: a client's call carries the api's `Origin`, so it would land in the api's own namespace (06 §2). Another `kv-store` an api links is relayed like any driver.
+
+**Open:** storage for WS clients' own data — endpoints of the WS API (15), not `kv` relayed.
 
 ## 7. Driver loss and return
 

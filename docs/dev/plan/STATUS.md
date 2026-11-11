@@ -19,6 +19,8 @@
 
 - **M3.7a not scaffolded.** Packages `driver-main` and `api-bootstrap`; `Values.record`, `checkValue`, `Issue` in `module-sdk`; both new packages in `.dependency-cruiser.cjs`'s `WORKSPACE_DEPS`. Coder work, not started.
 
+- **Reserved `kv` not scaffolded.** 02 §3b: `kv` is the one authoritative KV store — optional static entry, defaults when absent, `type` must be `kv-store`, linked from every instance, configured first; another `kv-store` needs a `path`. 06 §3a: `kvClient` in `module-sdk`. 13 §6: ws-kit does not relay `kv`; Open → WS clients' own storage. Coder work, not started.
+
 - **Compat API retired — code not cleaned yet.** `packages/api-compat` and its entries in `tsconfig.json`, `.dependency-cruiser.cjs`, `vitest.config.ts` and `package-lock.json` still exist; `package.json` description still says drop-in replacement. Coder work, not started.
 
 - Root README.md is finalized, TBD at URLs which is uknown at the moment.

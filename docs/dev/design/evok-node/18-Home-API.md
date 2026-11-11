@@ -7,7 +7,7 @@
 
 **Covers**
 
-- **What it adds to `ws-kit`:** understands only the home driver (12a); everything else in its `drivers:` but KV is skipped (13 §6).
+- **What it adds to `ws-kit`:** understands only the home driver (12a); everything else it links, `kv` included, is never relayed (13 §6).
 - **Management subset:** which `manage.<method>` tails it relays (12a §5).
 - **Auth and ACL** as WS extensions using 13a; `actor` and `proof` (13 §5) — a door lock's `unlock`.
 - **Defaults:** port, TLS (13 §9).

@@ -4,7 +4,7 @@
 
 Package: `packages/driver-dali` (`@evok-node/driver-dali`). Config `type: dali`.
 
-Everything DALI-bus-specific goes here: pluggable controller backends, raw frame construction, the stored gear/group model, discovery. It depends on `driver-kit` (05a), the KV-store driver's client (06) for persisted gears/groups (05a §3.6), `line-kit` (07b) for serial/TCP byte transport, and optionally `modbus-kit`'s `ModbusTransport` (07 §4/§7) for a Modbus-backed controller.
+Everything DALI-bus-specific goes here: pluggable controller backends, raw frame construction, the stored gear/group model, discovery. It depends on `driver-kit` (05a), `kvClient` (06 §3a) for persisted gears/groups (05a §3.6), `line-kit` (07b) for serial/TCP byte transport, and optionally `modbus-kit`'s `ModbusTransport` (07 §4/§7) for a Modbus-backed controller.
 
 Out of scope for v1, stated once here rather than per-section: DALI2 control-device frames (24-bit, IEC 62386-103/2xx), scenes, colour control (device type 8), memory-bank access. §13 lists these; nothing below silently half-supports them.
 
