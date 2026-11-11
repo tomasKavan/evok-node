@@ -168,7 +168,7 @@ interface Issue {
   readonly path: readonly (string | number)[];   // [] — the value itself; ['transport', 'port']; ['devices', 0, 'unit']
   readonly code: IssueCode;
   readonly message: LocalizedText;               // module-sdk ships one per code; a 'rule' issue brings its own
-  readonly rule?: string;                        // code 'rule' only: the module's own id, e.g. 'not-with-autogen'
+  readonly rule?: string;                        // code 'rule' only: the rule's id, e.g. 'not-with-autogen'
 }
 
 type IssueCode =
@@ -176,7 +176,7 @@ type IssueCode =
   | 'unknown-field'                                         // only when binding (§5.1)
   | 'min' | 'max' | 'max-length' | 'pattern' | 'enum'       // limits — only when binding (§5.1)
   | 'sensitive-missing'                                     // a secret ref with no stored value — 02a
-  | 'rule';                                                 // ModuleDescriptor.rules — 02 §4
+  | 'rule';                                                 // ModuleDescriptor.rules (02 §4), main's cross-instance checks (02a §2.4)
 ```
 
 - **Data in, issues out.** No plugin code runs, so the same function runs in `main`, in the `main` driver and in a browser — a form is checked on every edit without asking the daemon.
