@@ -18,11 +18,14 @@ Three shapes, discriminated, each with its methods and `effect` fully implied ra
 
 ```ts
 // @evok-node/module-sdk
+type Privilege = 'view' | 'operate' | 'manage' | 'administer';   // §3.1b — ordered, each includes the ones before
+
 interface ReadingType<T> {
   readonly shape: 'reading';       // GET (+SUBSCRIBE if `subscribe`); effect: 'none', implied
   readonly subscribe: boolean;
   readonly codec: Codec<T>;
   readonly schema: ValueSchema;    // §4 — carried into introspection, not just kept locally
+  readonly access?: { readonly read?: Privilege };   // §3.1b
 }
 
 interface ChannelType<T, TSet = T> {
@@ -32,6 +35,7 @@ interface ChannelType<T, TSet = T> {
   readonly schema: ValueSchema;
   readonly setCodec?: Codec<TSet>;    // only when SET's payload/echo genuinely differs from T
   readonly setSchema?: ValueSchema;   // present iff setCodec is
+  readonly access?: { readonly read?: Privilege; readonly write?: Privilege; readonly proof?: true };   // §3.1b
 }
 
 interface MethodType<R, A = void, E extends string = never> {
@@ -41,7 +45,7 @@ interface MethodType<R, A = void, E extends string = never> {
   readonly resultSchema: ValueSchema;
   readonly argsCodec?: Codec<A>;    // omitted ⇒ no payload
   readonly argsSchema?: ValueSchema;  // present iff argsCodec is
-  readonly proof?: true;           // the api gets extra proof from its caller before relaying — 13 §5
+  readonly access?: { readonly call?: Privilege; readonly proof?: true };   // §3.1b
   readonly errorKinds?: readonly E[];   // the closed, endpoint-owned vocabulary `onCall` (§3.5) may
                                          // resolve as `domainErrorKind` — absent ⇒ `E` is `never`, so
                                          // `CallOutcome`'s domain-error arm isn't constructible at all
@@ -58,15 +62,41 @@ A `channel`'s `SET` always returns exactly what it was given — `TSet` — neve
 
 ### 3.1a. REMOVED
 
+### 3.1b. Access marks
+
+A type may state what a caller needs for each of its operations. The marks are the type author's requirements, written once for every api. **The driver never checks them** — an api does, if it wishes (13 §5).
+
+| Shape | Mark | Operation | Default |
+|---|---|---|---|
+| reading | `read` | GET, SUBSCRIBE | `view` |
+| channel | `read` | GET, SUBSCRIBE | `view` |
+| channel | `write` | SET | `operate` |
+| method | `call` | CALL | `view` for `effect: 'none'`, `operate` for `'mutates'` |
+| channel, method | `proof` | SET, CALL | absent — no proof |
+
+- **`Privilege`** is ordered: `view < operate < manage < administer`. A caller may use an operation when the privilege it holds for the address is at least the mark.
+- **`proof`**: before relaying, the api gets a proof from its caller for this one call. Which proof counts is the api's auth (13a).
+- Mark only what differs from the default:
+
+```ts
+mode:    channel(Mode, { access: { write: 'manage' } }),                       // change it: manage
+users:   reading(UserList, { access: { read: 'manage' } }),                    // a sensitive value
+unlock:  method('mutates', Values.void, UnlockArgs, { access: { proof: true } }),   // operate + proof
+setUser: method('mutates', Values.void, User, { access: { call: 'administer' } }),
+```
+
+- Who holds which privilege where — users, roles, scopes, auth levels — is 13a's, never the type's.
+- On the wire, `FieldEntry.access` (§4) carries the marks as declared; an api fills in the defaults itself.
+
 ### 3.2. Building one without repeating the type
 
 `T` is meant to come from the `codec` argument, inferred, so these interfaces are rarely written as raw object literals:
 
 ```ts
 // @evok-node/module-sdk
-function reading<T>(codec: ValueType<T>, opts?: { subscribe?: boolean }): ReadingType<T>;
-function channel<T, TSet = T>(codec: ValueType<T>, opts?: { subscribe?: boolean; set?: ValueType<TSet> }): ChannelType<T, TSet>;
-function method<R, A = void, E extends string = never>(effect: 'none' | 'mutates', result: ValueType<R>, args?: ValueType<A>, opts?: { errorKinds?: readonly E[]; proof?: true }): MethodType<R, A, E>;
+function reading<T>(codec: ValueType<T>, opts?: { subscribe?: boolean; access?: ReadingType<T>['access'] }): ReadingType<T>;
+function channel<T, TSet = T>(codec: ValueType<T>, opts?: { subscribe?: boolean; set?: ValueType<TSet>; access?: ChannelType<T, TSet>['access'] }): ChannelType<T, TSet>;
+function method<R, A = void, E extends string = never>(effect: 'none' | 'mutates', result: ValueType<R>, args?: ValueType<A>, opts?: { errorKinds?: readonly E[]; access?: MethodType<R, A, E>['access'] }): MethodType<R, A, E>;
 ```
 
 `channel(Values.bool())` infers `ChannelType<boolean, boolean>` entirely from its argument, `schema` included; nobody writes `<boolean>` or a schema literal anywhere.
@@ -498,7 +528,12 @@ interface FieldEntry {
   readonly schema: ValueSchema;         // duplicated from the field's own EndpointType (§3.1) — see below for why
   readonly setSchema?: ValueSchema;     // channel only, present iff the field's type has one
   readonly argsSchema?: ValueSchema;    // method only, present iff the field's type has one
-  readonly proof?: true;                // method only — 13 §5
+  readonly access?: {                   // the field's marks as its type declared them (§3.1b); absent ⇒ every default
+    readonly read?: Privilege;          // reading, channel
+    readonly write?: Privilege;         // channel only
+    readonly call?: Privilege;          // method only
+    readonly proof?: true;              // channel, method
+  };
 }
 ```
 
@@ -547,7 +582,7 @@ A later change — `DI.03` bound, `DI.02` unbound:
 
 `DI.01` lists `directSwitch` in `unbound`: an `optional()` field (§3.3) this binding didn't supply. The kind still describes it; this device just doesn't have it — 05 §2's "no value yet" rule extended to a field that may never exist for this device at all. A change never removes a kind; a kind no `DeviceRef` points to is harmless. A device with a single `'@'` field — 06's `get`, say — is the same shape, with one key in its kind's `fields`.
 
-`shape`, `subscribe`, and `effect` travel on the wire alongside `schema`, not just its declarative data — enough of an `EndpointType`'s own contract to route a request correctly from the wire alone: a browser UI or third-party API client that never imported this plugin's package has no other way to get it. `Codec` itself — the actual `decode`/`encode`/`validate` — stays behind: a function genuinely cannot cross this boundary; only its declarative twin, `schema`, does (03a §2).
+`shape`, `subscribe`, `effect` and `access` travel on the wire alongside `schema`, not just its declarative data — enough of an `EndpointType`'s own contract to route a request correctly from the wire alone: a browser UI or third-party API client that never imported this plugin's package has no other way to get it. `Codec` itself — the actual `decode`/`encode`/`validate` — stays behind: a function genuinely cannot cross this boundary; only its declarative twin, `schema`, does (03a §2).
 
 This isn't a wire-only normalization — `bindDevice()` (§3.5) is the only way to bind anything at all, so `$introspect`'s single `devices[]` list follows directly from what's actually bound, rather than needing to reconcile two binding primitives into one shape.
 
@@ -615,7 +650,8 @@ Tier 1 (unit; `basics/03-Testing.md`), against `driver-kit`'s own fixtures — a
 - Wildcard resolution (§6): a `DI.*` subscription picks up a fixture endpoint added after subscribing (a topology-generation bump) and drops one removed, with no re-subscribe from the caller.
 - `bindDevice()`'s checks (§3.5): a fixture `DeviceType` whose own `kind` isn't in the device manifest is fatal at `bindDevice()`, before `attach()`; independently, a fixture `DeviceType` whose exported `kind` disagrees with its manifest entry's `deviceKind` is fatal; a duplicate `tail` is fatal independently of either; binding a second, different `DeviceType` object under a `kind` already bound in this driver is fatal.
 - `resolveDeviceKind()` (§3.5): resolves a fixture `deviceKind` string to the same `DeviceType` a direct import of that fixture would give, and the result binds identically either way; a second call for the same `deviceKind` returns the memoized value, asserted by the fixture's own load-side-effect counter staying at 1; an unregistered `deviceKind` rejects, naming it, before `bindDevice()` ever runs.
-- Introspection payload (§4): `$introspect` on a fixture driver returns `{driverId, driverTypeName, type: 'driver-kit', form: 'full', generation, kinds, devices}`; each kind appears once in `kinds` however many devices use it; each `KindEntry` lists every declared field, `optional()` ones included; each `FieldEntry` is exactly `shape`/`subscribe`/`effect?`/`schema`/`setSchema?`/`argsSchema?`/`proof?`; a device that leaves an `optional()` field unbound lists it in `unbound`; a fixture device with a single `'@'` field still appears as an ordinary `DeviceRef` — assert `codec`/`setCodec`/`argsCodec`/`resultCodec` themselves never leak onto the wire, only their serializable counterparts do.
+- Introspection payload (§4): `$introspect` on a fixture driver returns `{driverId, driverTypeName, type: 'driver-kit', form: 'full', generation, kinds, devices}`; each kind appears once in `kinds` however many devices use it; each `KindEntry` lists every declared field, `optional()` ones included; each `FieldEntry` is exactly `shape`/`subscribe`/`effect?`/`schema`/`setSchema?`/`argsSchema?`/`access?`; a device that leaves an `optional()` field unbound lists it in `unbound`; a fixture device with a single `'@'` field still appears as an ordinary `DeviceRef` — assert `codec`/`setCodec`/`argsCodec`/`resultCodec` themselves never leak onto the wire, only their serializable counterparts do.
+- Access marks (§3.1b): a field whose type declares no `access` has no `access` in its `FieldEntry`; one that declares marks carries exactly those keys, defaults never filled in; a fixture driver answers the same call the same way with and without marks.
 - Change log (§3.8): each `bindDevice`/`unbindDevice` raises `n` by one and emits a `DriverKitChange` whose `from` is the previous generation; `GET` with `since` inside the last 16 changes answers one merged `change` (bind then unbind of one tail → `null`); `since` 17 changes back, or with another epoch, answers `full`; a `change` carries a `KindEntry` only for a kind first bound after `from`; `options.since` on another address or method, or malformed, is `bad-payload`.
 - `RejectedPayload` (§3.5): a fixture `onSet` throwing it answers `bad-payload`, never `internal-error`; a fixture `onSet` throwing `SourceUnreachable` answers `unreachable`; any other thrown error from `onGet`/`onSet` still answers `internal-error`, unchanged.
 - `DeviceType`/`bindDevice` (§3.3/§3.5): a `primitive`/`array`-shaped `@` declared alongside any sibling field is rejected when the `DeviceType` is built, before any driver binds it; a required field missing from `bindDevice`'s `handlers` is fatal, while the same `DeviceType` binds successfully with only some `optional()` fields supplied; a second `bindDevice()` whose tail falls inside an already-bound device's namespace, outside its declared fields, is fatal; every field handle in one `bindDevice()` call's `BoundDevice` is independently addressable, and `unbindDevice`ing the device's own tail doesn't silently leave a sibling field bound.

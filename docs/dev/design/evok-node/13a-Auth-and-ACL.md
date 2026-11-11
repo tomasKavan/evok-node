@@ -29,6 +29,7 @@ Two situations:
 
 - **Optional per api.** An api binds to it through plugins — WS extensions (13 §2) for apis on `ws-kit`. An api whose protocol has its own auth model keeps it (Matter fabrics, 16a); delivering a secured service is that api's own job (13 §5).
 - **Role-based.** Roles are assigned to users and groups. Parametric roles are preferred — role `tenant`, parameter `flat 3`. Plain roles are acceptable if parameters do not fit.
+- **Privileges come from the types.** `view < operate < manage < administer`, and what each operation needs, are the types' access marks (05a §3.1b). 13a holds who has which privilege where; it never redefines a mark.
 - **Levels.** A session can have several authentication levels; a resource can require one. `DoorLock.unlock` needs biometry or a PIN (12c-09 §1.2).
 
 **Replica**

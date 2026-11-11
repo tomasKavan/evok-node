@@ -110,13 +110,23 @@ interface Actor {
 Values.actor(): ValueType<Actor | undefined>   // an optional struct member, schema annotated `actor: true` (03a §4)
 
 // a method that needs the user and proof — 12c-09
-unlock: method('mutates', Values.void, Values.struct({ by: Values.actor() }), { errorKinds: ['blocked'], proof: true }),
+unlock: method('mutates', Values.void, Values.struct({ by: Values.actor() }), { errorKinds: ['blocked'], access: { proof: true } }),
 ```
 
 | Annotation | On | The api |
 |---|---|---|
 | `actor` | a struct member of a method's arguments | **always overwrites it** with its own caller: realm and user; or removes it. What the client sent there is never relayed. |
-| `proof` | a method (`MethodType`, 05a §3.1) | gets the extra proof its auth asks for (13a: a PIN, a confirmation) before relaying; an api that cannot obtain proof refuses the call |
+| `access.proof` | a channel's SET or a method (05a §3.1b) | gets the extra proof its auth asks for (13a: a PIN, a confirmation) before relaying; an api that cannot obtain proof refuses the call |
+| `access` privileges | any operation (05a §3.1b) | uses them if it wishes, as the type wrote them — below |
+
+**Access privileges are input, not a rule.** Each api decides whether it uses them:
+
+| Api | Uses the privilege marks |
+|---|---|
+| Home API (18) | yes, as written — no override |
+| WS API (15) | open — M3.8 |
+| Matter bridge (16a) | no — Matter's own ACL and cluster spec |
+| an API plugin | its own choice |
 
 | Caller | `actor` reaches the driver as |
 |---|---|
@@ -128,7 +138,7 @@ unlock: method('mutates', Values.void, Values.struct({ by: Values.actor() }), { 
 
 A driver forwarding the call passes the argument on as it got it — 12c-09's `lock-from-2n` hands `by` to the 2N driver's `grantaccess`, whose argument is annotated `actor` too. A driver that maps users accepts only realms it knows (12e maps `idp`).
 
-For a relay api, `actor` and `proof` are handled by WS extensions (15): the auth extension knows the session's user, the ACL extension reacts to `proof`.
+For a relay api, `actor` and `proof` are handled by WS extensions (15): the auth extension knows the session's user, the ACL extension reacts to `access`.
 
 ## 6. Consuming drivers
 
@@ -253,7 +263,7 @@ const sourceOf = (ctx, d) => ({
 |---|---|
 | Build the projection from introspection (§6) | switch on `kind` in a generic api |
 | One internal subscription per address, fan out | cache values for clients |
-| Overwrite `actor`, honour `proof` (§5) | relay what a client put in an `actor` member |
+| Overwrite `actor`, honour `access.proof` (§5) | relay what a client put in an `actor` member |
 | Map errors; keep `internal-error` inside (§8) | send tails or stacks in errors |
 | Log with 04's logger | retry writes |
 | Reach drivers only through `ctx.messaging` | open a driver's resource yourself (01 §7) |
@@ -264,7 +274,7 @@ MQTT is an example here, not a shipped package.
 
 Tier 1 (basics/03), with fixture drivers from 03 §12:
 
-- **Gate:** a client value in an `actor` member never reaches the fixture; a `proof` method without proof never reaches it.
+- **Gate:** a client value in an `actor` member never reaches the fixture; an operation marked `proof` without proof never reaches it; an api that uses the privilege marks refuses a call below the mark.
 - **Loss and return:** kill the fixture worker — clients see down; respawn — clients see up and a fresh value per subscription; a write in flight is not re-sent.
 - **Errors:** `internal-error` leaves with a reference only; the log holds the detail under it.
 - **Unknown driver:** a linked driver of an unknown introspection `type` is skipped, the api starts.

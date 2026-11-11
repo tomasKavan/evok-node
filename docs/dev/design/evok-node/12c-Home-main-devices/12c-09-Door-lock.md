@@ -41,7 +41,7 @@ Every `lock` and `unlock` records who did it in `lastOperation`:
 
 - **The caller comes as `by`**, an `actor` argument of `lock` and `unlock` (13 §5). The api always overwrites it with its own caller, so no client can name someone else. `lastOperation.user` is `by.id` and `by.name`.
 - **Source from `by`:** realm `matter` → `matter`; any other realm → `app`; no `by` → `rule`.
-- **`unlock` is marked `proof`** (13 §5): the api gets proof before it relays the call. What the proof is — a confirmation by a logged-in user, a PIN the identity provider resolves to a user — is 13a's. The device trusts the call it gets.
+- **`unlock` is marked `access.proof`** (05a §3.1b, 13 §5): the api gets proof before it relays the call. What the proof is — a confirmation by a logged-in user, a PIN the identity provider resolves to a user — is 13a's. The device trusts the call it gets.
 - Opened at the lock — a 2N keypad, card, exit button — the source and user come from the source (§3.2).
 
 **Open:** what `proof` asks of a caller — M3.6 (13a).
@@ -89,7 +89,7 @@ export const DoorLock = device('home.DoorLock', {
   lastOperation: reading(LockOperation, { subscribe: true }),
   alarm:         reading(LockAlarm, { subscribe: true }),
   behavior:      reading(LockBehavior, { subscribe: true }),
-  unlock:        method('mutates', Values.void, Values.struct({ by: Values.actor() }), { errorKinds: ['blocked'], proof: true }),   // 13 §5
+  unlock:        method('mutates', Values.void, Values.struct({ by: Values.actor() }), { errorKinds: ['blocked'], access: { proof: true } }),   // 05a §3.1b, 13 §5
   lock:          method('mutates', Values.void, Values.struct({ by: Values.actor() })),
 });
 ```

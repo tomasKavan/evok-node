@@ -36,4 +36,5 @@
 [`STATUS.md`](../../plan/STATUS.md), the undeclared-workspace-edges open question
 
 **Open:** `client → api-nextgen` versus a separate `schema-nextgen` package, and the deferred auth
-mechanism.
+mechanism. Whether and how it uses the access marks (05a §3.1b, 13 §5) — leaning: yes, with client
+profiles that may only ask for more (the Inspector: `administer` on everything).
