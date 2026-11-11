@@ -16,7 +16,7 @@ Global config is small: which drivers and apis exist, plus main's own operationa
 
 The one property at this level that is not a driver or an api is `main:` — main's own settings: `logging` ([04 §3](04-Common-services.md#3-logging)), `dynamicConfig` and `keepRevisions` (§3a), `bootstrap` (02a). It is optional, and only the static file holds it; absent, `main` logs to stdout/journald only, at `info`, and runs on the static file alone.
 
-`drivers:` and `apis:` are maps keyed by id. The key is the instance's **identity** — the thing reload compares old and new config on (§5). An id is not a device address and not a display name; renaming one is deletion plus creation, not a rename, and anything keyed on that id (the KV-store driver's default namespace, per 06) goes with it. `main` and `bootstrap` are reserved (02a): an entry with either id is a configuration error.
+`drivers:` and `apis:` are maps keyed by id. The key is the instance's **identity** — the thing reload compares old and new config on (§5). An id is not a device address and not a display name; renaming one is deletion plus creation, not a rename, and anything keyed on that id (the KV-store driver's default namespace, per 06) goes with it. `main` and `bootstrap` are reserved (02a): an entry with either as its id or its `type` is a configuration error.
 
 Every instance, driver or api, carries one property `main` itself understands beyond its id: `run`, the placement (01 §3) — `worker_thread` or `child_process`, defaulting to `worker_thread`. An api carries one more: `drivers`, the driver ids it links to (03 §8) — standardized at this level because 01 §9 states it as a rule for every api, not a per-api convention. `drivers` is a list; `'*'` in it stands for every driver in the merged config except `main`, which is linked only by name (03 §8). A driver's equivalent is never a generic key here; it comes from that driver's own descriptor (§4, 03 §8), because what it needs to say alongside a peer's id is the driver's own business. Everything else under an instance's key is that module's own schema, validated by that module's own rules (§5), never `main`'s.
 
@@ -37,10 +37,10 @@ drivers:
     # ... driver-extension's own schema
 
 apis:
-  next:
-    type: nextgen
+  ws:
+    type: ws
     drivers: ['*', main]        # every driver, and the main driver by name — 03 §8
-    # ... api-nextgen's own schema
+    # ... api-ws's own schema
 ```
 
 `type` names an entry in the manifest (§4); it is the one key every instance has beyond its id, `run`, and its own schema.
@@ -62,7 +62,7 @@ apis:
 ```
 
 ```yaml
-# /var/lib/evok-node/config.dynamic.yaml — written only by the main driver (02a)
+# /var/lib/evok-node/config.dynamic.yaml — written only by main, when the main driver applies a change (02a §3.1)
 revision: 42
 drivers:
   PLC: { type: onboard, source: autogen }
@@ -83,7 +83,7 @@ The dynamic file's own rules — revisions, secrets, write order, where the file
 
 **A module is two exports:** a `ModuleDescriptor`, and the `ModuleInstance` type it produces. Neither belongs to `main`'s source — `main` only ever sees them after resolving a `type` name through the manifest, below.
 
-`Config` is always plain, JSON-shaped data — strings, numbers, booleans, null, arrays, plain objects, nothing else. This is not an extra rule to remember; it falls out of where `Config` comes from. It is the result of parsing YAML and decoding it through the module's own `ValueType` (03a, §5), and YAML's value model is exactly JSON's.
+A module's config travels as its **body**: plain, JSON-shaped data — strings, numbers, booleans, null, arrays, plain objects, nothing else — because it comes from YAML, whose value model is exactly JSON's. `Config` is that body decoded through the module's own `ValueType` (03a, §5), so it may hold what decode makes of it — a `bigint`, a `Date`, bytes. Only the body crosses to an instance; the instance's side decodes it again with the same descriptor (§6).
 
 ```ts
 // One instance's own config — illustrative. Plain data throughout; the TS type is inferred.
@@ -307,7 +307,7 @@ Startup is one sequence, run once, in order:
 
    Two value types, each owning exactly its own keys — the head `main`'s, the body the module's — never one merged one. `main` never sees what is inside `body` beyond its issues. In a dynamic entry, a `sensitive` member holds a secret ref; `main` puts the stored value in its place before this step (02a). For a driver, its declared links come from that parsed `config` itself — `module.descriptor.declaredLinks?.(config)` (03 §8) — never from a key `main` reads directly, the way an api's `drivers` list already was.
 
-5. **Resolve cross-instance concerns** no single module can see on its own (§7) — merging the two files (§3a), where an id in both is an issue on the dynamic entry; expanding every api's `'*'` (03 §8); assembling the full `instanceId → DriverId[]` link topology from every api's `drivers` and every driver's `declaredLinks`, and validating it (03 §8): every referenced id exists in `drivers:`, and a cycle is fatal.
+5. **Resolve cross-instance concerns** no single module can see on its own (§7) — merging the two files (§3a), where an id in both is an issue on the dynamic entry; expanding every api's `'*'` (03 §8); assembling the full `instanceId → DriverId[]` link topology from every api's `drivers` and every driver's `declaredLinks`, and validating it (03 §8): every referenced id exists in `drivers:` or is `main` (02a), and a cycle is fatal.
 6. **Spawn, configure, start — three passes, not one.** For every instance: `runnerFactory.spawn(module.descriptor, id, type, run, links, pluginManifest)` — `pluginManifest` is the whole `kind → id → {path, export}` table from step 1, every non-`driver`/`api` kind, identical for every instance (§4, §6). Once every instance is spawned: `runner.configure(config)` for every instance, awaiting all of them. Only once every instance is configured: `runner.start()` for every instance (§6, 03 §9). The `main` driver is always one of them, and the bootstrap api one more when `main.bootstrap.enabled` is not `off`; neither is an entry in either file (02a).
 
 Every failure from step 1 through 5 in the manifest or the static file is fatal at startup — a bad manifest, a config file that does not parse, a `type` with no manifest entry, an instance body that fails its own module's value type or rules. None of these degrade; the daemon does not start on any of them. This is deliberately one failure class, whether the mistake is in the manifest or in the config: both mean "this cannot possibly run," never "this runs in a reduced way."
@@ -317,14 +317,15 @@ Every failure from step 1 through 5 in the manifest or the static file is fatal 
 | Fails at startup | Result |
 |---|---|
 | the dynamic file does not parse | every dynamic entry is left out |
-| a dynamic entry: unknown `type`, an issue in its body or rules, an id the static file also has, a link to an id nowhere in config, a cycle | that entry is left out |
-| an entry linking to a left-out driver | starts; the link stays down (03 §10), as if that driver had crashed |
+| a dynamic entry: unknown `type`, an issue in its body or rules, an id the static file also has, a link to an id in neither file, a cycle | that entry is left out |
+| a dynamic entry linking to a left-out driver | starts; the link stays down (03 §10), as if that driver had crashed |
+| a static entry linking to a driver the dynamic part does not deliver — file missing, not parsing, or that driver left out | fatal: a static-file error, as above |
 
-A left-out entry is not spawned and not part of the current config: the `main` driver reports it with its issues, and a later reload that brings it back valid adds it (02a). Reload itself never leaves anything out (§5.1).
+A left-out entry stays in its file, and `main:config` shows it with its issues (02a §2.3); it is only not spawned. Leaving one out never leaves another out. A reload that finds it valid adds it like a new entry; one that does not touch it leaves it out (§5.1).
 
 ### 5.1. Reload
 
-**Reload repeats steps 2 through 5 against the files as they are now.** It is triggered by `systemctl reload` (basics/01 §3.2), or by the `main` driver right after it wrote the dynamic file (02a). A failure anywhere in those steps — a file no longer parses, an instance's body no longer fits its module's schema — rejects the reload outright: a caught, handled decision, not a thrown exception that could take `main` down. Every running instance is left exactly as it was; reload either replaces the whole config or changes nothing, never partially.
+**Reload repeats steps 2 through 5 against the files as they are now.** It is triggered by `systemctl reload` (basics/01 §3.2), or by an apply through the `main` driver, right after `main` wrote the dynamic file (02a §3.1). A failure anywhere in those steps — a file no longer parses, an instance's body no longer fits its module's schema — rejects the reload outright: a caught, handled decision, not a thrown exception that could take `main` down. Every running instance is left exactly as it was; reload either replaces the whole config or changes nothing, never partially. **One exception: an entry already left out (§5) and not changed by this reload stays left out** and does not reject it; every entry the reload adds or changes must be valid.
 
 Once steps 2 through 5 succeed, the new config **is** current — from here on `main` compares against it, whatever happens next to any individual instance. Applying it to the running instances is two rounds, not one, run as a barrier: every id's prepare completes before any id's commit begins. This is what keeps two drivers exchanging a shared transport safe — whichever one is giving it up has released it in prepare, before the one gaining it can acquire anything in commit, and `main` never has to know the two are related to get that ordering right.
 
@@ -332,7 +333,7 @@ Once steps 2 through 5 succeed, the new config **is** current — from here on `
 
 - **absent from the new config** (removed) → `runner.stop()`. Its resources are gone; nothing about it survives into commit.
 - **present in both, `isConfigEqual` true, same resolved links** → untouched. Not part of this reload at all.
-- **present in both, `isConfigEqual` true, resolved links changed** (links-only: an api with `'*'`, a driver added or removed) → the runner closes the links no longer needed; the instance itself is untouched.
+- **present in both, `isConfigEqual` true, resolved links changed** (links-only: an api with `'*'`, a driver added or removed) → `runner.relink(links, 'prepare')` closes the links no longer needed; the instance itself is untouched.
 - **present in both, `isConfigEqual` false** → `runner.prepareReload(newConfig)` (§6). What that actually does is the runner's decision, not `main`'s: call the instance's own `prepareReload` if it has one, do nothing yet if it only has `reload`, or stop it outright if it has neither — three different outcomes behind one call.
 - **absent from the old config** (added) → untouched here; it has nothing to release yet.
 
@@ -340,10 +341,12 @@ Once steps 2 through 5 succeed, the new config **is** current — from here on `
 
 - **added** → `runnerFactory.spawn` then `runner.configure(newConfig)` and `runner.start()`.
 - **changed** → `runner.commitReload(newConfig)` (§6): reloads the instance in place if it survived prepare, or constructs and starts a fresh one if prepare stopped it.
-- **links-only** → the runner opens the new links; the instance learns of both through `onLink` (03 §4), with no `reload`.
+- **links-only** → `runner.relink(links, 'commit')` opens the new links; the instance learns of both through `onLink` (03 §4), with no `reload`.
 - **removed or unchanged** → nothing further.
 
 Link topology is diffed alongside config, for the same ids: `prepareReload` also closes whatever the new topology no longer needs for that id — the same "releases what nextConfig won't need" job it already has for anything else a module gives up (03 §9) — and `commitReload` opens whatever it newly needs, before calling the module's own `reload`. §8.5's `computeReloadPlan` grows the matching diff: for a changed id, old `declaredLinks`/`drivers` against new — empty whenever `isConfigEqual` is true for a declared list, since both are pure functions of `Config`. `'*'` is the exception: it follows the set of drivers, which is what the links-only bucket is for.
+
+**`main:` on reload.** `logging` and `keepRevisions` take effect at once. `bootstrap` is in the plan like an instance: added, removed or changed with `main.bootstrap`. A changed `dynamicConfig` takes effect only at the next daemon restart; until then `main:config` carries an issue saying so (02a §2.4).
 
 A `start()` that rejects during commit — the config was valid, but the instance still could not come up — is accepted, not retried: `main` logs it and moves on to every other id in the batch. That instance is simply not running, current config or not, until the next reload or an explicit restart gives `start()` another chance. Being graceful under `start()` is the module's own responsibility; `main` does not compensate for it, the same way it does not retry a driver's own "device unreachable."
 
@@ -367,6 +370,8 @@ interface Runner<Config> {
   // main only ever makes these two calls, never a branch on what the instance supports.
   prepareReload(config: Config): Promise<void>;
   commitReload(config: Config): Promise<void>;
+  // Links-only (§5.1): 'prepare' closes what `links` no longer holds, 'commit' opens what is new.
+  relink(links: readonly DriverId[], phase: 'prepare' | 'commit'): Promise<void>;
   stop(): Promise<void>;
 }
 
@@ -384,7 +389,7 @@ interface RunnerFactory {
 
 What `spawn` actually does is the one place placement matters — and now that only two placements exist, both share one description with a single difference at the bottom. `config` reaches an instance only through `configure`, never through `spawn` — `createInstance` takes just `ctx` (02 §4), so `ctx` (including its messaging handle, wired from `links`, and the plugin manifest above) has to exist before construction, not after.
 
-`spawn` starts the hosting environment — a `worker_threads.Worker` for `worker_thread`, a forked process for `child_process` — running a small bootstrap, code living in `main`'s own package, never the module's, and attaches an `'error'`/`'exit'` listener to it (03 §11 — this is how `main` finds out about a crash it didn't ask for). The bootstrap receives `{ descriptor, id, typeName, links, pluginManifest }` over `postMessage` (worker) or the fork's IPC channel (child process) — `descriptor` still the manifest's string, not yet resolved — resolves it to a `ModuleDefinition` through its own `PluginRegistry` (§4, the same mechanism, running inside the worker/child, built from `pluginManifest` plus its own `kind: 'driver'`/`'api'` lookup), wires its own `ctx` — including `ctx.plugins`, that same `PluginRegistry` (03 §9) — from `links` and `pluginManifest` (binding whatever socket 03 §10 says it needs), and constructs the `ModuleInstance` there. Every subsequent `Runner` method sends a message and awaits the matching reply; `Config` and the lifecycle results cross as structured-clone-safe data (§4), first at `configure`, never at `spawn`. Only the underlying transport differs between the two — `postMessage` versus the fork's IPC — the bootstrap and resolution step are otherwise identical.
+`spawn` starts the hosting environment — a `worker_threads.Worker` for `worker_thread`, a forked process for `child_process` — running a small bootstrap, code living in `main`'s own package, never the module's, and attaches an `'error'`/`'exit'` listener to it (03 §11 — this is how `main` finds out about a crash it didn't ask for). The bootstrap receives `{ descriptor, id, typeName, links, pluginManifest }` over `postMessage` (worker) or the fork's IPC channel (child process) — `descriptor` still the manifest's string, not yet resolved — resolves it to a `ModuleDefinition` through its own `PluginRegistry` (§4, the same mechanism, running inside the worker/child, built from `pluginManifest` plus its own `kind: 'driver'`/`'api'` lookup), wires its own `ctx` — including `ctx.plugins`, that same `PluginRegistry` (03 §9) — from `links` and `pluginManifest` (binding whatever socket 03 §10 says it needs), and constructs the `ModuleInstance` there. Every subsequent `Runner` method sends a message and awaits the matching reply; The checked body and the lifecycle results cross as plain data (§4), first at `configure`, never at `spawn`; the bootstrap decodes the body to `Config` before calling the instance. Only the underlying transport differs between the two — `postMessage` versus the fork's IPC — the bootstrap and resolution step are otherwise identical.
 
 `main` sequences every instance's `configure` before any instance's `start` (§5, 03 §9) — the runner itself no longer chains the two, that ordering is main's own barrier now. `stop()` sequences `instance.drain()` → `instance.stop()`: drain tells the instance to stop taking on new work so anything in flight can finish, then stop releases the underlying resources. This sequencing happens inside the bootstrap, not as separate round-trips.
 
@@ -438,7 +443,7 @@ Manifest-root injection: `assembleManifest(rootDir?)` takes the fixture director
 
 Fixtures under `packages/main/tests/fixtures/config/*.yaml`, one issue per file, each targeting one step of §5: `valid.yaml`; `invalid-yaml.yaml`; `bad-skeleton-*.yaml` (bad id / missing `type` / bad `run`); `unknown-type.yaml`; `module-body-invalid.yaml` (body fails `module-ok`'s own value type); `module-rule-fails.yaml` (`module-ok`'s rule); `reserved-id.yaml` (`main`, `bootstrap`); `unknown-top-level.yaml`. Every fixture's test asserts the specific cause, even though §5 treats all of them as one failure class.
 
-Static and dynamic, each a pair of files (§3a): `dynamic-valid` (merged as expected); `dynamic-unparsable` (static instances start, every dynamic one is left out); `dynamic-entry-invalid` (only that entry is left out, the rest start); `dynamic-id-collision` (the dynamic entry is left out, the static one starts); `dynamic-link-to-left-out` (the linking entry starts with that link down); `star-links` (`'*'` expands to every driver but `main`; `main` only by name); `dynamic-off` (the dynamic file is never read).
+Static and dynamic, each a pair of files (§3a): `dynamic-valid` (merged as expected); `dynamic-unparsable` (static instances start, every dynamic one is left out); `dynamic-entry-invalid` (only that entry is left out, the rest start); `dynamic-id-collision` (the dynamic entry is left out, the static one starts); `dynamic-link-to-left-out` (the linking entry starts with that link down); `star-links` (`'*'` expands to every driver but `main`; `main` only by name); `dynamic-off` (the dynamic file is never read); `static-links-dynamic` (a static link to a driver the dynamic part does not deliver is fatal).
 
 ### 8.5. Config equality and the reload plan
 
@@ -462,4 +467,6 @@ Using a spy `RunnerFactory` — no real threads; real placement is already cover
 - An instance stopped in prepare is freshly spawned in commit.
 - A config failing parse/schema touches zero runners.
 - A links-only instance never sees `prepareReload`/`reload`; its `onLink` fires for each link closed and opened.
+- A left-out entry the reload does not change stays left out and does not reject it; a changed entry that is invalid rejects the whole reload.
+- `main.bootstrap` changed: bootstrap is added, removed or reloaded; `dynamicConfig` changed: nothing moves, `main:config` carries `restart-needed`.
 - One id's `start()` failing during commit doesn't affect siblings or reject the reload as a whole.

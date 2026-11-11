@@ -18,7 +18,7 @@
   **deliberately deferred** (G-2 defers ports, paths and authentication; the deferral is tracked in
   [`STATUS.md`](../../plan/STATUS.md)) — so state what ACL assumes of it and nothing more.
 - **Serving the inspector UI** at the root.
-- **Its own config:** `listen`, `tls`, `publicUrl`. Bootstrap creates a ws api with them (02a §6.3); the SPA derives its URL from them (02a §7).
+- **Its own config:** `listen` (with `tls`, 13 §9) and `publicUrl`. Bootstrap creates a ws api with them (02a §6.3); the SPA derives its URL from them (02a §7).
 - **The hello carries `apiId`**, so the SPA knows which api it is connected to and warns before a change reloads it (02a §7).
 - **evok-node as a client of evok-node.** A home driver imports another PLC's devices over
   this api (12a §4b). Its authentication — PLC to PLC, no human in the loop — is part of this api's

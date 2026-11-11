@@ -32,7 +32,7 @@ type PrimitiveFormat =
   | 'int8' | 'int16' | 'int32' | 'int64'
   | 'uint8' | 'uint16' | 'uint32' | 'uint64'
   | 'float32' | 'float64'
-  | 'timestamp'          // uint32 epoch seconds on the wire — same convention as readAt below — decodes to Date
+  | 'timestamp'          // uint32 epoch seconds on the wire — a reading's readAt convention (05a §4) — decodes to Date
   | 'tlv8' | 'json'      // json is the closed vocabulary's own escape hatch — 06 is the first user
   | 'text'               // a LocalizedText value (04 §7), resolved to one language at the edge (15) — §4
   | 'schema';            // a ValueSchema value, e.g. a template's form (12a §2.4) — §4
@@ -168,14 +168,14 @@ interface Issue {
   readonly path: readonly (string | number)[];   // [] — the value itself; ['transport', 'port']; ['devices', 0, 'unit']
   readonly code: IssueCode;
   readonly message: LocalizedText;               // module-sdk ships one per code; a 'rule' issue brings its own
-  readonly rule?: string;                        // code 'rule' only: the rule's id, e.g. 'not-with-autogen'
+  readonly rule?: string;                        // code 'rule' only: the rule's id, e.g. 'scan-faster-than-timeout'
 }
 
 type IssueCode =
   | 'required' | 'type' | 'union-tag'                       // shape — always checked
   | 'unknown-field'                                         // only when binding (§5.1)
   | 'min' | 'max' | 'max-length' | 'pattern' | 'enum'       // limits — only when binding (§5.1)
-  | 'sensitive-missing'                                     // a secret ref with no stored value — 02a
+  | 'sensitive-missing'                                     // main's, never checkValue's: a ref with no stored value — 02a §4
   | 'rule';                                                 // ModuleDescriptor.rules (02 §4), main's cross-instance checks (02a §2.4)
 ```
 
@@ -183,6 +183,7 @@ type IssueCode =
 - **Every issue at once**, never only the first: a form marks every wrong field.
 - **A format's own range is shape.** `70000` for a `uint16` is `max` in both modes — the format cannot hold it.
 - **Unknown struct fields are an issue when binding**: a typo in config (`scna:` for `scan:`) never passes silently. Advisory leaves them alone.
+- **A secret ref passes.** In a `sensitive` member, a ref `{ $secret: string }` (02a §4) is accepted in place of the value, with no limits applied. `main` puts the stored value in place before it checks a body, so the real value is checked there; a ref that does not resolve is `main`'s `sensitive-missing`.
 - `Codec.validate(wire)` is `checkValue(schema, wire).length === 0` — advisory.
 
 ```yaml
@@ -209,7 +210,7 @@ checkValue(schema, body, { limits: 'binding' }) → [
 
 ```
 inspector form, every edit        checkValue(schema, draft, { limits: 'binding' })     no round trip
-main driver validate (02a)         checkValue → decode → rules(config) → main's cross-instance checks (02 §5)
+validate, apply (02a §3.1)         main: refs resolved → checkValue → decode → rules(config) → cross-instance checks (02 §5)
 main at startup (02 §5)            the same chain
 driver-kit, SET/CALL payload       checkValue(schema, payload) → bad-payload (05a §3.5)
 ```

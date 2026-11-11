@@ -256,7 +256,7 @@ Pure and synchronous, callable by `main` on a parsed `Config` before any instanc
 
 An api's `drivers:` may hold `'*'`: every driver in the merged config (02 §3a) except `main`, which an api links only by name — `drivers: ['*', main]`. A driver's `declaredLinks` never holds `'*'`. `main` expands it before the graph below is assembled, so the graph holds concrete ids only. Because `'*'` follows the set of drivers, adding or removing one changes the links of every `'*'` api without changing its config — 02 §5.1's links-only bucket.
 
-`main` assembles the full `instanceId → DriverId[]` graph while resolving cross-instance concerns (02 §5, §7): every referenced id must exist in `drivers:`, and a cycle is fatal at parse — a genuine mutual dependency between two drivers' own transports is a configuration mistake, not something the runtime should have to survive. Link existence is consumer-declared; whether a driver needs a *listening* socket at all (§10) is inferred by `main` from the reverse edges of this same graph, never declared by the driver being depended on.
+`main` assembles the full `instanceId → DriverId[]` graph while resolving cross-instance concerns (02 §5, §7): every referenced id must exist in `drivers:` or be `main` (02a), and a cycle is fatal at parse — a genuine mutual dependency between two drivers' own transports is a configuration mistake, not something the runtime should have to survive. Link existence is consumer-declared; whether a driver needs a *listening* socket at all (§10) is inferred by `main` from the reverse edges of this same graph, never declared by the driver being depended on.
 
 ## 9. `InstanceContext` and the runner
 
@@ -346,6 +346,7 @@ async function reload(newConfig: ConfigById): Promise<void> {
   await Promise.all([
     ...plan.removed.map(id => runners[id].stop()),
     ...plan.changed.map(id => runners[id].prepareReload(newConfig[id])),   // closes stale links
+    ...plan.linksOnly.map(id => runners[id].relink(plan.links[id], 'prepare')),   // '*' changed, config did not — 02 §5.1
   ]);   // barrier: every prepare/stop above resolves before any commit below starts
 
   await Promise.all([
@@ -356,6 +357,7 @@ async function reload(newConfig: ConfigById): Promise<void> {
       runners[id] = r;
     }),
     ...plan.changed.map(id => runners[id].commitReload(newConfig[id])),    // opens new links, then reload
+    ...plan.linksOnly.map(id => runners[id].relink(plan.links[id], 'commit')),    // opens new links; onLink, no reload
   ]);
 }
 

@@ -24,11 +24,12 @@ interface MainControl {
   onChange(cb: (s: ControlSnapshot) => void): void;                         // config, runner states, reload progress
   validate(candidate: DynamicFile): Promise<{ issues: Issue[]; plan: ReloadPlan }>;   // 02 §5 steps 3–5, nothing touched
   apply(candidate: DynamicFile, baseRevision: number): Promise<ApplyResult>;          // §3.1
-  restart(id: Id): Promise<void>;
+  restart(key: InstanceKey): Promise<void>;
   reload(): Promise<void>;                                                  // the same as systemctl reload
 }
 
 type DynamicFile = { revision: number; drivers: Record<Id, Entry>; apis: Record<Id, Entry> };
+type InstanceKey = `drivers.${string}` | `apis.${string}`;   // as in config paths — a driver and an api may share an id (06 §2)
 type Entry = { type: string; run?: Placement; drivers?: readonly string[]; [body: string]: Value };   // head + body, 02 §5 step 3
 ```
 
@@ -44,7 +45,7 @@ config: {
   revision: number;                                   // the dynamic file's; 0 without one
   drivers: Record<Id, EntryView>;
   apis:    Record<Id, EntryView>;
-  issues:  readonly Issue[];                          // paths start at ['drivers' | 'apis', id]; left-out entries' issues too (02 §5)
+  issues:  readonly Issue[];                          // paths start at ['drivers' | 'apis', id] or ['main', …]; ['static'] or ['dynamic'] for a file that does not parse
   reload?: ReloadProgress;                            // the last or the running apply or reload — §3.2
 }
 type EntryView = {
@@ -55,7 +56,7 @@ type EntryView = {
 
 instances: readonly InstanceInfo[];
 type InstanceInfo = {
-  id: Id; kind: 'driver' | 'api'; type: string;
+  key: InstanceKey; id: Id; kind: 'driver' | 'api'; type: string;
   source: 'static' | 'dynamic' | 'builtin';           // builtin: main, bootstrap
   placement: Placement;
   state: 'not-started' | 'running' | 'stopping' | 'stopped' | 'failed';   // the runner's own (02 §6)
@@ -82,7 +83,7 @@ type PackageInfo = {
 | `apply` | `mutates` | `Changeset` | `ApplyResult` | `static-config`, `conflict`, `busy` |
 | `revisions` | `none` | — | `{ revision, at: Date }[]` | `static-config` |
 | `rollback` | `mutates` | `{ revision, baseRevision }` | `ApplyResult` | `unknown-revision`, and `apply`'s |
-| `restart` | `mutates` | `{ id }` | void | `unknown-instance` |
+| `restart` | `mutates` | `{ key }` | void | `unknown-instance` |
 | `reload` | `mutates` | — | void | `busy` |
 
 ```ts
@@ -91,16 +92,17 @@ type Changeset = {
   drivers?: { set?: Record<Id, Entry>; remove?: readonly Id[] };
   apis?:    { set?: Record<Id, Entry>; remove?: readonly Id[] };
 };
-type ReloadPlan  = Record<Id, 'start' | 'stop' | 'change' | 'links'>;   // 02 §5.1's buckets; unchanged ids absent
+type ReloadPlan  = Record<InstanceKey, 'start' | 'stop' | 'change' | 'links'>;   // 02 §5.1's buckets; unchanged instances absent
 type ApplyResult =
   | { outcome: 'applied'; revision: number; plan: ReloadPlan }
   | { outcome: 'invalid'; issues: readonly Issue[] };                  // nothing written, nothing touched
 ```
 
 - `set` replaces a whole entry, never merges into it (02 §3a). A static id in `set` or `remove` is an issue.
-- The candidate is valid as a whole or not at all: a left-out entry (02 §5) must be fixed or removed in the same changeset.
-- `restart` is 02 §5.1's explicit restart: the runner stops and starts the instance. `main` itself cannot be restarted this way (`unknown-instance`).
-- `main`'s own cross-instance checks report `code: 'rule'` with these ids: `static-entry`, `reserved-id`, `id-collision`, `unknown-type`, `load-failed`, `unknown-link`, `cycle`, `bootstrap-needs-dynamic`.
+- Every entry the changeset adds or changes must be valid, and so must the cross-instance checks. A left-out entry the changeset does not touch stays left out (02 §5.1).
+- `restart` is 02 §5.1's explicit restart: the runner stops and starts the instance. `drivers.main` cannot be restarted this way (`unknown-instance`).
+- `reload` answers before it runs, like `apply` (§3.1). A rejected reload shows as `phase: 'rejected'`, its issues in `config.issues`.
+- `main`'s own cross-instance checks report `code: 'rule'` with these ids: `static-entry`, `reserved-id`, `reserved-type`, `id-collision`, `unknown-type`, `load-failed`, `unknown-link`, `cycle`, `bootstrap-needs-dynamic`, `restart-needed` (a changed `dynamicConfig`, 02 §5.1).
 
 ### 2.5. Plugins
 
@@ -129,9 +131,9 @@ apply(cs)
 - The result survives a reconnect: progress lives in `config.reload` and `instances`, not in a response that may never arrive.
 
 ```
-apply(cs)       → { outcome: 'applied', revision: 43, plan: { ws: 'change', EXT: 'change', mqtt: 'start' } }
-config.reload   → { revision: 43, phase: 'done', results: { ws: 'ok', EXT: 'ok', mqtt: 'failed' } }
-instances.mqtt  → { state: 'failed', lastError: 'start: ECONNREFUSED nas:1883', … }
+apply(cs)                  → { outcome: 'applied', revision: 43, plan: { 'apis.ws': 'change', 'drivers.EXT': 'change', 'apis.mqtt': 'start' } }
+config.reload              → { revision: 43, phase: 'done', results: { 'apis.ws': 'ok', 'drivers.EXT': 'ok', 'apis.mqtt': 'failed' } }
+instances['apis.mqtt']     → { state: 'failed', lastError: 'start: ECONNREFUSED nas:1883', … }
 ```
 
 ### 3.2. Progress
@@ -139,8 +141,8 @@ instances.mqtt  → { state: 'failed', lastError: 'start: ECONNREFUSED nas:1883'
 ```ts
 type ReloadProgress = {
   revision: number;
-  phase: 'prepare' | 'commit' | 'done';
-  results: Record<Id, 'ok' | 'failed'>;   // per id in the plan; 'failed' ⇒ that instance's lastError
+  phase: 'prepare' | 'commit' | 'done' | 'rejected';   // rejected: 02 §5 steps 2–5 failed, nothing touched
+  results: Record<InstanceKey, 'ok' | 'failed'>;       // per instance in the plan; 'failed' ⇒ its lastError
 };
 ```
 
@@ -164,8 +166,14 @@ password: n3w-pa55                  # a new value — main stores it under a new
                                     # left out — removed (only if the member is optional)
 ```
 
-- **Storage.** Values live in the secrets file (§5.1), keyed by a random ref. The dynamic file and every revision hold refs only.
-- **A ref is valid only in the entry it came from.** Anywhere else, or unknown, it is `sensitive-missing` (03a §5).
+- **Storage.** Values live in the secrets file (§5.1), keyed by a random ref, each with the entry it belongs to. The dynamic file and every revision hold refs only.
+
+  ```yaml
+  # /var/lib/evok-node/config.secrets.yaml — mode 0600
+  k7f3q2mxa9: { owner: apis.mqtt, value: n3w-pa55 }
+  ```
+
+- **A ref is valid only in its `owner` entry.** Anywhere else, or unknown, it is `sensitive-missing` (03a §5).
 - **Resolved late.** `main` puts the stored value in place of a ref only when it checks a body and hands `Config` to an instance (02 §5 step 4). The `main` driver never holds a stored value; a new one passes through it once, on its way to `main`.
 - **Static entries.** The human writes a value in the static file; the `config` reading shows `{ $secret: static }` instead.
 - **Never logged** — not by `main`, not by the `main` driver, not in an issue's message.
@@ -182,7 +190,7 @@ password: n3w-pa55                  # a new value — main stores it under a new
 ```
 
 - The dynamic file stores entries as the user set them — no filled-in defaults — so a changed default in a newer plugin version takes effect.
-- A hand edit of the dynamic file is allowed: the next reload reads it and gives it a new revision, so a tab with the old `baseRevision` gets `conflict`.
+- A hand edit is allowed. On the next reload `main` sees the file differs from what it last wrote, gives it a new revision and writes it back in §5.2's order — a plain value typed into a `sensitive` member moves to the secrets file on the way. A tab still holding the old `baseRevision` gets `conflict`.
 - The dynamic file starts with a comment saying it is written by evok-node and edited through the inspector.
 
 ### 5.2. Write order
@@ -202,7 +210,7 @@ An admin procedure, not an api: the user docs are written from this.
 
 - **Config:** the four paths of §5.1. A live copy is safe (§5.2).
 - **The whole box:** also the KV store, `/var/lib/evok-node/kv/*.db` and `*.secrets.db` (06) — stop the daemon, or copy each with `sqlite3 <db> ".backup <file>"`.
-- **Not needed:** `/etc/evok-node/autogen.yaml` (regenerated) and the hardware definitions (from the package).
+- **Not needed:** `/etc/evok-node/autogen*.yaml` (regenerated) and the hardware definitions (from the package).
 
 ```sh
 systemctl stop evok-node
@@ -253,22 +261,23 @@ onConfig(c => {
 ```
 GET  /        → the setup page; 302 to the ws api's URL (§7) once wsSeesMain
 POST /setup   { host?, port, tls?, publicUrl? }
-              → main:apply({ baseRevision, apis: { set: { ws: { type: 'ws', drivers: ['*', 'main'], listen: { host, port }, tls, publicUrl } } } })
+              → main:apply({ baseRevision, apis: { set: { ws: { type: 'ws', drivers: ['*', 'main'], listen: { host, port, tls }, publicUrl } } } })
               → 201 { url } | 409 a ws api already sees main | 422 { issues }
 ```
 
-`listen`, `tls` and `publicUrl` are api-ws's own keys (15); bootstrap knows them because it creates that api. It answers the POST first, and only then does a reload close its listener in `auto` mode (§3.1's reason).
+`listen` (with `tls` inside, 13 §9) and `publicUrl` are api-ws's own keys (15); bootstrap knows them because it creates that api. It answers the POST first, and only then does a reload close its listener in `auto` mode (§3.1's reason).
 
 ## 7. The SPA and the api serving it
 
 When a changeset touches the api the inspector (16) is connected to:
 
-1. **Before.** `validate`'s plan names the SPA's own api — the hello carries `apiId` (15). The SPA says the connection will drop for a moment. If the change touches `listen`, `tls` or `publicUrl`, it also says how to get back in if the api does not come back (§6.2).
+1. **Before.** `validate`'s plan names the SPA's own api — the hello carries `apiId` (15). The SPA says the connection will drop for a moment. If the change touches `listen` or `publicUrl`, it also says how to get back in if the api does not come back (§6.2).
 2. **After the answer.** Redirect only when the URL changes:
 
    ```ts
+   // e: the ws api's entry with its schema's defaults filled in (describe, 03a §4) — the file stores none (§5.1)
    const urlOf = (e: WsEntry) => e.publicUrl
-     ?? `${e.tls ? 'https' : 'http'}://${isWildcard(e.listen.host) ? location.hostname : e.listen.host}:${e.listen.port}/`;
+     ?? `${e.listen.tls ? 'https' : 'http'}://${isWildcard(e.listen.host) ? location.hostname : e.listen.host}:${e.listen.port}/`;
 
    if (urlOf(next) !== urlOf(prev)) location.assign(urlOf(next));   // otherwise reconnect in place
    ```
