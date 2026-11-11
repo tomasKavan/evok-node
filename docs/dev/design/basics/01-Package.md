@@ -31,6 +31,8 @@ Relevant to the tool:
 - **[`driver-extension`](/packages/driver-extension)** - Unipi RTU extensions, one instance per RS-485 line. For docu see [09-Extension-driver.md](/docs/dev/design/evok-node/09-Extension-driver.md).
 - **[`driver-dali`](/packages/driver-dali)** - pluggable DALI controllers (Foxtron ASCII built in), raw bus access, stored gears/groups, commissioning. See [12-DALI-driver.md](/docs/dev/design/evok-node/12-DALI-driver.md).
 - **[`api-nextgen`](/packages/api-nextgen)** - Our new WebSocket + HTTP API/surface. Owns its public schema. Documented in [15-Nextgen-API.md](/docs/dev/design/evok-node/15-Nextgen-API.md).
+- **[`driver-main`](/packages/driver-main)** - the `main` driver: config, instance state, apply, restart. See [02a](/docs/dev/design/evok-node/02a-Main-driver-and-bootstrap.md).
+- **[`api-bootstrap`](/packages/api-bootstrap)** - sets up the first WS API, then redirects to it. See [02a](/docs/dev/design/evok-node/02a-Main-driver-and-bootstrap.md).
 - **[`ui`](/packages/ui)** - the web SPA, over the nextgen API. Described in [16-Inspector-UI.md](/docs/dev/design/evok-node/16-Inspector-UI.md).
 
 Supporting, testing and other:
@@ -88,7 +90,7 @@ Package lives in [`/packages/main`](/packages/main/README.md).
 
 System.d service responds to `start`, `stop`, `restart` and `reload` commands. Reload is described in [02-Main-and-configuration](/docs/dev/design/evok-node/02-Main-and-configuration.md).
 
-Configuration file is `/etc/evok-node/config.yaml`. Runtime data goes to `/var/lib/evok-node/` directory.
+Configuration file is `/etc/evok-node/config.yaml`. Runtime data goes to `/var/lib/evok-node/` directory — with `main.dynamicConfig`, the dynamic config, its revisions and its secrets too ([02a §5.1](/docs/dev/design/evok-node/02a-Main-driver-and-bootstrap.md)).
 
 Package is not recommending `nginx` or any other web server. It's user/admin responsibility to configure it if needed.
 

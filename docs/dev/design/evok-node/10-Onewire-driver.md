@@ -13,23 +13,32 @@ Every other driver in this catalogue has a device set that's a fact declared onc
 ## 2. Configuration
 
 ```ts
-interface OnewireConfig {
-  autogen: boolean;
-  transport?: { kind: 'owserver'; host: string; port: number; timeoutMs?: number };
-  discovery?: { intervalMs?: number };   // default 60000
-  scan?: { intervalMs?: number };        // default 60000; auto-throttled upward — §7
-}
+const Transport = Values.struct({
+  kind:      Values.string({ enumValues: ['owserver'], default: 'owserver' }),
+  host:      Values.string({ label: 'Host' }),
+  port:      Values.uint16({ label: 'Port', min: 1, default: 4304 }),
+  timeoutMs: Values.optional(Values.uint32({ label: 'Timeout', unit: 'ms', min: 1 })),
+}, { label: 'owserver' });
+
+const Interval = (label: string) =>
+  Values.optional(Values.struct({ intervalMs: Values.uint32({ label, unit: 'ms', min: 1, default: 60000 }) }));
+
+const OnewireConfig = Values.union('source', {
+  autogen: Values.struct({ discovery: Interval('Discovery'), scan: Interval('Scan') }, { label: 'This box, from autogen-onewire.yaml' }),
+  manual:  Values.struct({ transport: Transport, discovery: Interval('Discovery'), scan: Interval('Scan') }, { label: 'Manual' }),
+});   // scan is auto-throttled upward — §7
+type OnewireConfig = Infer<typeof OnewireConfig>;
 ```
 
 ```yaml
 drivers:
   OW1:
     type: onewire
-    autogen: true                 # main loads /etc/evok-node/autogen-onewire.yaml — §3
+    source: autogen               # this driver reads /etc/evok-node/autogen-onewire.yaml at configure() — §3
 
   OW2:
     type: onewire
-    autogen: false
+    source: manual
     transport: { kind: owserver, host: 127.0.0.1, port: 4304 }
     discovery: { intervalMs: 60000 }
     scan: { intervalMs: 60000 }
@@ -39,10 +48,10 @@ There is no `devices:` key on this driver, on purpose — see §1.
 
 Rules, checked at config-parse time, same class as 08 §2's:
 
-- **`autogen: true` is exclusive with `transport:`.** The file (§3) supplies it instead.
-- **`autogen: false` requires `transport:`.**
+- **`source: autogen` has no `transport:`.** The file (§3) supplies it instead; a `transport:` next to it is an `unknown-field` issue (03a §5).
+- **`source: manual` requires `transport:`.**
 - **A second physical adapter needs its own `owserver` process and its own driver instance**, never a second bus named inside one instance. `owserver` already merges every adapter it's given into one flat namespace of ROM addresses, and those addresses are globally unique, so nothing here needs to disambiguate by bus — one instance is one `owserver` connection, full stop.
-- **Two `onewire` instances both `autogen: true`** both resolve the same file and the same endpoint. Not caught — the same acknowledged gap 08 §7 already states for two `autogen: true` onboard instances, left as an operational note rather than tooling.
+- **Two `onewire` instances both `source: autogen`** both resolve the same file and the same endpoint. Not caught — the same acknowledged gap 08 §7 already states for two `source: autogen` onboard instances, left as an operational note rather than tooling.
 
 ## 3. `autogen-onewire.yaml`
 
@@ -197,7 +206,7 @@ Covered by 01-Package.md §3.1: same `evok-node-data` package, same `evok-node`/
 
 Tier 1 (`design/basics/03-Testing.md`), against a fixture/simulated `owserver` — no hardware:
 
-- Config parse: `autogen: true` with `transport:` present is rejected; `autogen: false` missing `transport:` is rejected.
+- Config parse: `source: autogen` with `transport:` is rejected (`unknown-field`); `source: manual` without `transport:` is rejected (`required`).
 - Catalog index: a fixture `onewire/` root with two definitions builds a correct `familyCode → id` index at `configure()`; a `familyCode` claimed by two definitions is a load-time error.
 - Discovery: `discover()` against a fixture bus reports a known-family ROM id with its resolved kind and an unresolved one as unresolved; a ROM id already adopted is reported as such, not as new.
 - Adoption: `store` binds exactly the features left enabled by its `endpoints` (defaults from `disabled`, §4, when omitted); a later `store` on the same `romId` merges rather than replaces; `remove` unbinds every tail and deletes the KV record — a subsequent `discover` reports it as unadopted again, not as gone.

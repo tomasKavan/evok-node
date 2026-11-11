@@ -13,23 +13,37 @@ This driver owns transport lifecycle (`open`/`close`) and unit topology only. Bi
 ## 2. Configuration
 
 ```ts
-interface OnboardConfig {
-  autogen: boolean;
-  transport?: { kind: 'modbus-tcp'; host: string; port: number; timeoutMs?: number };
-  rates?: Record<string, number>;               // named rate -> ms; overrides this driver's own defaults
-  devices?: { unit: number; definition: string }[];   // present, possibly empty, when autogen is false
-}
+const Transport = Values.struct({
+  kind:      Values.string({ enumValues: ['modbus-tcp'], default: 'modbus-tcp' }),
+  host:      Values.string({ label: 'Host' }),
+  port:      Values.uint16({ label: 'Port', min: 1, default: 502 }),
+  timeoutMs: Values.optional(Values.uint32({ label: 'Timeout', unit: 'ms', min: 1 })),
+}, { label: 'Transport' });
+
+const Devices = Values.array(Values.struct({
+  unit:       Values.uint8({ label: 'Unit' }),
+  definition: Values.string({ label: 'Definition' }),
+}), { label: 'Devices' });
+
+const Rates = Values.record(Values.uint32({ unit: 'ms', min: 1 }),
+  { label: 'Scan rates', hint: 'rate name → period' });   // overrides this driver's own defaults — §8
+
+const OnboardConfig = Values.union('source', {
+  autogen: Values.struct({ rates: Values.optional(Rates) }, { label: 'This box, from autogen.yaml' }),
+  manual:  Values.struct({ transport: Transport, devices: Devices, rates: Values.optional(Rates) }, { label: 'Manual' }),
+});
+type OnboardConfig = Infer<typeof OnboardConfig>;
 ```
 
 ```yaml
 drivers:
   PLC:
     type: onboard
-    autogen: true                 # main loads /etc/evok-node/autogen.yaml — §3
+    source: autogen               # this driver reads /etc/evok-node/autogen.yaml at configure() — §3
 
   PLC2:
     type: onboard
-    autogen: false
+    source: manual
     transport: { kind: modbus-tcp, host: 127.0.0.1, port: 502 }
     rates: { fast: 100, medium: 500 }
     devices:
@@ -37,12 +51,12 @@ drivers:
       - { unit: 2, definition: modbus/unipi/e4ai4ao4di5ro }
 ```
 
-Rules, checked at config-parse time, needing no handshake — the same class as research/13 §Validation:
+Rules, checked at config-parse time, needing no handshake — the same class as research/13 §Validation. The union states the first two by itself:
 
-- **`autogen: true` is exclusive with `transport:` and `devices:`.** Both come from `/etc/evok-node/autogen.yaml` instead (§3); declaring either alongside `autogen: true` is a configuration error, not a precedence rule.
-- **`autogen: false` requires `transport:` and `devices:` present.** `devices: []` is legal — a controller with no onboard sections (the Gate) is a normal, not incomplete, configuration; §7 says what that means to a client.
-- **`transport.host` is never assumed to be local.** Manual mode is exactly how an operator points this driver at a `unipitcp` reachable over the network rather than the box's own loopback — deliberate, not an oversight. `autogen: true` always resolves to a local endpoint (§4), because it's describing this box's own hardware; reaching a remote one is what manual mode is for.
-- **`rates` is independent of `autogen`.** It's operator policy (07a §3's "performance contract"), never a hardware fact, so it stays a plain optional key regardless of which mode supplies the transport and devices. Unspecified names fall back to this driver's own built-in defaults (§8); a name a bound definition's `blocks[].rate` needs, that has neither an override here nor a built-in default, is fatal at `configure()`, naming the missing rate.
+- **`source: autogen` has no `transport:` and no `devices:`.** Both come from `/etc/evok-node/autogen.yaml` instead (§3); either one next to `source: autogen` is an `unknown-field` issue (03a §5), not a precedence rule.
+- **`source: manual` requires `transport:` and `devices:`.** `devices: []` is legal — a controller with no onboard sections (the Gate) is a normal, not incomplete, configuration; §7 says what that means to a client.
+- **`transport.host` is never assumed to be local.** Manual mode is exactly how an operator points this driver at a `unipitcp` reachable over the network rather than the box's own loopback — deliberate, not an oversight. `source: autogen` always resolves to a local endpoint (§4), because it's describing this box's own hardware; reaching a remote one is what manual mode is for.
+- **`rates` is independent of `source`.** It's operator policy (07a §3's "performance contract"), never a hardware fact, so it stays a plain optional key regardless of which mode supplies the transport and devices. Unspecified names fall back to this driver's own built-in defaults (§8); a name a bound definition's `blocks[].rate` needs, that has neither an override here nor a built-in default, is fatal at `configure()`, naming the missing rate.
 
 ## 3. `autogen.yaml`
 
@@ -111,7 +125,7 @@ The dividing line: a definition failing to *resolve* is a configuration problem,
 
 ## 7. Sections and cardinality
 
-**At most one onboard driver instance.** This file states the rule, but does not enforce it in code. `unipitcp` is a fact about the box, not something this driver can see two of; running two onboard instances against it is a configuration mistake, and it's the administrator's responsibility not to make it, the same stance `main` already takes on resource collisions generally (02 §7). One gap worth naming honestly: `main`'s own collision warning compares literal `transport:` keys in config.yaml, so it does not catch two `autogen: true` onboard instances — both would resolve the same host:port only once each reads `autogen.yaml` at `configure()`, after that static check has already run. Not closed by tooling; left as an operational note.
+**At most one onboard driver instance.** This file states the rule, but does not enforce it in code. `unipitcp` is a fact about the box, not something this driver can see two of; running two onboard instances against it is a configuration mistake, and it's the administrator's responsibility not to make it, the same stance `main` already takes on resource collisions generally (02 §7). One gap worth naming honestly: `main`'s own collision warning compares literal `transport:` keys in config.yaml, so it does not catch two `source: autogen` onboard instances — both would resolve the same host:port only once each reads `autogen.yaml` at `configure()`, after that static check has already run. Not closed by tooling; left as an operational note.
 
 Zero onboard sections (the Gate) is legal — `devices: []`.
 
@@ -133,7 +147,7 @@ One thing genuinely unverified and left that way rather than guessed at: whether
 
 Tier 1 (`design/basics/03-Testing.md`), against the simulator — no hardware:
 
-- Config parse: `autogen: true` with `transport`/`devices` present is rejected; `autogen: false` missing either is rejected; `devices: []` under `autogen: false` is accepted.
+- Config parse: `source: autogen` with `transport` or `devices` is rejected (`unknown-field`); `source: manual` missing either is rejected (`required`); `devices: []` under `source: manual` is accepted.
 - `autogen.yaml` parse: a well-formed fixture loads; a stale `fingerprint` against fixture "current facts" triggers the daemon-fallback invocation of `autogen.py` (§3); a missing file does the same.
 - Definition-resolution fatal: a `devices:` entry naming an id with no matching file anywhere (shipped or custom) rejects `configure()`, naming the id — asserted before any `ModbusTransport.open()` call.
 - Reachability, not fatal: a fixture unit whose simulator handshake fails (census mismatch) is still listed in introspection; a `GET` against it answers `unreachable`; a later simulator fix that lets handshake succeed brings it to a normal bound state without a restart.

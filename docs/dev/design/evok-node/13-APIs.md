@@ -43,7 +43,7 @@ An API module is a module like a driver (02 §4): a `ModuleDescriptor`, a `Modul
 
 ```yaml
 apis:
-  ws:     { type: ws,            drivers: [ONB, EXT1, home, kv, sys] }
+  ws:     { type: ws,            drivers: ['*', main] }      # every driver, and the main driver (02a)
   home:   { type: home-api,      drivers: [home, kv] }
   matter: { type: matter-bridge, drivers: [home, kv] }
   mqtt:   { type: mqtt,          drivers: [ONB], broker: { url: 'mqtt://nas:1883' } }
@@ -202,8 +202,18 @@ Mapping guidance:
 The minimum is a `ModuleDescriptor` (02 §4). Worked example, MQTT — publish state, accept commands, topics from introspection:
 
 ```ts
+const MqttConfig = Values.struct({
+  broker: Values.struct({
+    url:      Values.string({ label: 'Broker', hint: 'mqtt://host:1883' }),
+    username: Values.optional(Values.string({ label: 'User' })),
+    password: Values.optional(Values.string({ label: 'Password', sensitive: true })),   // read back as a ref — 02a §4
+  }),
+})
+type MqttConfig = Infer<typeof MqttConfig>
+
 export default {
-  schema: MqttConfig,
+  meta: { label: 'MQTT', description: 'Publishes state and takes commands over an MQTT broker.' },
+  config: MqttConfig,
   isConfigEqual: deepEqual,
   createInstance(ctx) {
     const offs: (() => void)[] = []

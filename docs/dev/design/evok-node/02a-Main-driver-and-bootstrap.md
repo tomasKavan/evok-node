@@ -227,7 +227,7 @@ systemctl start evok-node
 const BootstrapConfig = Values.struct({
   listen: Values.struct({
     host: Values.string({ default: '0.0.0.0' }),
-    port: Values.uint16({ min: 1, default: 8081 }),
+    port: Values.uint16({ min: 1, default: 8088 }),
   }, { label: 'Listen' }),
 });
 ```

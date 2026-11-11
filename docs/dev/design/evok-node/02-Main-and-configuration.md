@@ -54,7 +54,7 @@ With `main.dynamicConfig: true`, config comes from two files:
 main:
   dynamicConfig: true
   keepRevisions: 20                  # default 20 — 02a
-  bootstrap: { enabled: auto, listen: { port: 8081 } }   # 02a — stays closed here: `ws` already links `main`
+  bootstrap: { enabled: auto, listen: { port: 8088 } }   # 02a — stays closed here: `ws` already links `main`
 drivers:
   kv: { type: kv-store }
 apis:

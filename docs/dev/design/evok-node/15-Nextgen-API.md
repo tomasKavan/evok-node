@@ -18,6 +18,8 @@
   **deliberately deferred** (G-2 defers ports, paths and authentication; the deferral is tracked in
   [`STATUS.md`](../../plan/STATUS.md)) — so state what ACL assumes of it and nothing more.
 - **Serving the inspector UI** at the root.
+- **Its own config:** `listen`, `tls`, `publicUrl`. Bootstrap creates a ws api with them (02a §6.3); the SPA derives its URL from them (02a §7).
+- **The hello carries `apiId`**, so the SPA knows which api it is connected to and warns before a change reloads it (02a §7).
 - **evok-node as a client of evok-node.** A home driver imports another PLC's devices over
   this api (12a §4b). Its authentication — PLC to PLC, no human in the loop — is part of this api's
   auth design (M3.6). The connection's hello advertises `evokNodeVersion`: 12a §4b checks a remote's
@@ -25,7 +27,7 @@
 - **Session language.** `hello.lang`, else the request's `Accept-Language`, else `en`. `setLang` changes
   it mid-session; the client refetches what it shows.
 - **Localization at the edge.** A WS extension (13 §2) resolves `LocalizedText` (04 §7) to the session's
-  language in everything it sends: schema annotations (`label`, `hint`, `enumLabels` — 03a §4),
+  language in everything it sends: schema annotations (`label`, `hint`, `helpMd`, `enumLabels` — 03a §4),
   values of format `text`, and the schemas inside values of format `schema`. Drivers always answer every
   language, so introspection stays one shared payload.
 - **Refs.** `$refs` (03 §3, 05a §3.10) is relayed like any other address.
