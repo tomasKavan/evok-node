@@ -11,7 +11,7 @@
 **Not for:**
 
 - A door that stays unlocked (a held relay, day mode) — not in this version.
-- A door that moves by a motor — `Closure` (12c-07).
+- A door that moves by a motor — `AccessClosure` (12c-07).
 - Users, roles, PINs and who may unlock — 13a and the identity provider. The 2N's users come from the identity provider through Access Commander, never from evok-node (research/matter/08 P16).
 
 ### 1.1. Behaviour

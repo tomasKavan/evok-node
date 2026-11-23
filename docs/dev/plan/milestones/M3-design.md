@@ -107,13 +107,13 @@ What every api must do, whatever it speaks, and how a new one is written. Terms:
 **Refs:** 13 · 18 · 01 §2, §8, §9 · 02 §4–§5 · 03 · 05a §3.1a, §4b · 06 §5a · 12c-09 §1.2 · 16a
 
 ### M3.6 — Auth & ACL framework   `area/auth`
-A library APIs use, not an API. Upstream identity provider (authentik). Users, roles, keys, devices, client credentials (PLC to PLC). Authentication: SSO, password, PIN, biometrics; local vs full. Assurance levels and how an API reacts (PIN for a lock): what 13's `proof` asks of a caller and how a WS extension fills `actor` (13 §5, 12c-09 §1.2). The same proof for an access closure's `open` (`garageDoor`, `gate`, `door`; `close` free), and whether a virtual `DoorLock` gates it (12c-07 §6). Then Matter exposure of `DoorLock` and access closures (12c-09 §4, 12c-07 §4). Local DB as a new driver kind. Example flows, including mobile apps and biometrics.
+A library APIs use, not an API. Upstream identity provider (authentik). Users, roles, keys, devices, client credentials (PLC to PLC). Authentication: SSO, password, PIN, biometrics; local vs full. Assurance levels and how an API reacts (PIN for a lock): what 13's `proof` asks of a caller and how a WS extension fills `actor` (13 §5, 12c-09 §1.2). The same proof for an access closure's `open` (`AccessClosure`, 12c-07). `driver-auth` with its own SQLite file. Matter exposure of `DoorLock` and access closures moved to M3.13. Example flows, including mobile apps and biometrics.
 **Done when:** 13a designed; research doc for the identity provider exists.
 **Refs:** 13 · 15 · 06 §5a · 12a §4b, §6 · 12c-07 §6 · 12c-09 §1.2
 
 ### M3.6a — 2N access driver   `area/2n`
 A driver for 2N Access Unit 2.0 / IP Verso 2.0 over the HTTP API: switches, door state, I/O, events over `log/subscribe`/`log/pull`, `grantaccess` for a user. API account and secrets via 13a. Map from the identity provider's users to 2N users; the 2N's users come from the identity provider through Access Commander — the driver never writes the 2N directory. DeviceTypes for `lock-from-2n`'s roles.
-PINs: the identity provider drives Access Commander's directory, the clear PIN readable only by its LDAP account (13a).
+PINs: the identity provider drives Access Commander's directory, the clear PIN readable only by its LDAP account (13a) — and a PIN uniqueness check that leaks nothing, with generated PINs (13a §16).
 **Done when:** 12e designed; 12c-09 §3.2 has no Open.
 **Refs:** research/matter/08 §4 · 12c-09 §3.2 · 13a · 05a
 
@@ -158,7 +158,7 @@ Structure, logic, typical users, wireframes, mobile vs desktop vs kiosk, framewo
 **Refs:** 18 · 12a §6 · 12b · 12c · 13b
 
 ### M3.13 — Matter bridge API   `area/api`
-Exposes home devices as Matter bridged devices.
+Exposes home devices as Matter bridged devices. Exposure of `DoorLock` and `AccessClosure` with their proof (12c-09 §4, 12c-07 §4, research/auth/07 D23).
 **Done when:** 20 designed (from 16a).
 **Refs:** 16a · 12a · 12c · 13
 

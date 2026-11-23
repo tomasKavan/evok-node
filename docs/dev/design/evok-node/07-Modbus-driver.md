@@ -118,7 +118,7 @@ Unlike `modbus-relay`, a `driverId` that doesn't resolve is not fatal at `config
 
 What this adds to the line: PLC1 still serializes every transaction behind its own per-line mutex and t3.5 pacing, so arbitration doesn't change. Every transaction costs one more network round trip — PLC2's scan rates must budget for it.
 
-PLC-to-PLC credentials are deferred to M3.6, the same as 12a §4b. The four write methods are `mutates` (§6), so PLC1's api ACL decides who may write.
+The link authenticates with PLC2's node key (13a §11.2). The four write methods are `mutates` (§6), so PLC1's api ACL decides who may write: PLC2 needs `operate` on them in PLC1's directory.
 
 
 ## 5. Domain errors: Modbus exceptions

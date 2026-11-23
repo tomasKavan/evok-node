@@ -4,14 +4,15 @@
 
 | DeviceType | Adds | Matter (16a) |
 |---|---|---|
-| `Closure` | open / close / stop, optional % position, interlock and gating state | Closure `0x0230`, tags from `kind`; Closure Panel `0x0231` child for the %; access kinds not exposed for now (§4) |
+| `Closure` | a window: open / close / stop, optional % position, interlock state | Closure `0x0230`, tags from `kind`; Closure Panel `0x0231` child for the % |
+| `AccessClosure` | the same fields, for a garage door, gate or door; opening needs a proof | not exposed for now (§4) |
 
-**For:** a motorised opening a person or a rule opens and closes — a roof or facade window, a garage door, a gate, a door. One type for all of them; `kind` tells them apart, as Matter's tags do (research/matter/10 §3).
+**For:** a motorised opening a person or a rule opens and closes. `Closure` is a roof or facade window; `AccessClosure` a garage door, a gate or a door — opening one lets someone in, so its `open` and `goTo` need a proof (13a §8.2). The two share every field; `kind` tells them apart within a type, as Matter's tags do (research/matter/10 §3).
 
 **Not for:**
 
 - A cover in front of a window: `WindowCovering` (12c-06). Apple supports Window Covering, not (as found) Closure; a window exported as a cover would open on "open all blinds" (research/matter/10 §3).
-- Locking. A lock is a `DoorLock` (12c-09). Who may open an access closure, and whether a lock gates it (`blocked.open: 'locked'`), is M3.6 (§6); no template sets `locked` yet.
+- Locking. A lock is a `DoorLock` (12c-09). An `AccessClosure`'s own proof is its access control; no lock gates it. `blocked.open: 'locked'` is kept for a template with a lock role — none sets it.
 
 ### 1.1. Behaviour
 
@@ -49,22 +50,33 @@ const Blocked = Values.struct({              // why a direction is refused now; 
   close: Values.optional(Values.string({ enumValues: ['interlock'] })),
 });
 
-const ClosureBehavior = Values.struct({      // settings a consumer must see (12a §2.3) — 16a reports them
-  kind:        Values.string({ enumValues: ['roofWindow', 'facadeWindow', 'garageDoor', 'gate', 'door'] }),
+const behavior = (kinds: readonly string[]) => Values.struct({   // settings a consumer must see (12a §2.3) — 16a reports them
+  kind:        Values.string({ enumValues: kinds }),
   positioning: Values.string({ enumValues: ['ends', 'percent'] }),
 });
 
-export const Closure = device('home.Closure', {
+const ClosureFields = {
   ...CommonFields,
   position: reading(ClosurePosition, { subscribe: true }),
   blocked:  reading(Blocked, { subscribe: true }),
   fault:    reading(Values.optional(Values.string({ enumValues: ['notCarriedOut', 'travelTimeout', 'endContacts'] })), { subscribe: true }),
-  behavior: reading(ClosureBehavior, { subscribe: true }),
-  open:     method('mutates', Values.void, undefined, { errorKinds: ['interlock', 'locked'] }),
   close:    method('mutates', Values.void, undefined, { errorKinds: ['interlock'] }),
   stop:     method('mutates', Values.void),
-  goTo:     optional(method('mutates', Values.void, Values.struct({ position: Closed }), { errorKinds: ['interlock', 'locked'] })),
   confirm:  optional(method('mutates', Values.void, undefined, { errorKinds: ['notCarriedOut'] })),
+};
+
+export const Closure = device('home.Closure', {
+  ...ClosureFields,
+  behavior: reading(behavior(['roofWindow', 'facadeWindow']), { subscribe: true }),
+  open:     method('mutates', Values.void, undefined, { errorKinds: ['interlock', 'locked'] }),
+  goTo:     optional(method('mutates', Values.void, Values.struct({ position: Closed }), { errorKinds: ['interlock', 'locked'] })),
+});
+
+export const AccessClosure = device('home.AccessClosure', {
+  ...ClosureFields,
+  behavior: reading(behavior(['garageDoor', 'gate', 'door']), { subscribe: true }),
+  open:     method('mutates', Values.void, undefined, { errorKinds: ['interlock', 'locked'], access: { proof: true } }),
+  goTo:     optional(method('mutates', Values.void, Values.struct({ position: Closed }), { errorKinds: ['interlock', 'locked'], access: { proof: true } })),
 });
 ```
 
@@ -77,13 +89,14 @@ export const Closure = device('home.Closure', {
 - `goTo` is bound only with `positioning: 'percent'`; `confirm` only when the template has a way to prove "closed".
 - `goTo` toward open is an opening: `blocked.open` refuses it.
 - `identify` is unbound — moving a window or a door to identify it is unsafe.
+- **`AccessClosure`'s `open` and `goTo` carry `access.proof`** (05a §3.1b): the api gets a proof first (13a §8.2); `close` and `stop` need none. A rule may open one only with its author's consent (12b §6a).
 
 ## 3. Templates
 
-| Template | Roles |
-|---|---|
-| `closure-from-klf` (§3.1) | `open`: `unipi.ro`, 1 · `close`: `unipi.ro`, 1 · `feedback`: `unipi.di`, 0–1 |
-| `closure-from-uap` (§3.4) | `open`, `close`, `stop`: `unipi.ro` \| `unipi.do`, 1 each · `openEnd`, `closedEnd`: `unipi.di`, 1 each · `moving`: `unipi.di`, 0–1 |
+| Template | Type | Roles |
+|---|---|---|
+| `closure-from-klf` (§3.1) | `Closure` | `open`: `unipi.ro`, 1 · `close`: `unipi.ro`, 1 · `feedback`: `unipi.di`, 0–1 |
+| `closure-from-uap` (§3.4) | `AccessClosure` | `open`, `close`, `stop`: `unipi.ro` \| `unipi.do`, 1 each · `openEnd`, `closedEnd`: `unipi.di`, 1 each · `moving`: `unipi.di`, 0–1 |
 
 The bundle `velux-klf` (§3.2) creates a window and its cover together, with their interlock.
 
@@ -256,7 +269,7 @@ Commissioning test: stopwatch `openMs` and `closeMs`; the shortest `pulseMs` the
 
 ## 4. Matter
 
-Part of the mapping table (16a, `driver-home/matter-map`). Closure `0x0230`; Closure Control with `PS`, and `PT` when the device can be blocked (an interlock peer, a gating lock).
+Part of the mapping table (16a, `driver-home/matter-map`), for `Closure`; `AccessClosure` is not exposed for now (below). Closure `0x0230`; Closure Control with `PS`, and `PT` when the device can be blocked (an interlock peer, a gating lock).
 
 | Matter | Home |
 |---|---|
@@ -271,9 +284,9 @@ Part of the mapping table (16a, `driver-home/matter-map`). Closure `0x0230`; Clo
 
 With `positioning: 'percent'`, a Closure Panel `0x0231` child carries the %: Closure Dimension with `PS`; `CurrentState.Position` = `current`, `TargetState.Position` = `target`, `SetTarget(Position)` → `goTo`; `Resolution` and `StepValue` 100 (1 %).
 
-- `matter` origin (12a §4a): an endpoint of `0x0230` maps to `Closure`, `kind` from its tags; its Panel, if any, gives `current`. `blocked` stays empty.
+- `matter` origin (12a §4a): an endpoint of `0x0230` maps to `AccessClosure` when its tags are `GarageDoor`, `Gate` or `Door`, else to `Closure`, `kind` from its tags; its Panel, if any, gives `current`. `blocked` stays empty.
 - Apple and Google support for Closure: unknown (research/matter/07 §2). No Window Covering fallback (§1).
-- **Access closures are not exposed for now.** 16a ignores a `Closure` with `kind` `garageDoor`, `gate` or `door`: exposing one needs the same proof on `open` as `DoorLock.unlock`, and Closure Control carries no PIN (research/matter/07 §1.8). Deferred with Door Lock's exposure (12c-09 §4) to M3.6. Windows stay exposed.
+- **Access closures are not exposed for now.** 16a ignores `AccessClosure`: exposing one needs the same proof on `open` as `DoorLock.unlock`, and Closure Control carries no PIN (research/matter/07 §1.8). Deferred with Door Lock's exposure (12c-09 §4) to M3.13. Windows stay exposed.
 
 ## 5. Moving and target
 
@@ -284,6 +297,4 @@ With `positioning: 'percent'`, a Closure Panel `0x0231` child carries the %: Clo
 | `state`, `motion` | at every start, stop and confirmation |
 | `confirmed` | at every confirmation |
 
-## 6. Open
-
-- **Who may open an access closure, and how it is proved** — M3.6 (13a). `open` (and `goTo` toward open) of a `garageDoor`, `gate` or `door` needs the same proof as `DoorLock.unlock` (12c-09 §1.2); `close` and `stop` need none. `proof` marks a method of a `DeviceType` (13 §5), and `Closure` is one type for every `kind` — how only the access kinds get it is decided there too. Whether a (virtual) `DoorLock` also gates it through `blocked.open: 'locked'` is decided there (research/matter/07 §1.8). Until then nothing is gated.
+## 6. REMOVED

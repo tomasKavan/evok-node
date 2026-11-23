@@ -102,6 +102,7 @@ No home `DeviceType` declares `'@'` — every field is named. The whole device i
 | `OnOffPlugInUnit` | On/Off Plug-in Unit | 12c-02 §2 |
 | `WindowCovering` | Window Covering | 12c-06 §2 |
 | `Closure` | Closure | 12c-07 §2 |
+| `AccessClosure` | Closure — not exposed for now | 12c-07 §2 |
 | `WaterValve` | Water Valve | 12c-08 §2 |
 | `IrrigationSystem` | Irrigation System | 12c-08 §2 |
 | `WaterLeakDetector` | Water Leak Detector | 12c-08 §2 |
@@ -431,7 +432,7 @@ interface RemoteRecord {
   readonly id: string;         // local handle, e.g. 'garden' — appears in tails (§4.1)
   readonly url: string;        // the remote's WS API (15)
   readonly driverId: string;   // the remote's home driver instance
-}                              // credentials: PLC-to-PLC client credentials — deferred to M3.6 (13a)
+}                              // no credentials here: the link authenticates with the node key (13a §11.2)
 
 interface RemoteOverrides {        // this PLC's own, written through updateDevice (§5)
   readonly exposed?: boolean;      // absent ⇒ the remote's

@@ -12,7 +12,7 @@ One section per home `DeviceType`: fields, built-in templates, Matter mapping, w
 | [`12c-04-Sensors.md`](12c-Home-main-devices/12c-04-Sensors.md) | `ContactSensor`, `OccupancySensor`, `TemperatureSensor`, `HumiditySensor`, `LightSensor`, `AirQualitySensor` | `contact-from-di`, `occupancy-from-di`, `light-from-sensor`, `light-from-ai`, `temperature-from-sensor`, `temperature-from-ai`, `humidity-from-sensor`, `humidity-from-ai`, `air-quality-from-iaq`; bundle `iaq-unipi` |
 | [`12c-05-Timer-relay.md`](12c-Home-main-devices/12c-05-Timer-relay.md) | `TimerRelay` | `timer` (no roles) |
 | [`12c-06-Window-covering.md`](12c-Home-main-devices/12c-06-Window-covering.md) | `WindowCovering` | `cover-from-relays`, `cover-from-klf` |
-| [`12c-07-Closures.md`](12c-Home-main-devices/12c-07-Closures.md) | `Closure` | `closure-from-klf`, `closure-from-uap`; bundle `velux-klf` |
+| [`12c-07-Closures.md`](12c-Home-main-devices/12c-07-Closures.md) | `Closure`, `AccessClosure` | `closure-from-klf`, `closure-from-uap`; bundle `velux-klf` |
 | [`12c-08-Water.md`](12c-Home-main-devices/12c-08-Water.md) | `WaterValve`, `IrrigationSystem`, `WaterLeakDetector` | `valve-from-output`, `thermal-valve-from-output`, `irrigation`, `leak-from-di` |
 | [`12c-09-Door-lock.md`](12c-Home-main-devices/12c-09-Door-lock.md) | `DoorLock` | `lock-from-relay`, `lock-from-2n` |
 | [`12c-10-Climate.md`](12c-Home-main-devices/12c-10-Climate.md) | `Thermostat`, `RoomAirConditioner` | `thermostat`; `room-ac-from-mimb19n` (driver-mimb19n) |
@@ -40,8 +40,7 @@ Templates for these types shipped in other drivers' docs: `temperature-from-mimb
 | Where | What | Closed by |
 |---|---|---|
 | 12c-04 §4 | Matter-writable attributes (`HoldTime`, a light's `behavior`, `DefaultOpenDuration`) through the device | M3.13 |
-| 12c-07 §6 | proof for an access closure's `open`, only for access kinds of one `Closure` type; gating by a `DoorLock` | M3.6 |
-| 12c-09 §1.2, §3.2 | what `proof` asks of a caller (13 §5); 2N roles and user map | M3.6, M3.6a |
+| 12c-09 §3.2 | 2N roles and user map | M3.6a |
 | 12c-10 §6 | preset setpoints editable by users; Matter writes; `0x0072` with controllers | M3.11, M3.12, M3.13 |
 | 12c-12 §6 | Fan vs Air Purifier for `VentilationUnit` | M3.13 |
 | 12c-13 §6 | built-in time rule kinds; a hardware `WindSensor` template | when first needed |

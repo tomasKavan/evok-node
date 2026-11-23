@@ -14,9 +14,7 @@
 - **Consumes every driver,** including ones written after this API. The introspection-driven schema,
   and what "stable" can mean for a schema that is derived rather than declared.
 - **Public schema ownership and versioning,** and the `client` package's relationship to it.
-- **ACL:** subjects, resources, actions, and where enforcement sits. The authentication *mechanism* is
-  **deliberately deferred** (G-2 defers ports, paths and authentication; the deferral is tracked in
-  [`STATUS.md`](../../plan/STATUS.md)) — so state what ACL assumes of it and nothing more.
+- **Auth and ACL:** the `auth` and `acl` extensions of 13a — the hello, sessions, the per-request check, proof.
 - **Serving the inspector UI** at the root.
 - **Its own config:** `listen` (with `tls`, 13 §9) and `publicUrl`, plus `trustedProxies` (whose `X-Forwarded-*` it believes) and `mdns` (advertise `_evok._tcp` with `nodeId`, redirect `.local` to `publicUrl`). `publicUrl` is the origin for the session cookie, the `Origin` check, the OIDC redirect and the passkey RP ID (13a). Bootstrap creates a ws api with them (02a §6.3); the SPA derives its URL from them (02a §7).
 - **The hello carries `apiId`**, so the SPA knows which api it is connected to and warns before a change reloads it (02a §7).
@@ -50,6 +48,7 @@ interface WsExtension {
   beforeIntrospect?(ctx: IntrospectCtx): void;
   afterIntrospect?(ctx: IntrospectCtx): void;                     // filter or annotate the payload
   onPush?(session: Session, push: Push): Push | null;             // values and introspection changes going out
+  httpRoutes?(): readonly HttpRoute[];                            // served on the api's own listener, e.g. 13a's /auth/*
   stop?(): Promise<void>;
 }
 
@@ -64,6 +63,7 @@ interface ExtensionContext {
 ```
 
   - **Stacked, onion order:** `onConnection` and `before*` run in list order, `after*` and `onPush` in reverse. `session.state` is where one extension leaves typed data for the next (auth → ACL).
+  - **HTTP routes** an extension declares are served on the api's own listener and `publicUrl`, under the path it names; the api refuses two extensions claiming one path at start.
   - **The api stays agnostic.** Users, zones, languages are the extensions'; the api only offers these services.
   - **An extension sees only what the api's clients see**, plus its private drivers. Its own calls carry the api's `Origin` and skip the hooks (13 §5).
   - **Cleanup by `ws-kit`:** on drain and stop it drops every subscription and callback of an extension, then calls its `stop()`. An api has no reload (13 §3), so an extension has none either.
@@ -74,5 +74,4 @@ interface ExtensionContext {
 **Inputs:** research/01 (as contrast) · research/08 · to_revision/0003 ·
 [`STATUS.md`](../../plan/STATUS.md), the undeclared-workspace-edges open question
 
-**Open:** `client → api-nextgen` versus a separate `schema-nextgen` package, and the deferred auth
-mechanism.
+**Open:** `client → api-nextgen` versus a separate `schema-nextgen` package.

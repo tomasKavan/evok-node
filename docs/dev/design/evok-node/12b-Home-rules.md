@@ -213,6 +213,7 @@ interface RuleRecord {
   readonly actions:  Readonly<Record<string, readonly string[]>>;
   readonly options:  Readonly<Record<string, Value>>;               // the form's `options`, defaults filled
   readonly limit?: TriggerLimit;                                    // §5.4
+  readonly consent?: { readonly by: Actor; readonly at: Date };     // §6a; Actor: 13 §5
 }
 
 interface RuleSetRecord {
@@ -225,6 +226,15 @@ interface RuleSetRecord {
 - Each record, and each rule's state (§5.5), is its own key in this driver's KV namespace (06).
 - A rule refers to devices by tail only. It is a weak entity: it never blocks a device's removal (§7).
 - Removing a RuleSet clears `ruleSetId` on its rules, in one `batch` (06) with the removal.
+
+## 6a. Rules that call `proof` methods
+
+A rule runs inside this driver, never through an api, so no api can ask for a proof when it fires (13 §5). It is checked when the rule is written instead:
+
+- **A rule needs consent** when one of its action slots takes a type with a method or channel marked `access.proof` (05a §3.1b) — an `AccessClosure`'s `open`, a `DoorLock`'s `unlock`.
+- **`createRule` and `updateRule` take `by`**, an `actor` argument the api always fills with its caller (13 §5). Such a rule is accepted only when `by.level` is `l2` (13a §8.1); otherwise `consent-needed`, and nothing is stored.
+- **Recorded:** `consent` = that `by` and the time. An update that changes `actions` or `options` needs consent again; one that only renames or disables it does not, and keeps the old record.
+- A rule written without an api that fills `level` — none does today — can never call a `proof` method.
 
 ## 7. Status
 
@@ -261,12 +271,13 @@ createRule(args: {
   enabled?: boolean;                     // omitted ⇒ true
   ruleSetId?: string;
   limit?: TriggerLimit;
+  by?: Actor;                            // `actor` (13 §5) — filled by the api, §6a
 }): RuleRecord;
 updateRule(args: { id: string; patch: {
   name?: string; enabled?: boolean; ruleSetId?: string | null;
   triggers?: Record<string, readonly string[]>; actions?: Record<string, readonly string[]>;
   options?: Record<string, Value>; limit?: TriggerLimit | null;
-} }): RuleRecord;                        // ruleKind never changes
+}; by?: Actor }): RuleRecord;           // ruleKind never changes; `by`: §6a
 removeRule(args: { id: string }): void;
 listRules(): readonly (RuleRecord & {
   status: RuleStatus; lastError?: string; lastActionError?: string; lastRunAt?: Date;
@@ -283,6 +294,7 @@ listRuleSets(): readonly RuleSetRecord[];
 - `unknown-rule-kind`, `unknown-rule`, `unknown-rule-set`.
 - `invalid-slots` — an unknown or missing slot, a device count outside `min`–`max`, a tail with no device record, a device whose kind isn't in the slot's `types`, a device twice in one slot.
 - `invalid-options` — `options` fail the kind's form; for a device option, the same checks as `invalid-slots`.
+- `consent-needed` — a rule that can call a `proof` method, written without `by.level` `l2` (§6a).
 
 Both are found by decoding the form and running `checkRefs` (05a §3.10).
 
@@ -298,6 +310,7 @@ Tier 1, against fixture home devices and a fake `Clock`:
 - State is written to KV only when its encoded form changed; after a restart the next run gets the saved state.
 - `set` with a bad payload throws inside the run; a `set` to an unreachable device is logged as `lastActionError` and the run still succeeds.
 - Over the trigger limit: triggers drop and the rule is `throttled`, back to `ok` after a window without drops.
+- Consent: a rule with an `AccessClosure` in an action slot answers `consent-needed` with `by.level` `l1` or without `by`, and is stored with `consent` at `l2`; changing its `actions` asks again, renaming it does not.
 - Removing a device used by a rule succeeds, and the rule becomes `device-removed` and stops running; a `missing` device makes it `errored` until it returns.
 - Removing a RuleSet leaves its rules without a set.
 - `createRule` with a wrong slot count, a device of the wrong kind, or an unknown tail answers `invalid-slots` before anything is written.

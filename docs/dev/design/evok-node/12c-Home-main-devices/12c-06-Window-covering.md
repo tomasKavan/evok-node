@@ -10,7 +10,7 @@
 
 **Not for:**
 
-- A window, a garage door or a gate: `Closure` (12c-07). Matter 1.5 makes them a Closure, not a Window Covering (research/matter/06 §1.5).
+- A window: `Closure`; a garage door or a gate: `AccessClosure` (12c-07). Matter 1.5 makes them a Closure, not a Window Covering (research/matter/06 §1.5).
 - Covers with position feedback (an encoder, a motor that reports its position). No built-in source has one; a template for one keeps these fields.
 - Rain, frost and sun automation. They are rules (12b); only wind is built in (§1.2).
 

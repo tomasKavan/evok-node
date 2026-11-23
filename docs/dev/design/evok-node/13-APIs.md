@@ -106,6 +106,8 @@ interface Actor {
   readonly realm: string;    // whose user namespace: 'idp' (13a's identity provider), 'matter', a plugin's own
   readonly id?: string;      // the user in that namespace; absent = no user known
   readonly name?: string;
+  readonly level?: 'l1' | 'l2';   // how sure the api is of the user (13a §8.1); absent when the api has no levels
+  readonly via?: string;      // the delegating peer a user's call came through, e.g. 'node:house' (13a §11.4)
 }
 Values.actor(): ValueType<Actor | undefined>   // an optional struct member, schema annotated `actor: true` (03a §4)
 
@@ -115,8 +117,9 @@ unlock: method('mutates', Values.void, Values.struct({ by: Values.actor() }), { 
 
 | Annotation | On | The api |
 |---|---|---|
-| `actor` | a struct member of a method's arguments | **always overwrites it** with its own caller: realm and user; or removes it. What the client sent there is never relayed. |
-| `access.proof` | a channel's SET or a method (05a §3.1b) | gets the extra proof its auth asks for (13a: a PIN, a confirmation) before relaying; an api that cannot obtain proof refuses the call |
+| `actor` | a struct member of a method's arguments | **always overwrites it** with its own caller: realm, user, level; or removes it. What the client sent there is never relayed — except from a delegating peer, whose `actor` is kept with `via` set (13a §11.4). |
+| `access.proof` | a channel's SET or a method (05a §3.1b) | gets the extra proof its auth asks for (13a §8.2: biometry, a PIN, a confirmation) before relaying; an api that cannot obtain proof refuses the call. A delegating peer's call counts as proven (13a §11.4) |
+| `access.inClients: 'forbidden'` | any field (05a §3.1b) | never relays it and leaves it out of its clients' introspection — binding for every api |
 | `access` privileges | any operation (05a §3.1b) | uses them if it wishes, as the type wrote them — below |
 
 **Access privileges are input, not a rule.** Each api decides whether it uses them:
@@ -130,11 +133,12 @@ unlock: method('mutates', Values.void, Values.struct({ by: Values.actor() }), { 
 
 | Caller | `actor` reaches the driver as |
 |---|---|
-| WS or Home API, logged-in user | `{ realm: 'idp', id: 'u-42', name: 'Tomas' }` |
-| WS or Home API, PIN | the user the PIN resolves to (13a) |
+| WS or Home API, logged-in user | `{ realm: 'idp', id: 'u-42', name: 'Tomas', level: 'l2' }` |
+| WS or Home API, PIN | the user the PIN resolves to, `level: 'l1'` (13a §8.2) |
+| WS API, a delegating peer | the `actor` the peer passed, with `via: 'node:house'` (13a §11.4) |
 | Matter bridge | `{ realm: 'matter' }`, plus the user when Matter supplies one |
 | MQTT plugin with no users | `{ realm: 'mqtt' }` |
-| a rule or another driver | what that caller passes; a rule passes none |
+| a rule or another driver | what that caller passes; a rule passes none. A rule calls a `proof` method only with its author's consent, checked when it is created (12b §6a) |
 
 A driver forwarding the call passes the argument on as it got it — 12c-09's `lock-from-2n` hands `by` to the 2N driver's `grantaccess`, whose argument is annotated `actor` too. A driver that maps users accepts only realms it knows (12e maps `idp`).
 
