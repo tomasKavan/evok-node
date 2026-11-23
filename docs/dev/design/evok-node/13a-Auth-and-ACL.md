@@ -92,6 +92,44 @@ allowed = privilege(session, address) >= markOrDefault(element)    // 05a §3.1b
 - One link to `driver-auth`, private to the extension (15) and shared by every session: changes of grants and sessions.
 - On loss: the hierarchy copy and the sessions' grants stay as they were; a new session resolves `zone:` to nothing until the hierarchy arrives.
 
+**Components and logins**
+
+- **One driver, `driver-auth`**, with two directory sources: its own (local IdP, the master) or a synced copy of the site IdP (replica).
+- **Site login at a node** — a key-bound ID token. The site has **one** evok app in the IdP. The shell asks for an ID token bound to its session key K (authentik `bound_key`) and shows it to a node with a DPoP proof for that node; the node checks both against its copy of the IdP's signing key, with no call to the IdP, and opens **its own** session.
+- **The shell holds the IdP session** (its refresh token); nodes never keep IdP tokens. For a **plain browser** the node is the backend for frontend: it runs the OIDC code flow (PKCE), uses the ID token once, and sets its own session cookie. Each node's callback URL is in the evok app's redirect list.
+- **Two keys on the phone**, both in hardware: session key K (DPoP, no user prompt) and step-up key B (biometry only — `biometryCurrentSet`). When B becomes invalid (a new finger), the PIN is the fallback until the app registers a new B while online.
+- **Phone keys are registered per node**, at the first online login there — never published through the IdP.
+
+| Secret | Where | Lives |
+|---|---|---|
+| node access token | shell memory, WS hello, renewed in-band | 10 min |
+| node session (refresh token / browser cookie — HttpOnly, Secure, SameSite=Strict) | shell, browser; the node keeps a hash | 30 d idle, 30 d absolute |
+| one-time local session (PIN or device key while the IdP is down) | as above | single connection, ≤ 12 h, no refresh |
+| IdP refresh token | shell only | the IdP's (30 d, rotated on use) |
+| ID token bound to K | shell → node, once | minutes |
+| K, B private keys | phone hardware | per install; B until biometry changes |
+| K, B public keys, PIN verifier (Argon2id) | each node | until removed |
+| node key | node | per install |
+| sync API token | node | set by the admin |
+
+**When the IdP is down**
+
+| | Shell | Browser |
+|---|---|---|
+| a session on this node | works, refreshed by the node | works |
+| a proof | works: B, or the PIN | works: a passkey, or the PIN |
+| a new session where PIN or keys were enrolled | one-time local: device key + biometry (`l2`) or name + PIN (`l1`) | one-time local: passkey (`l2`) or name + PIN (`l1`) |
+| a new session on a node never used | refused | refused |
+
+**Names and TLS**
+
+- **One canonical name per node** (`byt3.t86.cz`) — one origin, so one cookie, one passkey, one redirect URI. At home, split-horizon DNS points it to the LAN address; hairpin NAT is the fallback.
+- **The node holds its own certificate** for that name (Let's Encrypt via DNS-01, no open port) — recommended, so the LAN does not depend on a reverse proxy. A reverse proxy for the public side is optional; the node trusts `X-Forwarded-*` only from configured proxies (15).
+- **`.local`** (mDNS) only for discovery and a redirect to the canonical name — never a second login origin.
+- **The shell** finds a node on the LAN by mDNS (`_evok._tcp`, with `nodeId`), connects to its LAN address and checks it as the canonical name (SNI) or by the pinned node key; the hello proves `nodeId` with the node key. Elsewhere it uses the canonical name. It offers advertised nodes to add, confirmed by the node key's fingerprint.
+- **IP + self-signed** stays possible: secure in the shell by pinning; a plain browser gets a warning and no passkeys.
+- **Passkey RP ID** is the node's host, or the site's parent domain (`t86.cz`) when all nodes share it.
+
 **PLC to PLC**
 
 - **A node is a principal**, `node:<nodeId>`, with grants from its groups like a user — `operate` on the relay a peer drives, `view` on what a home driver imports (12a §4b, 07 §4.1).

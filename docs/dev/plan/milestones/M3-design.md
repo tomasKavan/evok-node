@@ -117,7 +117,7 @@ A driver for 2N Access Unit 2.0 / IP Verso 2.0 over the HTTP API: switches, door
 **Refs:** research/matter/08 §4 · 12c-09 §3.2 · 13a · 05a
 
 ### M3.7 — Shell app (mobile/desktop)   `area/shell-app`
-What it is and how it's used. Multi-user, multi-PLC, multi-app: what an app (inspector, Home UI) must provide to load in the shell. Platforms, framework. Authorization via 13a, biometrics. Push notifications, Matter BLE pairing.
+What it is and how it's used. Multi-user, multi-PLC, multi-app: what an app (inspector, Home UI) must provide to load in the shell. Platforms, framework. Authorization via 13a, biometrics. Push notifications, Matter BLE pairing. Route choice — LAN by mDNS, else the canonical name — discovery of advertised nodes and enrolment by the node key (13a).
 **Done when:** 13b designed; framework research doc exists.
 **Refs:** 13a · 16 · 19
 
