@@ -55,7 +55,7 @@ type ModbusTransportConfig =
       // t3.5 pacing is derived from baudRate, never a separate config key
   | { kind: 'modbus-relay'; driverId: string }    // §6 — that instance's own MODBUS_RAW; always at its static `raw` tail, so a driver id alone is enough
   | { kind: 'modbus-remote'; url: string; driverId: string; timeoutMs?: number };
-      // §4.1 — the same MODBUS_RAW, on another evok-node; url is that PLC's WS API (api-nextgen)
+      // §4.1 — the same MODBUS_RAW, on another evok-node; url is that PLC's WS API (api-ws)
 
 interface ModbusTransport {
   open(): Promise<void>;
@@ -87,7 +87,7 @@ For `kind: 'modbus-relay'`, the `ModbusTransport` returned is a facade, not a wi
 
 ### 4.1. `modbus-remote`: a line on another PLC
 
-The same facade as `modbus-relay`, but the `MODBUS_RAW` it forwards to is a Raw Relay Driver (§6) on another evok-node. Every method is one `CALL` on `<driverId>:raw.<method>` over a `RemoteLink` (05a §3.8b) to that PLC's WS API (`api-nextgen`); the result comes back unchanged. `url` and `timeoutMs` are the link's config; deadlines, a link that is down and writes in flight follow the link's rules.
+The same facade as `modbus-relay`, but the `MODBUS_RAW` it forwards to is a Raw Relay Driver (§6) on another evok-node. Every method is one `CALL` on `<driverId>:raw.<method>` over a `RemoteLink` (05a §3.8b) to that PLC's WS API (`api-ws`); the result comes back unchanged. `url` and `timeoutMs` are the link's config; deadlines, a link that is down and writes in flight follow the link's rules.
 
 ```yaml
 # PLC1 — owns the wire
@@ -96,7 +96,8 @@ drivers:
     type: modbus-kit
     transport: { kind: modbus-rtu, path: /dev/ttyNS0, baudRate: 19200 }
 apis:
-  nextgen:
+  ws:
+    type: ws
     drivers: [rs485-1]
 
 # PLC2 — uses it

@@ -181,7 +181,7 @@ Text a module ships for a human to read — labels, hints, choice labels — is 
 // @evok-node/module-sdk
 type LanguageTag = string;                                              // BCP 47: 'en', 'cs', 'nb'
 type LocalizedText = string | Readonly<Record<LanguageTag, string>>;    // a plain string is English; a record always has 'en'
-function resolveText(text: LocalizedText, lang: LanguageTag): string;  // lang → its primary subtag → 'en'
+function resolveText(text: LocalizedText, langs: readonly LanguageTag[]): string;  // each tag, then its primary subtag; 'en' last
 ```
 
-Which language to ask for is the UI's choice. A module never picks one: `LocalizedText` travels in full, every language, inside the daemon, and the WS API resolves it for the session's language at the edge (15). A value that is itself such text has the schema format `text` (03a §4).
+Which language to ask for is the UI's choice. A module never picks one: `LocalizedText` travels in full, every language, inside the daemon, and the `l10n` WS extension resolves it for the session's languages at the edge (13c). A value that is itself such text has the schema format `text` (03a §4).

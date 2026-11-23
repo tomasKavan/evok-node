@@ -77,7 +77,7 @@ evok-node can be extended without changing its own code, at two different levels
 
 **A new component** is a driver plugin or an api plugin — each a manifest-loaded module, hosted by a runner (§4) exactly like a built-in driver or api, because nothing in §2 through §9 distinguishes "built-in" from "plugin".
 
-**New content inside an existing driver** does not add a component. A device type, a hardware definition, a Modbus binder, a DALI controller, a home template or rule extends what a driver already understands — each a plugin of the kind its owner defines (02b §5.2) — and a driver may also ship its own additions to the nextgen api and the inspector UI, beyond what generic introspection already exposes (17). Both stay inside the driver that declares them and leave §2's two kinds untouched.
+**New content inside an existing driver** does not add a component. A device type, a hardware definition, a Modbus binder, a DALI controller, a home template or rule extends what a driver already understands — each a plugin of the kind its owner defines (02b §5.2) — and a driver may also ship its own additions to the WS API and the inspector UI, beyond what generic introspection already exposes (17). Both stay inside the driver that declares them and leave §2's two kinds untouched.
 
 ## 11. Package ↔ component mapping
 
@@ -92,11 +92,11 @@ evok-node can be extended without changing its own code, at two different levels
 | `driver-kit` | Shared driver machinery: scan scheduling, the endpoint dispatcher (`bind`/`unbind`/`attach`), handshake. |
 | `driver-onboard` | The transport driver for the controller's own onboard I/O. |
 | `driver-extension` | The transport driver for one RS-485/TCP (modbus) extension line. |
-| `api-nextgen` | The open, evok-node-native api. |
+| `api-ws` | The WS API — every driver, serves the inspector (15). |
 | `ws-kit` | The server side of the WS protocol, the base of the WS API and the Home API: sessions, hello, relay, fan-out, WS extensions (13 §1, 15). |
 | `simulator` | Test-only stand-in for hardware transports. |
-| `client` | TS client retargeting `api-nextgen`'s schema. |
-| `ui` | The inspector SPA, served by `api-nextgen`. |
+| `client` | Wire types and the TS client of the apis on `ws-kit` (15). |
+| `ui` | The inspector SPA, served by `api-ws`. |
 | `rig` | The hardware-in-the-loop test instrument, deliberately outside the messaging graph. |
 
 The complete set of permitted edges between these packages is `.dependency-cruiser.cjs`'s `WORKSPACE_DEPS` table — that file, not this one, is what a build actually enforces. A driver not yet built (`driver-onewire`, `driver-system`, `driver-kv-store`) is still one of the two kinds above, never a third.

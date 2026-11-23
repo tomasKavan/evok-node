@@ -1,9 +1,9 @@
-# 17 — Driver plugins in the nextgen API and the UI
+# 17 — Driver plugins in the WS API and the UI
 
 > **Memo, not content.** What belongs in this file, and what it gets written from. Written during
 > [M3](../../plan/roadmap.md); do not implement against a memo.
 
-**Job:** the end-to-end path by which a third-party driver becomes visible and usable in the nextgen
+**Job:** the end-to-end path by which a third-party driver becomes visible and usable in the WS
 API (15) and the inspector (16).
 
 **Covers**
@@ -18,7 +18,7 @@ API (15) and the inspector (16).
   serves a package's browser module, and how the SPA loads it.
 - **Plugin management view:** packages, their plugins and statuses, install from the registry or a
   `.tgz`, staged changes and the restart (02a §2.5, 02b §9).
-- **Degradation.** What nextgen and the UI show for a data type they do not recognise. Never nothing,
+- **Degradation.** What the WS API and the UI show for a data type they do not recognise. Never nothing,
   never a crash — state the fallback.
 - **Versioning across three moving parts** (driver, API schema, UI), and what breaks when they
   disagree.

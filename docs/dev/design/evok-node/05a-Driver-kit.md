@@ -614,7 +614,7 @@ Each guard is duck-typed, the same reasoning as `isDeviceType`/`isModuleDescript
 
 ## 4b. Following introspection for change
 
-`$introspect` is `SUBSCRIBE`-able (03 §5a) so a consumer can follow a driver's table continuously rather than check it once at startup — the driver behind a `RemoteDevice` can be reloaded with a new, incompatible table while something still holds that handle. Two helpers, both built only on `IntrospectionSource` — never on `ctx`/`InstanceContext` directly — so the same logic works for a driver, an api, or a browser script talking to `api-nextgen` (15):
+`$introspect` is `SUBSCRIBE`-able (03 §5a) so a consumer can follow a driver's table continuously rather than check it once at startup — the driver behind a `RemoteDevice` can be reloaded with a new, incompatible table while something still holds that handle. Two helpers, both built only on `IntrospectionSource` — never on `ctx`/`InstanceContext` directly — so the same logic works for a driver, an api, or a browser script talking to `api-ws` (15):
 
 ```ts
 // @evok-node/module-sdk

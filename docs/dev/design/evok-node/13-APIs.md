@@ -160,7 +160,7 @@ ctx.messaging.onLink((driver, up) => …)
 - Cross-driver reads go through `module-sdk`'s fan-in helper (03 §2); typed access through `remote`/`remoteDevice` (05a §3.8a).
 - **Linked is not exposed.** An api relays only what its clients should see; hiding the rest is the api's job. ws-kit never relays `kv`: a client's call carries the api's `Origin`, so it would land in the api's own namespace (06 §2). Another `kv-store` an api links is relayed like any driver.
 
-**Open:** storage for WS clients' own data — endpoints of the WS API (15), not `kv` relayed.
+**Open:** storage for WS clients' own data — endpoints in ws-kit (15), not `kv` relayed → M5.4.
 
 ## 7. Driver loss and return
 

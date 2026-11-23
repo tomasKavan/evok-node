@@ -259,7 +259,7 @@ A `TemperatureSensor` (12c-04) from `mimb19n.outdoor.temperature`; role `outdoor
 
 1. **SEG5 = 1** on every indoor unit, set with the wireless remote; then power-cycle the unit (research/18 §1.1).
 2. **Addresses.** Each indoor unit's MAIN address (FJM auto-addressing: E199, K1) is its `iu`. Each MIM's DIP and rotary switches give its `unit`; power-cycle it after a change.
-3. **The line.** A Raw Relay Driver on the basement PLC — `type: modbus-kit`, `modbus-rtu`, 9600 baud, even parity — listed in that PLC's `apis.nextgen.drivers` (07 §4.1).
+3. **The line.** A Raw Relay Driver on the basement PLC — `type: modbus-kit`, `modbus-rtu`, 9600 baud, even parity — listed in that PLC's `apis.ws.drivers` (07 §4.1).
 4. **Extras test**, on one MIM, through the Raw Relay Driver:
 
    ```

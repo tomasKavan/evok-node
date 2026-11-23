@@ -25,8 +25,8 @@ Main plugins on M3.9's contract: unipi system, unipi local, unipi extension, DAL
 **Refs:** 16 · 17 · 08 · 09 · 11 · 12 · 12a
 
 ### M5.4 — Home API   `area/api`
-On `ws-kit` (13 §2); understands only the home driver. Relays the subset of management 12a §5 lists.
-**Done when:** 18 designed.
+On `ws-kit` (13 §2); understands only the home driver. Relays the subset of management 12a §5 lists. Storage for WS clients' own data in ws-kit, for both the WS API and the Home API (13 §6).
+**Done when:** 18 designed; 13 §6 has no Open.
 **Refs:** 15 · 12a · 12b · 13a
 
 ### M5.5 — Home UI   `area/ui`

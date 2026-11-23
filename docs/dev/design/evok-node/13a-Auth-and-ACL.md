@@ -174,7 +174,7 @@ allowed = privilege(session, address) >= markOrDefault(element)        // 05a §
 
 | Hook | Checks |
 |---|---|
-| `beforeRequest` | every GET, SET, SUBSCRIBE, CALL; refused ⇒ `{ kind: 'auth', code: 'forbidden' }`, the driver never sees it |
+| `beforeRequest` | every GET, SET, SUBSCRIBE, CALL; refused ⇒ `{ kind: 'auth', code: 'forbidden' }` (a refusal, 15 §3), the driver never sees it. Api addresses (`$links`, `$upload` — 15 §4) need only an open session |
 | `afterIntrospect` | drops devices below `view`, and fields below their `read` |
 | `onPush` | drops values and introspection changes for what the session may no longer see |
 
@@ -312,7 +312,7 @@ Message framing is 15's; the content below is binding.
 
 - **Nothing before `auth_ok`.** 10 s to authenticate; the `Origin` allowlist (`publicUrl`) is checked at the upgrade; no token ever in a URL.
 - **A browser** with a valid cookie gets `auth_ok` at once, without `auth_required`.
-- **Renewal in-band:** another `auth` with a fresh token on the open socket. Without one, the api closes at `exp` + 30 s.
+- **Renewal in-band:** another `auth` with a fresh token on the open socket — a control message the extension owns (15 §7). Without one, the api closes at `exp` + 30 s.
 
 | Close | When |
 |---|---|

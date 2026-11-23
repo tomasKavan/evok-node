@@ -11,7 +11,7 @@ What a value is beyond the wire's `Value` (03 §2): its TypeScript type, the run
 | a module (02 §4) | its config | `main` (validation), the inspector's config forms (02a) |
 | a nestable plugin (02b §8) — a DALI controller, a WS extension | its config, inside a module's | the same |
 
-Published in `@evok-node/module-sdk` (01 §11). Not here: endpoint shapes (05a §3.1), refs (05a §3.10), `LocalizedText` (04 §7), resolving text at the edge (15).
+Published in `@evok-node/module-sdk` (01 §11). Not here: endpoint shapes (05a §3.1), refs (05a §3.10), `LocalizedText` (04 §7), resolving text at the edge (13c).
 
 ## 2. `ValueType<T>` — a codec and its schema
 
@@ -35,7 +35,7 @@ type PrimitiveFormat =
   | 'float32' | 'float64'
   | 'timestamp'          // uint32 epoch seconds on the wire — a reading's readAt convention (05a §4) — decodes to Date
   | 'tlv8' | 'json'      // json is the closed vocabulary's own escape hatch — 06 is the first user
-  | 'text'               // a LocalizedText value (04 §7), resolved to one language at the edge (15) — §4
+  | 'text'               // a LocalizedText value (04 §7), resolved to one language at the edge (13c) — §4
   | 'schema';            // a ValueSchema value, e.g. a template's form (12a §2.4) — §4
 
 interface Annotations {                                // for a human form — §4; never changes what is valid
@@ -144,7 +144,7 @@ store: method('mutates', Values.void, Values.struct({
 - `default` and `optional` mean something only on a struct member. Both on one member is a packaging mistake, rejected when the value type is built.
 - `optional` here is a value a caller may omit. `optional()` on a `DeviceType` field (05a §3.3) is an endpoint a device may not have — a different thing.
 - `enumLabels` has exactly the keys of `enumValues`.
-- `LocalizedText` travels in full, every language; the WS API resolves it for the session's language (15) — `label`, `hint`, `helpMd`, `enumLabels`. A value that is itself user-facing text has format `text`; a value that is itself a schema (a template's form) has format `schema`, so the edge finds the text inside it too.
+- `LocalizedText` travels in full, every language; the `l10n` WS extension resolves it for the session's languages (13c) — `label`, `hint`, `helpMd`, `enumLabels`. A value that is itself user-facing text has format `text`; a value that is itself a schema (a template's form) has format `schema`, so the edge finds the text inside it too.
 - `label` and `hint` are plain text, short enough for a list, a picker or a tooltip. `helpMd` is longer help in Markdown, shown in a help panel. A UI renders it without raw HTML: a plugin wrote it.
 - `actor` marks the member an api fills with its own caller and never relays from a client (13 §5). Only `Values.actor()` sets it, and only as a struct member of a method's arguments; anywhere else it is a packaging mistake, rejected when the value type is built.
 - `plugin` marks a plugin ref `{ use: string, config: json }` of one nestable kind (02b §8). `checkValue` checks its shape only; `main` checks `config` against the chosen plugin. Only `Values.plugin()` sets it; for a kind that is not nestable it is rejected when the value type is built.
@@ -228,4 +228,4 @@ Tier 1 (unit; `basics/03-Testing.md`), `module-sdk` only — no driver, no daemo
 - `record` (§3): a key outside `keys.pattern` is `pattern` at that key's path; `maxLength` counts entries.
 - `checkValue` (§5): one fixture per `IssueCode`, asserting `path` and `code`; every issue reported at once; advisory skips `unknown-field` and `min`/`max`/`max-length`/`pattern`/`enum`, but never a format's own range; `Codec.validate` agrees with `checkValue` on every fixture.
 - `sensitive` (§4) on anything but `string` or `bytes` is rejected when the value type is built.
-- Annotations (§4): `label`, `hint`, `helpMd` and `enumLabels` reach the schema unchanged — resolving them is the edge's job (15).
+- Annotations (§4): `label`, `hint`, `helpMd` and `enumLabels` reach the schema unchanged — resolving them is the edge's job (13c).

@@ -30,15 +30,15 @@ Relevant to the tool:
 - **[`driver-onboard`](/packages/driver-onboard)** - the controller's own I/O sections, over Modbus TCP. Documented in [08-Onboard-driver.md](/docs/dev/design/evok-node/08-Onboard-driver.md).
 - **[`driver-extension`](/packages/driver-extension)** - Unipi RTU extensions, one instance per RS-485 line. For docu see [09-Extension-driver.md](/docs/dev/design/evok-node/09-Extension-driver.md).
 - **[`driver-dali`](/packages/driver-dali)** - pluggable DALI controllers (Foxtron ASCII built in), raw bus access, stored gears/groups, commissioning. See [12-DALI-driver.md](/docs/dev/design/evok-node/12-DALI-driver.md).
-- **[`api-nextgen`](/packages/api-nextgen)** - Our new WebSocket + HTTP API/surface. Owns its public schema. Documented in [15-Nextgen-API.md](/docs/dev/design/evok-node/15-Nextgen-API.md).
+- **[`api-ws`](/packages/api-ws)** - The WS API: every driver over WebSocket, serves the inspector. Documented in [15-WS-API.md](/docs/dev/design/evok-node/15-WS-API.md).
 - **[`driver-main`](/packages/driver-main)** - the `main` driver: config, instance state, apply, restart. See [02a](/docs/dev/design/evok-node/02a-Main-driver-and-bootstrap.md).
 - **[`api-bootstrap`](/packages/api-bootstrap)** - sets up the first WS API, then redirects to it. See [02a](/docs/dev/design/evok-node/02a-Main-driver-and-bootstrap.md).
-- **[`ui`](/packages/ui)** - the web SPA, over the nextgen API. Described in [16-Inspector-UI.md](/docs/dev/design/evok-node/16-Inspector-UI.md).
+- **[`ui`](/packages/ui)** - the web SPA, over the WS API. Described in [16-Inspector-UI.md](/docs/dev/design/evok-node/16-Inspector-UI.md).
 
 Supporting, testing and other:
 - **[`simulator`](/packages/simulator)** - Tool to simulate modbus slave based on given static map and configurable event reaction. See [`design/simulator`](/docs/dev/design/simulator/README.md).
 - **[`rig`](/packages/rig)** - hardware-rig control service. Private, low level access to devices. No sharing code with main tool. Documented in [`design/test-rig](/docs/dev/design/test-rig/README.md). Rig is private package.
-- **[`client`](/packages/client)** - Nextgen API TypeScript client. Based on [user docu](/docs/user/README.md), TBD: deployed to npm `@evok-node/nextgen-cli-ts.
+- **[`client`](/packages/client)** - WS API wire types and TypeScript client. Based on [user docu](/docs/user/README.md), TBD: deployed to npm.
 - **[`plugin-sdk`](/packages/plugin-sdk)** - published types (`ModuleDescriptor`, `ModuleInstance`, `InstanceContext`) and the runtime guard (`isModuleDescriptor`) a driver or api plugin author builds against — the same check `main` runs on a loaded module. Published to npm, like `client`. See [02-Main-and-configuration.md §4](/docs/dev/design/evok-node/02-Main-and-configuration.md).
 
 ## 2. Toolchain

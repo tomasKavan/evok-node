@@ -16,7 +16,7 @@ Agents are also involved in testing CI/CD and issues intake. Boundaries for each
 
 ## 2. Working with this package and repo/git
 
-Users install Debian package from repository - see [User docu](/docs/user/README.md). Devlopers needs to clone this repository. Because of narrow and specific use, `evok-node` is not published to npm. TS client consuming [nextgen API](/docs/dev/design/evok-node/15-Nextgen-API.md) is published.
+Users install Debian package from repository - see [User docu](/docs/user/README.md). Devlopers needs to clone this repository. Because of narrow and specific use, `evok-node` is not published to npm. TS client consuming [WS API](/docs/dev/design/evok-node/15-WS-API.md) is published.
 
 ```bash
 npm install

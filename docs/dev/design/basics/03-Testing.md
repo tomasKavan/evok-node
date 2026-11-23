@@ -133,7 +133,7 @@ const BUDGET_MS = 600
 
 const config = makeConfig({
   id: 'di-edge-to-ws'
-  title: 'DI rising edge arrives as nextgen WS diff',
+  title: 'DI rising edge arrives as a WS API event',
   description: 'DI test on HW rig'
 })
 
@@ -150,8 +150,8 @@ e2e(config, (test) => {
     const di = dis[0]
     await device.set(dis, false)
 
-    // get nextegn cli and check if DI is false
-    const cli = await platform.openNextgenCli(device)
+    // get a WS API client and check if DI is false
+    const cli = await platform.openWsClient(device)
     await expect.poll(() => cli.get(di)).toBe(false)
 
     // subscribe

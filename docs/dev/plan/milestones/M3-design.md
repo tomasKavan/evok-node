@@ -26,8 +26,9 @@ Target numbering in `design/evok-node/`, M5's docs included. Renumbered in M3.14
 | 13 | APIs — common to all, API plugins | 13 |
 | 13a | Auth & ACL framework | new |
 | 13b | Shell app (mobile/desktop) | new |
+| 13c | Localization — the `l10n` WS extension | new |
 | 14 | REMOVED | Compat API |
-| 15 | WS API | 15 Nextgen API |
+| 15 | WS API | 15 |
 | 16 | Inspector UI | 16 |
 | 17 | Inspector UI plugins | 17 |
 | 18 | Home API | 18 |
@@ -122,9 +123,9 @@ Every plugin kind in the system in one place — drivers, apis, WS extensions, d
 **Refs:** 01 §10 · 02 §4 · 02a · 03 §8 · 03a · 05a · 12 · 12a · 13 §2 · 15
 
 ### M3.8 — WS API   `area/api`
-Renamed from nextgen. Relays internal messaging. `ws-kit` (13 §2): sessions, hello, relay, fan-out, WS extensions (the contract in 15). The Home API is built on it too. Auth and ACL as WS extensions using 13a, reacting to `actor` and `proof` (13 §5). The hello advertises `evokNodeVersion` (12a §4b). Session language (`hello.lang`, `Accept-Language`, `setLang`) and the localization engine resolving `LocalizedText` at the edge (03a §4). Message size, for a `.tgz` uploaded to `installPackage` (02b §12).
-**Done when:** 15 designed and renamed; `api-nextgen` renamed in docs.
-**Refs:** 03 · 13 · 13a · 15
+Renamed from nextgen. Relays internal messaging. `ws-kit` (13 §2): sessions, hello, relay, fan-out, WS extensions (the contract in 15). The Home API is built on it too. Auth and ACL as WS extensions using 13a, reacting to `actor` and `proof` (13 §5). The hello advertises `evokNodeVersion` (12a §4b). Session language (`hello.lang`, `Accept-Language`, `setLang`) and resolving `LocalizedText` at the edge (03a §4, 04 §7) as the `l10n` WS extension, in 13c. Message size, for a `.tgz` uploaded to `installPackage` (02b §12).
+**Done when:** 15 and 13c designed; 15 renamed; `api-nextgen` renamed in docs.
+**Refs:** 03 · 04 §7 · 03a §4 · 13 · 13a · 15
 
 ### M3.9 — Inspector UI: basics and plugin contract   `area/ui`
 Structure, logic, wireframes, mobile vs desktop, frameworks, design guide. Basic controls for raw driver-kit devices. Logs. Generic forms from annotated schemas and `$refs` (03a §4, 05a §3.10); a ref filter that depends on another field of the same form (DALI bus → gear). The plugin contract: the `inspector-panel` kind and how the SPA loads it (02b §5.2). Plugin management view (02a §2.5); who uses a plugin outside config (02b §12). A standalone SPA — loading in the shell app is M5.2. The main plugins are M5.3.
