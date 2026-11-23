@@ -31,10 +31,48 @@
   values of format `text`, and the schemas inside values of format `schema`. Drivers always answer every
   language, so introspection stays one shared payload.
 - **Refs.** `$refs` (03 §3, 05a §3.10) is relayed like any other address.
+- **WS extensions** (13 §2) — the contract `ws-kit` gives every api built on it:
+
+```ts
+interface WsExtensionDescriptor<Config> {      // manifest kind `ws-extension`
+  readonly meta: ModuleMeta;                   // 02 §4
+  readonly config: ValueType<Config>;          // 03a
+  rules?(config: Config): readonly Issue[];
+  declaredLinks?(config: Config): { readonly drivers: readonly DriverId[] };   // its private drivers (03 §8)
+  create(ctx: ExtensionContext, config: Config): WsExtension;                  // once, at the api's configure
+}
+
+interface WsExtension {
+  onConnection?(session: Session, hello: Hello): Promise<void>;   // may reject
+  onClose?(session: Session): void;
+  beforeRequest?(ctx: RequestCtx): void | Promise<void>;          // may change ctx.msg, or ctx.refuse(error)
+  afterRequest?(ctx: ResponseCtx): void;                          // may change ctx.res
+  beforeIntrospect?(ctx: IntrospectCtx): void;
+  afterIntrospect?(ctx: IntrospectCtx): void;                     // filter or annotate the payload
+  onPush?(session: Session, push: Push): Push | null;             // values and introspection changes going out
+  stop?(): Promise<void>;
+}
+
+interface ExtensionContext {
+  // the api's view — what its clients see
+  introspection(): Introspection;  onIntrospection(cb): void;  onLink(cb): void;
+  get(address); set(address, value); call(address, args); subscribe(address, cb): Subscription; unsubscribe(sub);
+  // its own declaredLinks only
+  private(driverId: DriverId): { get; set; call; subscribe; unsubscribe; onLink };
+  readonly log: Logger;                        // 04
+}
+```
+
+  - **Stacked, onion order:** `onConnection` and `before*` run in list order, `after*` and `onPush` in reverse. `session.state` is where one extension leaves typed data for the next (auth → ACL).
+  - **The api stays agnostic.** Users, zones, languages are the extensions'; the api only offers these services.
+  - **An extension sees only what the api's clients see**, plus its private drivers. Its own calls carry the api's `Origin` and skip the hooks (13 §5).
+  - **Cleanup by `ws-kit`:** on drain and stop it drops every subscription and callback of an extension, then calls its `stop()`. An api has no reload (13 §3), so an extension has none either.
+  - **The api's descriptor combines its extensions'** — config, rules, links. Links are `drivers:` plus every extension's `declaredLinks`; only `drivers:` is relayed to clients. How `validate` and the forms see an extension's config inside the api's is M3.7b's (02b).
+  - **This api lists its extensions in config**, e.g. `extensions: { auth: { idp: auth }, acl: { idp: auth } }`. The Home API fixes its own (18).
+- **Access marks** (05a §3.1b) are used as the types wrote them, as on the Home API — no override and no per-client profile (13 §5).
 
 **Inputs:** research/01 (as contrast) · research/08 · to_revision/0003 ·
 [`STATUS.md`](../../plan/STATUS.md), the undeclared-workspace-edges open question
 
 **Open:** `client → api-nextgen` versus a separate `schema-nextgen` package, and the deferred auth
-mechanism. Whether and how it uses the access marks (05a §3.1b, 13 §5) — leaning: yes, with client
-profiles that may only ask for more (the Inspector: `administer` on everything).
+mechanism.

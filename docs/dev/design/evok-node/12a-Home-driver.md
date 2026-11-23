@@ -520,19 +520,23 @@ listRemotes(): readonly (RemoteRecord & { link: 'up' | 'down' | 'incompatible' }
 
 // hierarchy (§6)
 listHierarchy(): {
-  levels: readonly Level[]; rooms: readonly Room[]; groups: readonly Group[];
+  zones: readonly Zone[]; levels: readonly Level[]; rooms: readonly Room[]; groups: readonly Group[];
   members: Readonly<Record<string, readonly string[]>>;   // group id → device tails
+  warnings: readonly HierarchyWarning[];                  // §6
 };
-createLevel(args: { name: string }): Level;
-createRoom(args: { name: string; levelId: string }): Room;
+createZone(args: { id: string; name: string; parentId?: string }): Zone;   // id chosen by the admin, site-wide (§6)
+createLevel(args: { name: string; story: number }): Level;
+createRoom(args: { name: string; zoneId?: string; levelId?: string }): Room;
 createGroup(args: { name: string; roomId: string }): Group;
-updateLevel(args: { id: string; patch: { name?: string } }): Level;
-updateRoom(args: { id: string; patch: { name?: string; levelId?: string } }): Room;
+updateZone(args: { id: string; patch: { name?: string; parentId?: string | null } }): Zone;               // null ⇒ a top zone
+updateLevel(args: { id: string; patch: { name?: string; story?: number } }): Level;
+updateRoom(args: { id: string; patch: { name?: string; zoneId?: string | null; levelId?: string | null } }): Room;   // null ⇒ none
 updateGroup(args: { id: string; patch: { name?: string; roomId?: string } }): Group;
+removeZone(args: { id: string }): void;
 removeLevel(args: { id: string }): void;
 removeRoom(args: { id: string }): void;
 removeGroup(args: { id: string }): void;
-attachRemote(args: { remoteId: string; node: 'level' | 'room' | 'group'; id: string; under?: string }): Level | Room | Group;   // id: the node's id on the remote; under: the local level/room it goes in
+attachRemote(args: { remoteId: string; node: 'zone' | 'room' | 'group'; id: string; under?: string }): Zone | Room | Group;   // id: the node's id on the remote; under: the local zone (for a zone or a room) or room (for a group)
 detachRemote(args: { id: string }): void;        // the local id of an attached node
 ```
 
@@ -542,12 +546,14 @@ detachRemote(args: { id: string }): void;        // the local id of an attached 
 
 Every method validates before anything is persisted or bound, and answers `domain-error` (05a §3.5) — never a throw — since a human in the Inspector UI or the Home UI is exactly the caller this is for. `errorKinds`:
 
-- `unknown-device-type`, `unknown-template`, `unknown-device`, `unknown-node`, `unknown-remote`, `duplicate-remote`, `unknown-level`, `unknown-room`, `unknown-group`, `unknown-bundle-kind`, `unknown-bundle`.
+- `unknown-device-type`, `unknown-template`, `unknown-device`, `unknown-node`, `unknown-remote`, `duplicate-remote`, `unknown-zone`, `unknown-level`, `unknown-room`, `unknown-group`, `unknown-bundle-kind`, `unknown-bundle`.
 - `invalid-anchor` — `createBundle`'s anchor fails `home.source`'s `has`, or `resolve` answers `ok: false`; `detail` carries its `reason`.
 - `invalid-sources` — the form's `sources` fail its codec (a role missing or unknown, a count outside `min`–`max`), or a source fails `home.source`'s `has` (§2.4): its driver is neither in `config.local` nor this driver, or its current introspection fails `matchesDeviceType` against every one of the role's `types` (05a §4a). A device is never created against a source nobody has seen; once created, a missing source only makes it unreachable (§4.2). For a bundle, `detail` names the failing member.
 - `invalid-settings` — `settings` fail the form's `settings`.
 - `read-only` — `updateDevice` on a `remote` device with anything but `overrides`; `overrides` on a non-`remote` one; `sources`/`settings` on a non-`local` one; `removeDevice` on a present `matter`/`remote` one; any change to an attached node (§6) or to what's in it.
-- `in-use` — removing a level, room or group something still references.
+- `in-use` — removing a zone, level, room or group something still references.
+- `duplicate-zone` — `createZone` or `attachRemote` with a zone id this driver already has.
+- `zone-cycle` — a `parentId` that would make a zone its own ancestor.
 - `pairing-failed` — `commission` couldn't pair: bad or expired code, device not found on the network.
 
 Every method is reachable through the WS API (15) and its Inspector UI. The Home API relays a subset, for the Home UI:
@@ -560,34 +566,61 @@ Every method is reachable through the WS API (15) and its Inspector UI. The Home
 | `listBundleKinds`, `createBundle`, `removeBundle` | — as `createDevice` |
 | `updateBundle`, `listBundles` | yes |
 | `addRemote`, `removeRemote`, `listRemotes` | — |
-| hierarchy | yes |
+| hierarchy, `hierarchyRev` | yes |
 | rules (12b §8) | yes |
 | `$refs` (§2.4) | yes |
 
+**Access marks** (05a §3.1b). The list methods and `hierarchyRev` keep the default `view`. The zone methods and the remote methods (`addRemote`, `removeRemote`, `attachRemote`, `detachRemote`) are marked `call: 'administer'` — a zone is an access boundary (13a). Every other method is marked `call: 'manage'`. A call is checked against this driver's `manage` address itself — a `site`, `node:` or `device:` grant reaches it — so management is per home driver: a flat gets its own manager by having its own home driver, the others importing its devices (§4b; 13a).
+
 The Home API itself is designed in M3.11 (18).
 
-## 6. Grouping hierarchy — group, room, level
+## 6. Grouping hierarchy — zone, room, group
 
-A three-level hierarchy, this driver's own user data (06), authored in the Inspector UI and the Home UI through §5's hierarchy methods:
+Zones form a tree, rooms sit in zones, groups in rooms; levels label rooms. This driver's own user data (06), authored in the Inspector UI and the Home UI through §5's hierarchy methods:
 
 ```ts
 interface Mirror { readonly remoteId: string; readonly id: string; }   // the node's id on the remote
-interface Level  { readonly id: string; readonly name: string; readonly mirror?: Mirror; }
-interface Room   { readonly id: string; readonly name: string; readonly levelId: string; readonly mirror?: Mirror; }
+interface Zone   { readonly id: string; readonly name: string; readonly parentId?: string; readonly mirror?: Mirror; }
+interface Level  { readonly id: string; readonly name: string; readonly story: number; readonly mirror?: Mirror; }   // story: integer, order
+interface Room   { readonly id: string; readonly name: string; readonly zoneId?: string; readonly levelId?: string; readonly mirror?: Mirror; }
 interface Group  { readonly id: string; readonly name: string; readonly roomId: string; readonly mirror?: Mirror; }
+interface HierarchyWarning {
+  readonly kind: 'zone-parent-differs';
+  readonly nodeId: string;             // the local id of the attached zone or room
+  readonly localParentId?: string;     // its zone here
+  readonly remoteParentId?: string;    // its zone on the remote
+}
 ```
 
-A `DeviceRecord` (§4) belongs to at most one `Group` via its own `groupId` — an imported one via `overrides.groupId` (§4b); a device with no group is simply ungrouped, never an error. Nothing about this hierarchy is Matter's own Groups/Scenes cluster — a name lives once, on its record, never per-device. It exists only to let the Home UI and the Inspector UI organise devices for a human, and plays no part in how a device's own fields are assembled or addressed.
+```
+zone "common"
+  zone "main-corridor"
+    Room "231"  (level "2nd floor") ─ Group "Ceiling" ∋ device.local.7
+zone "flat3"
+  Room "Kitchen"  (level "2nd floor")
+  Room "Cellar 3" (level "Basement")
+Room "Boiler room"  (no zone)
+```
 
-**A remote's structure** can be attached into this one. `attachRemote` mirrors a remote's level, room or group with everything inside it — a level at the top, a room under a local level, a group under a local room — read from the remote's own `listHierarchy` over the link:
+- **A zone** has an `id` the admin chooses. It is site-wide: grants name it (`zone:<id>`, 13a), so the same id on two nodes is the same zone. Its `parentId` is this node's own — the same id may have another parent elsewhere; that is the admin's to keep consistent. A cycle is refused (`zone-cycle`).
+- **A room** is in at most one zone, and so are its groups and their devices — in that zone and every zone above it. A room with no zone is in none.
+- **A level** only labels rooms for the UIs — "2nd floor", "Basement". Its `story` orders levels: lower first, negative below ground; levels with the same `story` are the same story, in no particular order ("2nd floor" and "2nd floor — courtyard wing", both 2). It plays no part in the tree or in access.
+
+A `DeviceRecord` (§4) belongs to at most one `Group` via its own `groupId` — an imported one via `overrides.groupId` (§4b); a device with no group is simply ungrouped, never an error. Nothing about this hierarchy is Matter's own Groups/Scenes cluster — a name lives once, on its record, never per-device. It organises devices for a human in the Home UI and the Inspector UI, and the zones draw access boundaries (13a); it plays no part in how a device's own fields are assembled or addressed.
+
+**`hierarchyRev`** — a `reading` on `manage` (`uint32`, subscribed): +1 on every change to what `listHierarchy` answers — a node, a member, a warning, an attached node following its remote. A client re-reads `listHierarchy` when it changes.
+
+**A remote's structure** can be attached into this one. `attachRemote` mirrors a remote's zone, room or group with everything inside it — a zone at the top or under a local zone, a room under a local zone or in none, a group under a local room — read from the remote's own `listHierarchy` over the link:
 
 ```
-garden PLC:  Level "Garden" ─ Room "Terrace" ─ Group "Lights" ∋ device.local.5
-house PLC:   attachRemote({ remoteId: 'garden', node: 'room', id: <Terrace>, under: <local level "Outside"> })
-             Level "Outside" (local) ─ Room "Terrace" (mirror) ─ Group "Lights" (mirror) ∋ device.remote.garden.home.device.local.5
+garden PLC:  zone "garden" ─ Room "Terrace" ─ Group "Lights" ∋ device.local.5
+house PLC:   attachRemote({ remoteId: 'garden', node: 'room', id: <Terrace>, under: <local zone "outside"> })
+             zone "outside" (local) ─ Room "Terrace" (mirror) ─ Group "Lights" (mirror) ∋ device.remote.garden.home.device.local.5
 ```
 
 - An attached node, and everything in it, is read-only here and follows the remote's structure as it changes.
+- An attached zone keeps the remote's id; a local zone with that id refuses the attach (`duplicate-zone`). An attached room's level comes along as a mirrored `Level`.
+- An attached zone or room whose zone on the remote has another id than its local parent is allowed and listed in `warnings` (`zone-parent-differs`) — the Inspector shows it.
 - An imported device whose remote group sits in an attached node belongs to that group. Its `overrides.groupId` applies only when it doesn't.
 - A node the remote removes disappears here too; its devices fall back to their `overrides.groupId`.
 
@@ -615,6 +648,7 @@ Tier 1, against fixture drivers (no hardware) that each expose a handful of `bin
 - Remote: only `exposed` devices are imported, of any origin; a device the remote drops or stops exposing becomes `missing`; `updateDevice` on an imported device answers `read-only` for anything but `overrides`; `overrides.exposed` replaces the remote's value, `overrides.controllable: false` disables control and `true` answers `bad-payload`; `SET name` reaches the remote; with the link down, `reachable` is false and `SET` answers `unreachable`.
 - Remote, version: a remote whose `evokNodeVersion` is out of range is `incompatible` and nothing is imported; a device whose kind fails `matchesDeviceType` is skipped.
 - Remote, hierarchy: an attached room and its groups answer `read-only` to any change; an imported device in an attached group is listed there, otherwise under its `overrides.groupId`.
+- Hierarchy: `createZone` with a known id answers `duplicate-zone`; a `parentId` making a cycle answers `zone-cycle`; removing a zone a room or zone still points to answers `in-use`; `hierarchyRev` grows on every node change, on a device's `groupId` change and on an attached node following its remote; an attached room under a local zone other than its remote zone is listed in `warnings`.
 - Tails: a removed device's number is never reused; tails are unchanged after a restart and after `updateDevice`.
 - `DimmableLight` from a fixture source: `move` up raises `level` until `stop`, and stops on its own at 254.
 - `TimerRelay` on a fake `Clock`: every call in every state does what 12c-05 §1.1 lists; `toggle` and `cancel` never emit `elapsed`; `ms` over `maxMs` is clamped; `warning` turns true at `warnBeforeMs` and false on `idle`; not `persistent`: `idle` after a restart; `persistent`: `paused` and `elapsing` are restored with the saved `remainingMs`, and the restored countdown starts after the rule engine's baselines, so its `elapsed` triggers a rule.

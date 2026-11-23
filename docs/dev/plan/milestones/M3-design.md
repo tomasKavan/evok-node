@@ -11,6 +11,7 @@ Target numbering in `design/evok-node/` once M3 is done.
 | Doc | Content | Today |
 |---|---|---|
 | 02a | Main driver and bootstrap | new |
+| 02b | Plugins — general rules | new |
 | 03a | Values and schemas | new |
 | 12a | Home driver | 12a |
 | 12b | Home rules | 12b |
@@ -108,7 +109,7 @@ What every api must do, whatever it speaks, and how a new one is written. Terms:
 ### M3.6 — Auth & ACL framework   `area/auth`
 A library APIs use, not an API. Upstream identity provider (authentik). Users, roles, keys, devices, client credentials (PLC to PLC). Authentication: SSO, password, PIN, biometrics; local vs full. Assurance levels and how an API reacts (PIN for a lock): what 13's `proof` asks of a caller and how a WS extension fills `actor` (13 §5, 12c-09 §1.2). The same proof for an access closure's `open` (`garageDoor`, `gate`, `door`; `close` free), and whether a virtual `DoorLock` gates it (12c-07 §6). Then Matter exposure of `DoorLock` and access closures (12c-09 §4, 12c-07 §4). Local DB as a new driver kind. Example flows, including mobile apps and biometrics.
 **Done when:** 13a designed; research doc for the identity provider exists.
-**Refs:** 13 · 15 · 06 §5a · 12a §4b · 12c-07 §6 · 12c-09 §1.2
+**Refs:** 13 · 15 · 06 §5a · 12a §4b, §6 · 12c-07 §6 · 12c-09 §1.2
 
 ### M3.6a — 2N access driver   `area/2n`
 A driver for 2N Access Unit 2.0 / IP Verso 2.0 over the HTTP API: switches, door state, I/O, events over `log/subscribe`/`log/pull`, `grantaccess` for a user. API account and secrets via 13a. Map from the identity provider's users to 2N users; the 2N's users come from the identity provider through Access Commander — the driver never writes the 2N directory. DeviceTypes for `lock-from-2n`'s roles.
@@ -125,8 +126,13 @@ Configuration written from the Inspector; a static-only configuration stays poss
 **Done when:** 02a and 03a designed; 01, 02, 03 §8, 04 §3, 05a, 08 §2, 13 and the 15 and 16 memos agree; `TypedCodec`/`Codecs` renamed to `ValueType`/`Values` everywhere; 02a states the backup procedure.
 **Refs:** 01 §2–§4 · 02 · 03 §8–§11 · 04 §3, §7 · 03a · 05a §3.1 · 06 §5a · 08 §2 · 13 · 15 · 16
 
+### M3.7b — Plugins: general rules   `area/plugins`
+Every plugin kind in the system in one place — drivers, apis, WS extensions, device types, templates, rule kinds, UI plugins — and the rules they share: manifest, descriptor, config, links, versions. Nested plugin config — a plugin's config inside a module's config (DALI `ctrl`, a WS api's extensions) — and how `validate` and the forms see it. Then each plugin kind's doc is refined against these rules.
+**Done when:** 02b designed; the docs of each plugin kind agree with it; the nested-config Open in STATUS is closed.
+**Refs:** 01 §10 · 02 §4 · 02a · 03 §8 · 03a · 05a · 12 · 12a · 13 §2 · 15
+
 ### M3.8 — WS API   `area/api`
-Renamed from nextgen. Relays internal messaging. `ws-kit` (13 §2): sessions, hello, relay, fan-out, WS extensions (`onConnection`, `onRequest`). The Home API is built on it too. Auth and ACL as WS extensions using 13a, reacting to `actor` and `proof` (13 §5). The hello advertises `evokNodeVersion` (12a §4b). Session language (`hello.lang`, `Accept-Language`, `setLang`) and the localization engine resolving `LocalizedText` at the edge (03a §4).
+Renamed from nextgen. Relays internal messaging. `ws-kit` (13 §2): sessions, hello, relay, fan-out, WS extensions (the contract in 15). The Home API is built on it too. Auth and ACL as WS extensions using 13a, reacting to `actor` and `proof` (13 §5). The hello advertises `evokNodeVersion` (12a §4b). Session language (`hello.lang`, `Accept-Language`, `setLang`) and the localization engine resolving `LocalizedText` at the edge (03a §4).
 **Done when:** 15 designed and renamed; `api-nextgen` renamed in docs.
 **Refs:** 03 · 13 · 13a · 15
 

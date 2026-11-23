@@ -246,6 +246,7 @@ A link is opened once, by `main`, never by a module and never at message time (0
 
 - **An api's links are `main`'s own, generic, parsed field** — `drivers:` on an `apis:` entry (02 §3), sibling to `type`/`run`. 01 §9 frames "an api declares which driver ids it consumes" as a rule for every api, not a per-api convention, so the field is standardized at `main`'s level.
 - **A driver's links are its own descriptor's business** — `ModuleDescriptor.declaredLinks(config)` (02 §4), because 01 §7 already frames a shared-transport declaration as living inside the depending driver's own schema, bundled with whatever else that relationship needs (its own address on the shared bus, say). A generic field couldn't carry that extra context without `main` having to understand it, which is exactly what stays opaque.
+- **An api's WS extensions declare theirs the same way** — `WsExtensionDescriptor.declaredLinks(config)` (15). `main` adds them to that api's links; the api relays only `drivers:` to its clients.
 
 ```ts
 // @evok-node/module-sdk

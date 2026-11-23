@@ -28,7 +28,7 @@ api-<plugin> ── e.g. MQTT (§10)
 | **api** | an instance under `apis:` in config | — |
 | **API module** | the package code behind an api's `type` | `api` |
 | **API plugin** | an API module we do not ship — same sense as a driver plugin (01 §10) | `api` |
-| **WS extension** | a hook inside `ws-kit`: `onConnection` (auth, language), `onRequest` (ACL, localization) — 15 | `ws-extension` |
+| **WS extension** | a plugin inside a `ws-kit` api, created once at its start, with its own config and links; hooks on connection, request, introspection and outgoing pushes (auth, ACL, localization) — 15 | `ws-extension` |
 | **relay api** | speaks our messaging model on the wire: addresses, methods, `ResponseError` (WS API, Home API) | — |
 | **mapping api** | translates to a foreign model (Matter, MQTT, a REST plugin) | — |
 
@@ -38,7 +38,7 @@ Packages are named `api-<name>`.
 
 An API module is a module like a driver (02 §4): a `ModuleDescriptor`, a `ModuleInstance`, resolved through the manifest, hosted by the runner. Two differences:
 
-- **Its links are `drivers:`** (03 §8), main's own field, stripped before the module's schema runs. Nothing else in its config says which drivers it reaches.
+- **Its links are `drivers:`** (03 §8), main's own field, stripped before the module's schema runs. Nothing else in its config says which drivers its clients reach. An api on `ws-kit` also gets its extensions' own links (15, 03 §8), never relayed to clients.
 - **Nothing addresses it.** Only a `DriverId` is addressable (03 §3), so an api never calls `onRequest` (03 §4).
 
 ```yaml
@@ -124,7 +124,7 @@ unlock: method('mutates', Values.void, Values.struct({ by: Values.actor() }), { 
 | Api | Uses the privilege marks |
 |---|---|
 | Home API (18) | yes, as written — no override |
-| WS API (15) | open — M3.8 |
+| WS API (15) | yes, as written — no override, the same for every client |
 | Matter bridge (16a) | no — Matter's own ACL and cluster spec |
 | an API plugin | its own choice |
 
