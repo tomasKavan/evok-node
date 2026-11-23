@@ -233,7 +233,7 @@ Part of the mapping table (16a, `driver-home/matter-map`).
 | `TargetState` | `state.target` while `current` is `transitioning`; else null |
 | `OpenDuration` | the current opening's seconds; null when closed or untimed |
 | `RemainingDuration` | `remainingS`; null when 0 |
-| `DefaultOpenDuration` | `behavior.defaultOpenS`, null when absent. Writes refused — `manage` only (12c-04 §4 Open, M3.13) |
+| `DefaultOpenDuration` | `behavior.defaultOpenS`, null when absent. Writes refused — `manage` only (12c-04 §4 Open, M5.6) |
 | `CurrentLevel`, `TargetLevel` | `level.current`, `level.target` — `LVL` only |
 | `ValveFault` | `GeneralFault` = `fault.timeout`; `Blocked` = `fault.blocked` |
 | event `ValveStateChanged` | when `state.current` reaches `open` or `closed` |

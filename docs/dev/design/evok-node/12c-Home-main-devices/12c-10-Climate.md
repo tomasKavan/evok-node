@@ -231,6 +231,6 @@ A `mode`, `setpoint` or `preset` SET answers at once with the value taken — cl
 ## 6. Open
 
 - **A second AC in one room.** Deferred.
-- **Preset setpoints** — user-editable through the Home API and UI, or admin settings only. → M3.11, M3.12.
-- **Matter writes** to `Presets`, limits and deadband through the device. → M3.13, with 12c-04 §4's Open.
-- **`0x0072` with the controllers** — Apple sends Cool instead of Auto (research/matter/11 §2); fall back to `0x0301` with On/Off and Fan Control if it fails. → M3.13.
+- **Preset setpoints** — user-editable through the Home API and UI, or admin settings only. → M5.4, M5.5.
+- **Matter writes** to `Presets`, limits and deadband through the device. → M5.6, with 12c-04 §4's Open.
+- **`0x0072` with the controllers** — Apple sends Cool instead of Auto (research/matter/11 §2); fall back to `0x0301` with On/Off and Fan Control if it fails. → M5.6.

@@ -40,11 +40,11 @@ In these notes, design documents are written `design 06 §5a` wherever a bare nu
 | 13 §2 | WS extensions: `onConnection` (auth, language), `onRequest` (ACL, localization) |
 | 05a §3.1, 03a §2–§4 | `proof?: true` in `MethodType`; the `actor` annotation and `Values.actor()` |
 | M3.8 (WS API) | hello carries `evokNodeVersion` and `lang`; ACL subjects, resources, actions; PLC-to-PLC auth belongs to this api |
-| M3.11 (Home API), M3.9 (Inspector) | auth and ACL as WS extensions; write and test actions gated |
+| M5.4 (Home API), M3.9 (Inspector) | auth and ACL as WS extensions; write and test actions gated |
 | design 06 §5a | sensitive keys in a second 0600 file; no encryption at rest |
 | design 12a §4b, 05a §3.8b, 07 §4.1 | PLC-to-PLC credentials deferred to M3.6 |
 | 12a §6 | hierarchy level → room → group — a role-scope candidate |
 | 12c-09 §1.2 | `DoorLock.unlock` is `proof`; what proof asks → M3.6 |
 | 12c-07 §6 | `open` of a `garageDoor`, `gate` or `door` needs the same proof; `Closure` is one DeviceType for every kind |
 | 16a, research/matter/08 P15 | Matter bridge: own auth (fabrics); one bridge vs one per flat |
-| M3.6a (12e) | 2N users and PINs come from the IdP through Access Commander |
+| M5.1 (12e) | 2N users and PINs come from the IdP through Access Commander |

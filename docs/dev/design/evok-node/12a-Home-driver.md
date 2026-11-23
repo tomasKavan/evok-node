@@ -571,7 +571,7 @@ Every method is reachable through the WS API (15) and its Inspector UI. The Home
 
 **Access marks** (05a §3.1b). The list methods and `hierarchyRev` keep the default `view`. The zone methods and the remote methods (`addRemote`, `removeRemote`, `attachRemote`, `detachRemote`) are marked `call: 'administer'` — a zone is an access boundary (13a). Every other method is marked `call: 'manage'`. A call is checked against this driver's `manage` address itself — a `site`, `node:` or `device:` grant reaches it — so management is per home driver: a flat gets its own manager by having its own home driver, the others importing its devices (§4b; 13a).
 
-The Home API itself is designed in M3.11 (18).
+The Home API itself is designed in M5.4 (18).
 
 ## 6. Grouping hierarchy — zone, room, group
 

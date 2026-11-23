@@ -281,4 +281,4 @@ A `mode` or `percent` SET answers at once with the value taken — clamped, roun
 
 ## 6. Open
 
-- **Fan vs Air Purifier for `VentilationUnit`.** Fan matches Matter's meaning better; Air Purifier `0x002D` would carry the filter (research/matter/12 §5). Test how Apple Home and Google Home show both. → M3.13.
+- **Fan vs Air Purifier for `VentilationUnit`.** Fan matches Matter's meaning better; Air Purifier `0x002D` would carry the filter (research/matter/12 §5). Test how Apple Home and Google Home show both. → M5.6.

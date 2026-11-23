@@ -193,7 +193,7 @@ On the basement PLC the bundle's devices are created with `exposed` false (12d �
 
 ## 4. Matter
 
-- **`RainSensor`** → Rain Sensor `0x0044` (Matter 1.3; research/matter/09): BooleanState `StateValue` = `raining`. Controller support not known — no product found (research/matter/09). Tested in M3.13.
+- **`RainSensor`** → Rain Sensor `0x0044` (Matter 1.3; research/matter/09): BooleanState `StateValue` = `raining`. Controller support not known — no product found (research/matter/09). Tested in M5.6.
 - **`temperature-from-almanac`, `humidity-from-almanac`** are a `TemperatureSensor` and a `HumiditySensor`: mapped as 12c-04 §4.
 - **`Calendar`, `Clock`, `Sun`, `WindSensor`, `Weather`:** no Matter counterpart; 16a ignores them.
 

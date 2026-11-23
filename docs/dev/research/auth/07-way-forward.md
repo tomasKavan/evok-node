@@ -139,7 +139,7 @@ type Scope   = 'site' | `node:${string}` | `zone:${string}` | `device:${string}/
 | design 13 §5 | api overwrites `actor` with its caller; `proof` per method; a rule passes no `actor` | add peer delegation (§2.7); rules and `proof` (D10) |
 | design 05a §3.1 | `proof?: true` | stays a boolean — the kinds asked are 13a's policy; optional `privilege` per method (D15) |
 | design 13 §2 | `onConnection`, `onRequest` | as §2.2; the WS API needs a wire error with a challenge (M3.8) |
-| WS API, Home API (M3.8, M3.11) | auth deferred | hello `auth`, in-band `auth`, `proofNeeded`, close codes |
+| WS API, Home API (M3.8, M5.4) | auth deferred | hello `auth`, in-band `auth`, `proofNeeded`, close codes |
 | new | — | `driver-auth` (driver), `api-auth` (HTTP api); both go into design 01 §11 and basics/01 |
 | `driver-auth` exposure | — | management tails (`administer`) may be relayed by the WS API; session and proof tails never (D17) |
 | design 06 §5a | sensitive keys, 0600 | PIN verifiers, node key, service-account token are sensitive; storage D18 |
@@ -183,12 +183,12 @@ type Scope   = 'site' | `node:${string}` | `zone:${string}` | `device:${string}/
 | D19 | Proof for access closures | separate DeviceType `AccessClosure` · per-device proof flag · proof by zone/category in auth policy | separate DeviceType |
 | D20 | Library | own token service on `jose` + `openid-client` · `oidc-provider` | own; `oidc-provider` only if third-party OIDC clients come |
 | D21 | Sync interval and hints | N minutes; back-channel logout; webhook | N = 5 min; webhook as a hint |
-| D22 | Shell redirect (M3.7) | claimed https on a vendor domain (registered in each authentik) · custom scheme | claimed https, custom scheme as fallback |
-| D23 | Matter (M3.13) | `DoorLock` and access closures on Matter; one bridge vs one per flat; per-fabric ACL targets per flat (04 P8) | out of M3.6; with research/matter/08 P11–P16 |
+| D22 | Shell redirect (M5.2) | claimed https on a vendor domain (registered in each authentik) · custom scheme | claimed https, custom scheme as fallback |
+| D23 | Matter (M5.6) | `DoorLock` and access closures on Matter; one bridge vs one per flat; per-fabric ACL targets per flat (04 P8) | out of M3.6; with research/matter/08 P11–P16 |
 
 ## 5. Next steps
 
 1. Tomas answers D1–D14.
-2. Designer: 13a — scope · components · directory and roles · sessions and tokens · levels and proof · WS extensions · `api-auth` · replica and offline · PLC to PLC · client contract (feeds M3.7) · storage and secrets · testing.
+2. Designer: 13a — scope · components · directory and roles · sessions and tokens · levels and proof · WS extensions · `api-auth` · replica and offline · PLC to PLC · client contract (feeds M5.2) · storage and secrets · testing.
 3. Same change set: design 13 §5 (delegation, rules), 05a §3.1 (`privilege`, not relayable), 12c-09 §1.2 and 12c-07 §6 Opens, 12a §4b / 05a §3.8b / 07 §4.1 credentials, 12a §6 zones, the M3.6 task text, `STATUS.md`.
 4. GAPs to settle on hardware or by test: Patron RTC and TPM; `crypto.argon2` in the Node build on Unipi; the §2.4 table on a Cortex-A53; authentik `amr` after an in-flow step-up; authentik group API for incremental sync; the PIN attribute Access Commander reads over LDAP; Chrome LNA for WebSockets.

@@ -426,5 +426,5 @@ Tier 1 (basics/03), against a fixture IdP (OIDC discovery, JWKS, token endpoint,
 
 ## 16. Open
 
-- **PIN uniqueness** is the admin's for now; generated PINs and a check that does not leak other users' PINs → M3.6a, with the IdP's PIN flow for the 2N.
-- **Hardware and IdP facts**, settled on hardware or by test (M3.15): the Patron's RTC and TPM; `crypto.argon2` in the Node build on Unipi; the §5.3 check on a Cortex-A53; authentik's `amr` after an in-flow step-up and its group API for incremental sync; the PIN format Access Commander reads over LDAP (M3.6a); Chrome's Local Network Access for WebSockets.
+- **PIN uniqueness** is the admin's for now; generated PINs and a check that does not leak other users' PINs → M5.1, with the IdP's PIN flow for the 2N.
+- **Hardware and IdP facts**, settled on hardware or by test (M3.15): the Patron's RTC and TPM; `crypto.argon2` in the Node build on Unipi; the §5.3 check on a Cortex-A53; authentik's `amr` after an in-flow step-up and its group API for incremental sync; the PIN format Access Commander reads over LDAP (M5.1); Chrome's Local Network Access for WebSockets.

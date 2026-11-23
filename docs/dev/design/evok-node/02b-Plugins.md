@@ -125,7 +125,7 @@ interface Configurable<C> {                       // driver, api, and every nest
 | `target` | `path` names | Loaded |
 |---|---|---|
 | `node` | an ES module | `import()` in the process that asks |
-| `browser` | an ES module for a browser | never in the daemon; served to the Inspector (M3.10) |
+| `browser` | an ES module for a browser | never in the daemon; served to the Inspector (M3.9) |
 | `data` | a YAML or JSON file | read and parsed; the guard gets the parsed value |
 
 - **Every plugin has a `PluginMeta`** — `metaOf(p)`, by default its export's own `meta`. The registry checks `label` after the guard.
@@ -147,7 +147,7 @@ interface Configurable<C> {                       // driver, api, and every nest
 | `home-template` | `driver-home` | node | — | `AssemblyTemplate` | 12a §3 |
 | `home-bundle` | `driver-home` | node | — | `TemplateBundle` | 12a §3a |
 | `home-rule` | `driver-home` | node | — | `RuleKind` | 12b §2 |
-| `inspector-panel` | `ui` | browser | — | not designed | 17, M3.10 |
+| `inspector-panel` | `ui` | browser | — | not designed | 17, M3.9 |
 
 `main` owns no kind. It resolves `driver` and `api` like any other consumer (02 §5).
 
@@ -347,6 +347,6 @@ Tier 1 (unit; `basics/03-Testing.md`) — `module-sdk` and `main`, fixture packa
 ## 12. Open
 
 - **Package bootstrapping** → M3.15: how a generation finds the host's `@evok-node/*`; `npm` on the PLC (a dependency of the Debian package); the daemon's own install path; the systemd restart behind `restartDaemon`.
-- **Usage outside config** → M3.10: a removed home template still named by device records shows as `missing` devices (12a §4.2), but nothing tells the Inspector before the removal. A "who uses this plugin" query for kind owners is not designed.
+- **Usage outside config** → M3.9: a removed home template still named by device records shows as `missing` devices (12a §4.2), but nothing tells the Inspector before the removal. A "who uses this plugin" query for kind owners is not designed.
 - **Upload size** of a `.tgz` through the WS API → M3.8.
-- **`inspector-panel`** — its shape and how the SPA loads it → M3.10.
+- **`inspector-panel`** — its shape and how the SPA loads it → M3.9.

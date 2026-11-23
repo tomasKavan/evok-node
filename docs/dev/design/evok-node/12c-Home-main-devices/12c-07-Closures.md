@@ -286,7 +286,7 @@ With `positioning: 'percent'`, a Closure Panel `0x0231` child carries the %: Clo
 
 - `matter` origin (12a §4a): an endpoint of `0x0230` maps to `AccessClosure` when its tags are `GarageDoor`, `Gate` or `Door`, else to `Closure`, `kind` from its tags; its Panel, if any, gives `current`. `blocked` stays empty.
 - Apple and Google support for Closure: unknown (research/matter/07 §2). No Window Covering fallback (§1).
-- **Access closures are not exposed for now.** 16a ignores `AccessClosure`: exposing one needs the same proof on `open` as `DoorLock.unlock`, and Closure Control carries no PIN (research/matter/07 §1.8). Deferred with Door Lock's exposure (12c-09 §4) to M3.13. Windows stay exposed.
+- **Access closures are not exposed for now.** 16a ignores `AccessClosure`: exposing one needs the same proof on `open` as `DoorLock.unlock`, and Closure Control carries no PIN (research/matter/07 §1.8). Deferred with Door Lock's exposure (12c-09 §4) to M5.6. Windows stay exposed.
 
 ## 5. Moving and target
 

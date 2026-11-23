@@ -151,7 +151,7 @@ One switch of a 2N Access Unit 2.0 or IP Verso 2.0, through the 2N driver (12e).
 - `releaseMs` is the 2N switch's Switch-On Duration, read by the driver; not a setting here.
 - `openTooLongMs` is the 2N's own Door Open Too Long setting when `door` is the 2N's.
 
-**Open:** the role types and the user map — M3.6a (12e).
+**Open:** the role types and the user map — M5.1 (12e).
 
 ## 4. Matter
 

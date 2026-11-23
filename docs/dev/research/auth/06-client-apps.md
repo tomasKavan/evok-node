@@ -2,7 +2,7 @@
 
 **Research, not design.** How browser, shell (mobile/desktop) and wall-panel clients sign in, hold sessions and prove biometry to a node; passkeys and TLS on a LAN; many sites and nodes; enrolment. Feeds 13a (M3.6).
 
-Framework choice is M3.7. Here only auth capabilities matter.
+Framework choice is M5.2. Here only auth capabilities matter.
 
 ## 1. OAuth for native and browser apps
 

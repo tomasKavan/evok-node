@@ -39,10 +39,10 @@ Templates for these types shipped in other drivers' docs: `temperature-from-mimb
 
 | Where | What | Closed by |
 |---|---|---|
-| 12c-04 §4 | Matter-writable attributes (`HoldTime`, a light's `behavior`, `DefaultOpenDuration`) through the device | M3.13 |
-| 12c-09 §3.2 | 2N roles and user map | M3.6a |
-| 12c-10 §6 | preset setpoints editable by users; Matter writes; `0x0072` with controllers | M3.11, M3.12, M3.13 |
-| 12c-12 §6 | Fan vs Air Purifier for `VentilationUnit` | M3.13 |
+| 12c-04 §4 | Matter-writable attributes (`HoldTime`, a light's `behavior`, `DefaultOpenDuration`) through the device | M5.6 |
+| 12c-09 §3.2 | 2N roles and user map | M5.1 |
+| 12c-10 §6 | preset setpoints editable by users; Matter writes; `0x0072` with controllers | M5.4, M5.5, M5.6 |
+| 12c-12 §6 | Fan vs Air Purifier for `VentilationUnit` | M5.6 |
 | 12c-13 §6 | built-in time rule kinds; a hardware `WindSensor` template | when first needed |
 
 ## 1. Common conventions

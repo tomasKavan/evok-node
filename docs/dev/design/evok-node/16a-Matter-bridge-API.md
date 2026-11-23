@@ -64,13 +64,13 @@ A device with `battery` bound (12a §2.1) also carries Power Source with the bat
 | `OccupancySensor` | Occupancy Sensor `0x0107` | OccupancySensing |
 | `LightSensor` | Light Sensor `0x0106` | IlluminanceMeasurement |
 | `Thermostat` | Thermostat `0x0301` | Thermostat, ThermostatUserInterfaceConfiguration (12c-10 §4) |
-| `RoomAirConditioner` | Room Air Conditioner `0x0072` — tested with controllers in M3.13 (12c-10 §6) | OnOff, Thermostat, FanControl, ThermostatUserInterfaceConfiguration (12c-10 §4) |
+| `RoomAirConditioner` | Room Air Conditioner `0x0072` — tested with controllers in M5.6 (12c-10 §6) | OnOff, Thermostat, FanControl, ThermostatUserInterfaceConfiguration (12c-10 §4) |
 | `TimerRelay` | — | ignored |
 | `RainwaterTank` | — | ignored (12c-11 §4) |
 | `Fan` | Fan `0x002B` | OnOff, FanControl (12c-12 §4) |
-| `VentilationUnit` | Fan `0x002B` — Air Purifier `0x002D` tested in M3.13 (12c-12 §6) | OnOff, FanControl (12c-12 §4) |
+| `VentilationUnit` | Fan `0x002B` — Air Purifier `0x002D` tested in M5.6 (12c-12 §6) | OnOff, FanControl (12c-12 §4) |
 | `Calendar`, `Clock`, `Sun`, `WindSensor`, `Weather` | — | ignored (12c-13 §4) |
-| `RainSensor` | Rain Sensor `0x0044` — tested with controllers in M3.13 (12c-13 §4) | BooleanState |
+| `RainSensor` | Rain Sensor `0x0044` — tested with controllers in M5.6 (12c-13 §4) | BooleanState |
 
 **Composed bridged devices.** One bridge, always: one Matter node with an Aggregator, and one bridged
 device per exposed home device — or per product, when several home devices are one. A product is

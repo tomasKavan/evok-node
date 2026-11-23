@@ -258,7 +258,7 @@ Part of the mapping table (16a, `driver-home/matter-map`). Encodings per researc
 - Concentrations: a `MEA` value in another unit is converted (ppb → ppm, mg/m³ → µg/m³); a level-only (`LEV`) cluster is ignored.
 - `null` from a measurement cluster makes the device not `reachable` (12a §4.2).
 
-**Open:** an attribute a Matter controller may write — `HoldTime` here, a light's `behavior` (12c-01 §4) — should be writable through the device; only a setting with no Matter counterpart stays a template setting. Today every one is a template setting, changed through `manage`. Deferred to M3.13: the write path from 16a through the device is the bridge's design.
+**Open:** an attribute a Matter controller may write — `HoldTime` here, a light's `behavior` (12c-01 §4) — should be writable through the device; only a setting with no Matter counterpart stays a template setting. Today every one is a template setting, changed through `manage`. Deferred to M5.6: the write path from 16a through the device is the bridge's design.
 
 ## 5. Moving and target
 
