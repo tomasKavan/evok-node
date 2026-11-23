@@ -2,7 +2,7 @@
 
 ## 1. Scope
 
-This file is `main`'s whole job: how the config — one static file, optionally merged with a dynamic one (§3a) — becomes a running, live set of driver and api instances, and how that set changes without a restart. It states the runner (01 §4) concretely, and the manifest, parse and reload machinery that spawns and replaces instances through it. It does not state: the envelope a running instance actually speaks (03), the shared runtime a module may lean on (04), what a driver or api must guarantee on its own terms (05, 13), how user data is actually stored (06), how a hardware definition is shaped (07), or how a specific driver's own config dict interprets `autogen` (08, 09, 10) — `main` never sees those keys, so this file cannot describe them either. The `main` driver, which reads and writes the dynamic part for a UI, and the bootstrap api are 02a's.
+This file is `main`'s whole job: how the config — one static file, optionally merged with a dynamic one (§3a) — becomes a running, live set of driver and api instances, and how that set changes without a restart. It states the runner (01 §4) concretely, and the parse and reload machinery that spawns and replaces instances through it; how a `type` is found — plugins and their manifest — is 02b. It does not state: the envelope a running instance actually speaks (03), the shared runtime a module may lean on (04), what a driver or api must guarantee on its own terms (05, 13), how user data is actually stored (06), how a hardware definition is shaped (07), or how a specific driver's own config dict interprets `autogen` (08, 09, 10) — `main` never sees those keys, so this file cannot describe them either. The `main` driver, which reads and writes the dynamic part for a UI, and the bootstrap api are 02a's.
 
 ## 2. The four kinds of data
 
@@ -14,7 +14,7 @@ The distinction is not academic — conflating the first two is exactly where EV
 
 Global config is small: which drivers and apis exist, plus main's own operational settings, and nothing else — no defaults that quietly change a *module's* behaviour out from under it. Everything a specific instance needs is that instance's own slice, opaque to `main` and to every other instance.
 
-The one property at this level that is not a driver or an api is `main:` — main's own settings: `logging` ([04 §3](04-Common-services.md#3-logging)), `dynamicConfig` and `keepRevisions` (§3a), `bootstrap` (02a). It is optional, and only the static file holds it; absent, `main` logs to stdout/journald only, at `info`, and runs on the static file alone.
+The one property at this level that is not a driver or an api is `main:` — main's own settings: `logging` ([04 §3](04-Common-services.md#3-logging)), `dynamicConfig` and `keepRevisions` (§3a), `plugins.registry` (02b §9.3), `bootstrap` (02a). It is optional, and only the static file holds it; absent, `main` logs to stdout/journald only, at `info`, and runs on the static file alone.
 
 `drivers:` and `apis:` are maps keyed by id. The key is the instance's **identity** — the thing reload compares old and new config on (§5). An id is not a device address and not a display name; renaming one is deletion plus creation, not a rename, and anything keyed on that id (its KV namespace, 06 §2) goes with it. `main` and `bootstrap` are reserved (02a): an entry with either as its id or its `type` is a configuration error. `kv` is reserved too, but as an optional entry (§3b).
 
@@ -43,7 +43,7 @@ apis:
     # ... api-ws's own schema
 ```
 
-`type` names an entry in the manifest (§4); it is the one key every instance has beyond its id, `run`, and its own schema.
+`type` names a `driver` or `api` plugin (§4, 02b); it is the one key every instance has beyond its id, `run`, and its own schema.
 
 ## 3a. Static and dynamic config
 
@@ -101,9 +101,9 @@ drivers:
 - **Reload as any entry** (§5.1): `kv` changes only when its own entry does (06 §8). Removing the entry changes it back to the defaults; it is never a removal. No other instance is relinked.
 - **Linked is not exposed.** What an api shows its clients is the api's decision (13 §6).
 
-## 4. Module definition and the manifest
+## 4. Module definition
 
-**A module is two exports:** a `ModuleDescriptor`, and the `ModuleInstance` type it produces. Neither belongs to `main`'s source — `main` only ever sees them after resolving a `type` name through the manifest, below.
+**A module is two exports:** a `ModuleDescriptor`, and the `ModuleInstance` type it produces. Neither belongs to `main`'s source — `main` only ever sees them after resolving a `type` through the plugin manifest (02b): kind `driver` for an entry under `drivers:`, kind `api` for one under `apis:`.
 
 A module's config travels as its **body**: plain, JSON-shaped data — strings, numbers, booleans, null, arrays, plain objects, nothing else — because it comes from YAML, whose value model is exactly JSON's. `Config` is that body decoded through the module's own `ValueType` (03a, §5), so it may hold what decode makes of it — a `bigint`, a `Date`, bytes. Only the body crosses to an instance; the instance's side decodes it again with the same descriptor (§6).
 
@@ -120,22 +120,11 @@ type ExampleConfig = Infer<typeof ExampleConfig>;   // { transport: { host: stri
 ```
 
 ```ts
-// Resolved through the manifest, below. Pure data and pure functions — safe to load
-// into main's own process without spawning anything.
-interface ModuleDescriptor<Config> {
-  readonly meta: ModuleMeta;
-  readonly config: ValueType<Config>;          // 03a — checked, decoded and rendered as a form from this alone
-  rules?(config: Config): readonly Issue[];    // what the schema cannot say, e.g. rules between fields — code 'rule', 03a §5
+// Pure data and pure functions — safe to load into main's own process without spawning anything.
+// Configurable — meta, config, rules, declaredLinks — is 02b §5.1.
+interface ModuleDescriptor<Config> extends Configurable<Config> {
   isConfigEqual(prev: Config, next: Config): boolean;
-  declaredLinks?(config: Config): { readonly drivers: readonly DriverId[] };   // absent ⇒ none — 03 §8
   createInstance(ctx: InstanceContext): ModuleInstance<Config>;
-}
-
-interface ModuleMeta {
-  readonly label: LocalizedText;               // 04 §7
-  readonly description?: LocalizedText;        // plain, one or two sentences — for a list or a picker
-  readonly helpMd?: LocalizedText;             // Markdown — 03a §4
-  readonly docsUrl?: string;
 }
 
 // What the runner (§6) hosts on the instance's own side, wherever that is. Identical
@@ -155,57 +144,12 @@ interface ModuleInstance<Config> {
 
 `InstanceContext` is what the runner hands every instance regardless of placement — its messaging handle (03) and whatever common services (04) it asked for. Its shape is 03's to define, not this file's.
 
-**`ModuleDescriptor`, `ModuleInstance` and `InstanceContext` — together with the messaging contract a module speaks through it (03) — are published as `@evok-node/module-sdk`**, along with the runtime guard below. There is no separate `messaging` package: the wire types have the same audience as the module contract, and `module-sdk`, unlike `main`, is actually published — the second package this project publishes, after `client`. A plugin author writes against the real contract, messaging included, and can run the exact check `main` runs, in their own tests, before shipping.
+**`ModuleDescriptor`, `ModuleInstance` and `InstanceContext` — together with the messaging contract a module speaks through it (03) and the plugin contract (02b) — are published as `@evok-node/module-sdk`**, along with the guard below. There is no separate `messaging` package: the wire types have the same audience as the module contract, and `module-sdk`, unlike `main`, is actually published — the second package this project publishes, after `client`. A plugin author writes against the real contract, messaging included, and can run the exact check `main` runs, in their own tests, before shipping.
 
-**The manifest is how `type` resolves to a `ModuleDescriptor`, and it is the same mechanism for a built-in module and a plugin — there is no separate, generated table for built-ins.** A module of either kind declares itself in its own `package.json`:
-
-```json
-{
-  "name": "@evok-node/driver-onboard",
-  "version": "0.1.0",
-  "evokNodePlugin": {
-    "manifestVersion": "1",
-    "plugins": [
-      { "kind": "driver", "typeName": "onboard", "path": "./dist/index.js" }
-    ]
-  }
-}
-```
-
-A `device` kind declares itself the same way, resolving to a registered `DeviceType` (05a §3.3) instead of a `ModuleDescriptor` — but its own identifying field is named `deviceKind`, not `typeName`: unlike a `ModuleDescriptor`, a `DeviceType` already carries its own `kind` (05a §3.3), and this field's whole job is being checked against it, not just naming a slot (05a §3.5). A package bundling a whole device family behind one entry point names each one with `export`:
-
-```json
-{
-  "name": "@evok-node/core-devices",
-  "version": "0.1.0",
-  "evokNodePlugin": {
-    "manifestVersion": "1",
-    "plugins": [
-      { "kind": "device", "deviceKind": "RO", "path": "./dist/index.js", "export": "RODevice" },
-      { "kind": "device", "deviceKind": "DO", "path": "./dist/index.js", "export": "DODevice" }
-    ]
-  }
-}
-```
-
-`manifestVersion` is the manifest *format's* version, not the package's own — so `main` can tell old- and new-shaped declarations apart later without touching the package's release version. `path` always names a compiled `.js` file, authored in TypeScript and built exactly like every package in this repo (`npm run build`) — never loaded as raw source. `export` names which export of that file to take; omitted, it defaults to the module's own default export, so a package with one thing per file needs nothing beyond `path`. A `driver`/`api` entry's `path` resolves exclusively to a default-exported `ModuleDescriptor`.
-
-`kind` is open-ended by design, not a closed enum `main` special-cases: `driver`, `api`, and `device` today; `modbus-kind-binder` and `modbus-handshake` (07a §7/§9) are the first two added by a package other than `main` itself, and an inspector panel for 17 will add another later. `main` reads every entry, acting only on the ones it owns (`driver`/`api`) and leaving every other `kind` string alone — recorded for the conflict-check below and handed onward in the manifest, never interpreted. `driver` and `api` resolve to a `ModuleDescriptor` (below); `device`, `modbus-kind-binder` and `modbus-handshake` each resolve to whatever shape their own owning package's guard says they do (below) — `main` never imports any of them to check anything about that shape, the same "nothing imported yet" discipline driver/api assembly follows below — it only needs each entry's own identifying field (`deviceKind`, `handshakeName`, or whatever a future `kind` calls its own — never `typeName`, which is `driver`/`api`'s alone) for conflict-checking here, and its `path`/`export` for whichever process resolves it later, lazily, on first use (below).
-
-At startup, `main` assembles its manifest — `typeName → {path, export}`, still just strings from each package's own declaration, nothing imported yet — by:
-
-1. Listing `node_modules`'s top-level entries (one extra level down for `@scope/` directories). This is what discovers a built-in exactly the same way as a plugin: a workspace package is already a `node_modules` entry, via npm workspaces.
-2. Reading each entry's `package.json` and checking for `evokNodePlugin`. No such key, no interest — skip it.
-3. Recording each entry's own identifying field — `typeName → {path, export}` for `kind: "driver"`/`kind: "api"`, `deviceKind → {path, export}` for `kind: "device"`, `deviceKind → {path, export}` again for `kind: "modbus-kind-binder"` (a different field value, but the same field *name* as `device` — deliberate, since both answer "what does this string resolve to," 07a §7), `handshakeName → {path, export}` for `kind: "modbus-handshake"` — one namespace per distinct `kind` string, open-ended, so a driver named `RO` and a device kind named `RO` are not a conflict; only two entries of the *same* `kind` claiming the same identifying value are. `device` and `modbus-kind-binder` stay two separate namespaces despite sharing a field name — a definition's `kind` string is resolved against exactly one of them (07a §2), never both, so there is no case where the same string needs to be unambiguous across the pair.
-
-Two entries of the same `kind` claiming the same identifying value (`typeName`, `deviceKind`, `handshakeName`, or whatever a future `kind`'s own field is) — anywhere, built-in or plugin — is fatal at startup, the same class of error as a resource conflict (§7): not a precedence rule, a configuration error. So is a `package.json` whose `evokNodePlugin` field does not match its own shape. Both are checked here, unconditionally, because both are just reading JSON — nothing is imported yet, so nothing here can fail because of a plugin's own code being broken.
-
-**Actually loading anything is a different matter, and it is lazy: assembly never calls `import()`.** An id no instance's config or bound content ever names is never resolved, so a broken plugin sitting unused in `node_modules` does not stop the daemon from starting. Resolution happens per `(kind, id)` pair, the first time something needs it, and is memoized from then on — not because calling it twice would be wrong (Node's own module cache would hand back the same export either way), but because the shape-check and error attribution below are ours to do once, not once per caller sharing that pair. One registry, one mechanism, for every `kind` — `driver`/`api` today, `device` (05a §3.5), `modbus-kind-binder` and `modbus-handshake` (07a §7, §9) as of this package, anything later:
+The guard of the `driver` and `api` kinds (02b §5.2), both owned by `module-sdk`:
 
 ```ts
-// Duck-typed, not `instanceof` — a plugin may bundle its own copy of module-sdk, and
-// instanceof across two installations of the same library fails on a perfectly valid
-// object. A label, a callable `decode` and a schema object are the honest test.
+// Duck-typed, not `instanceof` — 02b §5.1.
 function isModuleDescriptor(x: unknown): x is ModuleDescriptor<unknown> {
   return (
     typeof x === 'object' && x !== null &&
@@ -217,78 +161,23 @@ function isModuleDescriptor(x: unknown): x is ModuleDescriptor<unknown> {
   );
 }
 
-// A kind's own guard: validates the resolved export's shape and its agreement with the
-// manifest's own identifying value (`id`), and returns whatever shape that kind resolves
-// to — never a bare `boolean`, unlike a type-predicate guard elsewhere in this codebase.
-// Throws, rather than returning false, because there is nothing sensible to fall back to:
-// a bad shape here is a packaging bug, the same tier `isModuleDescriptor` already was.
-type KindGuard<T> = (mod: unknown, id: string) => T;
-
-// One per placement (§6) — main's own, and one inside every worker_thread/child_process
-// bootstrap. Memoizes by (kind, id) so N callers sharing one plugin resolve it once.
-class PluginRegistry {
-  private readonly guards = new Map<string, KindGuard<unknown>>();
-  private readonly resolved = new Map<string, Promise<unknown>>();
-
-  // manifest: kind → (id → {path, export}) — every kind `main` assembled (above), not just
-  // whichever ones this particular placement happens to ask for.
-  constructor(private readonly manifest: ReadonlyMap<string, ReadonlyMap<string, { path: string; export?: string }>>) {}
-
-  // Called once per kind, by whichever package owns it, before any resolve() for that kind
-  // can succeed — `main` itself registers 'driver' and 'api' at its own startup; `modbus-kit`
-  // registers 'modbus-kind-binder' and 'modbus-handshake' at its own module-load time (07a).
-  // A second registration for a kind already claimed is a packaging bug, fatal immediately.
-  registerKindGuard<T>(kind: string, guard: KindGuard<T>): void {
-    if (this.guards.has(kind)) throw new Error(`kind "${kind}" already has a registered guard`);
-    this.guards.set(kind, guard as KindGuard<unknown>);
-  }
-
-  resolve<T>(kind: string, id: string): Promise<T> {
-    const guard = this.guards.get(kind);
-    if (!guard) return Promise.reject(new Error(`no guard registered for kind "${kind}"`));
-    const entry = this.manifest.get(kind)?.get(id);
-    if (!entry) return Promise.reject(new Error(`no manifest entry for kind "${kind}", id "${id}"`));
-
-    const key = `${kind}\u0000${id}`;
-    let pending = this.resolved.get(key);
-    if (!pending) {
-      pending = (async () => {
-        let mod: unknown;
-        try {
-          mod = (await import(entry.path))[entry.export ?? 'default'];
-        } catch (cause) {
-          throw new Error(`kind "${kind}", id "${id}": "${entry.path}" failed to load`, { cause });
-        }
-        return guard(mod, id);   // throws on shape mismatch or `id` disagreement — same tier either way
-      })();
-      this.resolved.set(key, pending);
-    }
-    return pending as Promise<T>;
-  }
-}
-
-// Registered once, at main's own startup, before step 4 below ever calls resolve('driver', ...):
-interface ModuleDefinition<Config> {
-  readonly descriptor: ModuleDescriptor<Config>;
-  // room for more, as new needs arrive
-}
-for (const kind of ['driver', 'api'] as const) {
-  registry.registerKindGuard(kind, (mod, typeName): ModuleDefinition<unknown> => {
-    if (!isModuleDescriptor(mod)) throw new Error(`type "${typeName}": "${mod}" is not a valid ModuleDescriptor`);
-    return { descriptor: mod };
-  });
-}
+const driverKind: KindDefinition<ModuleDescriptor<unknown>> = {
+  kind: 'driver', meta: { label: 'Driver' }, target: 'node',
+  guard(mod, id) {
+    if (!isModuleDescriptor(mod)) throw new Error(`driver "${id}": not a valid ModuleDescriptor`);
+    return mod;
+  },
+};
+// apiKind: the same, kind 'api'
 ```
 
-A rejection from `resolve` is fatal exactly because of *where* it is called from (§5, validating one instance's config, or a driver's own `configure()` resolving content it needs — 07a §9) — never because a plugin merely exists and is broken. This is also why the manifest's unresolved form — `kind → id → {path, export}`, plain strings — rather than a resolved value, is what has to reach a `worker_thread` or `child_process` bootstrap: a resolved value may hold functions, and functions do not survive serialisation any more than `Config` could hold one. Every placement runs its own `PluginRegistry`, resolving `(kind, id) → {path, export} → T` independently on its own side, rather than `main` resolving it once and handing the result across. Calling `resolve` a second time for the same pair, later, from wherever actually binds against it — `07a`'s `bindDefinition()` is the concrete case — returns the same memoized value instantly; there is no second import and no second failure mode, which is what makes "resolve during `configure()`, use the result during `start()`/bind" safe rather than merely convenient.
-
-**Every `kind` except `driver`/`api` travels the same way, because any instance may need any of it, not just its own.** A `driver`/`api` instance only ever needs *its own* `type` resolved — that's why looking it up once per instance, the first time that instance's own config needs it, is enough. `device`, `modbus-kind-binder` and `modbus-handshake` have no such single owner: a driver binds whatever kinds its own code or its bound content names, and a consumer may meet any of them, so there is no one instance's-own-id to hand out in advance. `main` therefore hands every spawned instance the *whole* manifest for every one of these kinds, unfiltered, alongside `links` in the same bootstrap message (§6) — still just strings, still nothing imported. Each process builds its own `PluginRegistry` from that whole manifest (this section, above) and registers whichever kind-guards its own loaded packages own — `driver-kit` registers `device`'s (`isDeviceType`, 05a §3.5), `modbus-kit` registers `modbus-kind-binder`'s and `modbus-handshake`'s (07a §7, §9) — entirely that package's own concern, not this file's.
+A module has no id of its own: its `type` is the manifest's `id`.
 
 ## 5. `main`: startup, config and reload
 
 Startup is one sequence, run once, in order:
 
-1. **Assemble the manifest** (§4) — built-ins and plugins alike, one mechanism.
+1. **Assemble the plugin manifest** (02b §6.1) — built-ins and plugins alike, one mechanism. Before it, a staged plugin generation becomes current (02b §9.2).
 2. **Read** `/etc/evok-node/config.yaml` — with `main.dynamicConfig`, also the dynamic file and the secrets file (02a). A missing dynamic file is an empty one.
 3. **Check the skeleton** — `main`'s own value types, checked binding (03a §5.1). The top level holds `main:`, `drivers:` and `apis:` only; `drivers:`/`apis:` are maps keyed by id. Each entry splits into its **head** — `type`, `run` and, for an api, `drivers` — and its **body**, everything else. Only the head is `main`'s; the body is the module's (step 4). `main.bootstrap` splits the same way: `enabled` is `main`'s, the rest is api-bootstrap's (02a).
 
@@ -311,28 +200,32 @@ Startup is one sequence, run once, in order:
      logging: Values.optional(LoggingConfig),
      dynamicConfig: Values.bool({ default: false }),
      keepRevisions: Values.uint16({ min: 1, default: 20 }),
+     plugins: Values.struct({
+       registry: Values.string({ default: 'https://registry.npmjs.org' }),   // 02b §9.3
+     }),
      bootstrap: Values.optional(Values.struct({
        enabled: Values.string({ enumValues: ['off', 'auto', 'always'], default: 'off' }),
      })),   // head only — the rest is api-bootstrap's (02a)
    });
    ```
 
-4. **Per instance, resolve and check.** Resolve `type` through the `PluginRegistry` (§4) — under `kind: 'driver'` for an entry from `drivers:`, `kind: 'api'` for one from `apis:` — to a `ModuleDefinition`; check the body against its `descriptor.config`, decode it, then run its `rules`:
+4. **Per instance, resolve and check.** Resolve `type` through the `PluginRegistry` (02b §6.2) — under `kind: 'driver'` for an entry from `drivers:`, `kind: 'api'` for one from `apis:` — to a `ModuleDescriptor`; check the body against its `config`, decode it, then run its `rules`:
 
    ```ts
    const { type, run, drivers, ...body } = rawInstance;
-   const module = await registry.resolve<ModuleDefinition<unknown>>(isApi ? 'api' : 'driver', type);   // no entry, load failure, or bad shape
-   const issues = checkValue(module.descriptor.config.schema, body, { limits: 'binding' });            // 03a §5
-   const config = module.descriptor.config.codec.decode(body);                                           // only when issues is empty
-   issues.push(...(module.descriptor.rules?.(config) ?? []));
+   const module = await registry.resolve<ModuleDescriptor<unknown>>(isApi ? 'api' : 'driver', type);   // no entry, load failure, or bad shape
+   const issues = checkValue(module.config.schema, body, { limits: 'binding' });            // 03a §5
+   issues.push(...await checkNested(module.config.schema, body, registry));                 // every Values.plugin in the body — 02b §8
+   const config = module.config.codec.decode(body);                                           // only when issues is empty
+   issues.push(...(module.rules?.(config) ?? []));
    ```
 
-   Two value types, each owning exactly its own keys — the head `main`'s, the body the module's — never one merged one. `main` never sees what is inside `body` beyond its issues. In a dynamic entry, a `sensitive` member holds a secret ref; `main` puts the stored value in its place before this step (02a). For a driver, its declared links come from that parsed `config` itself — `module.descriptor.declaredLinks?.(config)` (03 §8) — never from a key `main` reads directly, the way an api's `drivers` list already was. Two checks are `main`'s, because a module's `rules` never sees its id (§3b): an entry `kv` with a `type` other than `kv-store`, and a `kv-store` under another id without `path`.
+   Two value types, each owning exactly its own keys — the head `main`'s, the body the module's — never one merged one. `main` never sees what is inside `body` beyond its issues. In a dynamic entry, a `sensitive` member holds a secret ref; `main` puts the stored value in its place before this step (02a). For a driver, its declared links come from that parsed `config` itself — `module.declaredLinks?.(config)` (03 §8) — never from a key `main` reads directly, the way an api's `drivers` list already was; a nested plugin's `declaredLinks` join them (02b §8). Two checks are `main`'s, because a module's `rules` never sees its id (§3b): an entry `kv` with a `type` other than `kv-store`, and a `kv-store` under another id without `path`.
 
 5. **Resolve cross-instance concerns** no single module can see on its own (§7) — merging the two files (§3a), where an id in both is an issue on the dynamic entry; expanding every api's `'*'` (03 §8); adding the `kv` default and its implicit links (§3b); assembling the full `instanceId → DriverId[]` link topology from every api's `drivers` and every driver's `declaredLinks`, and validating it (03 §8): every referenced id exists in `drivers:` or is `main` (02a), and a cycle is fatal.
-6. **Spawn, configure, start — three passes, not one.** For every instance: `runnerFactory.spawn(module.descriptor, id, type, run, links, pluginManifest)` — `pluginManifest` is the whole `kind → id → {path, export}` table from step 1, every non-`driver`/`api` kind, identical for every instance (§4, §6). Once every instance is spawned: `runner.configure(config)` for every instance, awaiting all of them. Only once every instance is configured: `runner.start()` for every instance (§6, 03 §9). The `main` driver is always one of them, and the bootstrap api one more when `main.bootstrap.enabled` is not `off`; neither is an entry in either file (02a). `kv` is always one too (§3b), and its `configure` resolves before any other instance's begins.
+6. **Spawn, configure, start — three passes, not one.** For every instance: `runnerFactory.spawn(module, id, type, run, links, manifest)` — `manifest` is the whole plugin manifest from step 1, identical for every instance (02b §6.1, §6). Once every instance is spawned: `runner.configure(config)` for every instance, awaiting all of them. Only once every instance is configured: `runner.start()` for every instance (§6, 03 §9). The `main` driver is always one of them, and the bootstrap api one more when `main.bootstrap.enabled` is not `off`; neither is an entry in either file (02a). `kv` is always one too (§3b), and its `configure` resolves before any other instance's begins.
 
-Every failure from step 1 through 5 in the manifest or the static file is fatal at startup — a bad manifest, a config file that does not parse, a `type` with no manifest entry, an instance body that fails its own module's value type or rules. None of these degrade; the daemon does not start on any of them. This is deliberately one failure class, whether the mistake is in the manifest or in the config: both mean "this cannot possibly run," never "this runs in a reduced way."
+Every failure from step 1 through 5 in a built-in package or the static file is fatal at startup — a built-in package's bad manifest (02b §7), a config file that does not parse, a `type` with no plugin, an instance body that fails its own module's value type or rules. None of these degrade; the daemon does not start on any of them. Both mean "this cannot possibly run," never "this runs in a reduced way." A plugin package's own problem only drops that package (02b §7); a static entry that used it then fails as a `type` with no plugin.
 
 **The dynamic file is the one exception, and it degrades per entry.** It was valid when the `main` driver wrote it; what makes it fail at startup is the world changing under it — a plugin upgraded with a new schema, a plugin removed. Failing the daemon for that would also take down the UI that has to fix it.
 
@@ -401,17 +294,17 @@ interface RunnerFactory {
   spawn<Config>(
     descriptor: ModuleDescriptor<Config>,
     id: string,
-    typeName: string,        // the manifest's own key for this instance — 03 §9's InstanceContext surfaces it as driverTypeName
+    type: string,            // the instance's `type` — 03 §9's InstanceContext surfaces it as driverTypeName
     placement: Placement,
     links: readonly DriverId[],                                   // 03 §8 — resolved before spawn, never after
-    pluginManifest: ReadonlyMap<string, ReadonlyMap<string, { path: string; export?: string }>>,   // the whole table, §4, every kind but driver/api — every instance gets it, not just what its own type needs
+    manifest: Manifest,      // 02b §6.1 — the whole plugin manifest; every instance gets it, not just what its own type needs
   ): Runner<Config>;
 }
 ```
 
 What `spawn` actually does is the one place placement matters — and now that only two placements exist, both share one description with a single difference at the bottom. `config` reaches an instance only through `configure`, never through `spawn` — `createInstance` takes just `ctx` (02 §4), so `ctx` (including its messaging handle, wired from `links`, and the plugin manifest above) has to exist before construction, not after.
 
-`spawn` starts the hosting environment — a `worker_threads.Worker` for `worker_thread`, a forked process for `child_process` — running a small bootstrap, code living in `main`'s own package, never the module's, and attaches an `'error'`/`'exit'` listener to it (03 §11 — this is how `main` finds out about a crash it didn't ask for). The bootstrap receives `{ descriptor, id, typeName, links, pluginManifest }` over `postMessage` (worker) or the fork's IPC channel (child process) — `descriptor` still the manifest's string, not yet resolved — resolves it to a `ModuleDefinition` through its own `PluginRegistry` (§4, the same mechanism, running inside the worker/child, built from `pluginManifest` plus its own `kind: 'driver'`/`'api'` lookup), wires its own `ctx` — including `ctx.plugins`, that same `PluginRegistry` (03 §9) — from `links` and `pluginManifest` (binding whatever socket 03 §10 says it needs), and constructs the `ModuleInstance` there. Every subsequent `Runner` method sends a message and awaits the matching reply; The checked body and the lifecycle results cross as plain data (§4), first at `configure`, never at `spawn`; the bootstrap decodes the body to `Config` before calling the instance. Only the underlying transport differs between the two — `postMessage` versus the fork's IPC — the bootstrap and resolution step are otherwise identical.
+`spawn` starts the hosting environment — a `worker_threads.Worker` for `worker_thread`, a forked process for `child_process` — running a small bootstrap, code living in `main`'s own package, never the module's, and attaches an `'error'`/`'exit'` listener to it (03 §11 — this is how `main` finds out about a crash it didn't ask for). The bootstrap receives `{ kind, type, id, links, manifest }` over `postMessage` (worker) or the fork's IPC channel (child process) — the module still a manifest entry, not yet resolved — resolves `(kind, type)` to its `ModuleDescriptor` through its own `PluginRegistry` (02b §6.2, the same mechanism, running inside the worker/child, built from `manifest`), wires its own `ctx` — including `ctx.plugins`, that same `PluginRegistry` (03 §9) — from `links` and `manifest` (binding whatever socket 03 §10 says it needs), and constructs the `ModuleInstance` there. Every subsequent `Runner` method sends a message and awaits the matching reply; The checked body and the lifecycle results cross as plain data (§4), first at `configure`, never at `spawn`; the bootstrap decodes the body to `Config` before calling the instance. Only the underlying transport differs between the two — `postMessage` versus the fork's IPC — the bootstrap and resolution step are otherwise identical.
 
 `main` sequences every instance's `configure` before any instance's `start` (§5, 03 §9) — the runner itself no longer chains the two, that ordering is main's own barrier now. `stop()` sequences `instance.drain()` → `instance.stop()`: drain tells the instance to stop taking on new work so anything in flight can finish, then stop releases the underlying resources. This sequencing happens inside the bootstrap, not as separate round-trips.
 
@@ -433,33 +326,25 @@ Tier 1 (unit) only, scoped to `main`'s own package — no simulator, no hardware
 
 ### 8.1. Fixture modules
 
-Backing every test below that needs a real, resolvable module: fixture "packages" under `packages/main/tests/fixtures/modules/`, each shaped exactly like a real plugin (§4) — `package.json` with an `evokNodePlugin` block, `dist/index.js` exporting a `ModuleDescriptor` as default.
+Backing every test below that needs a real, resolvable module: fixture "packages" under `packages/main/tests/fixtures/modules/`, each shaped exactly like a real plugin package (02b §3) — `package.json` with an `evokNode` block, `dist/index.js` exporting a `ModuleDescriptor` as default. Assembly, namespaces, status and laziness are tested in 02b §11; this file tests what `main` does with the result.
 
 - `module-ok/` — a valid descriptor. Its `config` value type carries at least one required field and one defaulted field, and its `rules` one rule, reused by §8.4's config-parse tests. `createInstance` returns a fully controllable mock instance (§8.2).
 - `module-load-fails/` — `dist/index.js` throws on import.
 - `module-bad-shape/` — imports fine, but the export fails `isModuleDescriptor`.
-- `module-dup/` — a copy of `module-ok` reusing its `typeName`, for the duplicate-typeName-is-fatal case.
-- one fixture declaring a `kind` other than `driver`/`api` (e.g. `device`), asserting assembly records it into the plugin manifest but never imports or interprets it itself.
-- a second such fixture reusing the *same* identifying value under a *different* `kind` (a `device` and a `modbus-kind-binder` both claiming `deviceKind: "RO"`), asserting assembly accepts both — separate namespaces, no conflict.
+- `module-nested/` — a descriptor whose config holds a `Values.plugin` of a fixture nestable kind, with a fixture plugin of that kind that declares links.
 
 ### 8.2. The mock instance
 
 `module-ok`'s `configure` takes config knobs a test can set: `failAt: 'configure' | 'start' | null`, `delayMs`, and a path to append lifecycle events to — the only way to observe call order across a `worker_thread`/`child_process` boundary. `createInstance` itself takes no config (§4) and is never given anything to fail on.
 
-Manifest-root injection: `assembleManifest(rootDir?)` takes the fixture directory directly instead of real `node_modules`. For `worker_thread`/`child_process`, `rootDir` rides along in the same `{ descriptor, id, links, pluginManifest }` message the bootstrap already receives (§6) — no environment variable needed.
+Manifest-root injection: `assembleManifest(rootDir?)` takes the fixture directory directly instead of real `node_modules`. For `worker_thread`/`child_process`, `rootDir` rides along in the same `{ kind, type, id, links, manifest }` message the bootstrap already receives (§6) — no environment variable needed.
 
 ### 8.3. Module loading
 
-- Assembly never imports: `module-ok`'s load-side-effect counter stays 0 after `assembleManifest()`.
-- `module-load-fails` and `module-bad-shape` are recorded at assembly without throwing.
-- `module-dup` against `module-ok` is fatal at assembly, before any import.
-- A malformed `evokNodePlugin` shape is fatal at assembly.
-- An unrecognised `kind` is skipped.
-- `resolve('driver', typeName)` succeeds for `module-ok`; rejects for an unknown type, `module-load-fails`, and `module-bad-shape`.
+- `resolve('driver', type)` succeeds for `module-ok`; rejects for an unknown type, `module-load-fails`, and `module-bad-shape` — in a static entry each is fatal at startup, in a dynamic one the entry is left out.
 - `isModuleDescriptor` rejects an export without `meta.label`, without `config.codec.decode`, or without `config.schema`.
-- Memoization: resolving the same `(kind, id)` pair twice leaves the load counter at 1.
-- `resolve()` for a `kind` with no registered guard rejects, naming the kind — asserted with `registerKindGuard` deliberately not called for it, the same class as an unknown id.
-- `registerKindGuard` called twice for the same `kind` throws immediately, synchronously — never something a later `resolve()` call surfaces instead.
+- `module-nested`: a bad nested `config` is an issue at `[<ref path>, 'config', …]`; the nested plugin's `declaredLinks` are in the instance's links.
+- A staged `next` generation becomes `current` before assembly (02b §9.2).
 
 ### 8.4. Config parse and validate
 

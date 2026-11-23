@@ -73,17 +73,17 @@ How open or fixed a given api's declared set is, and what it does with a driver 
 
 ## 10. Extension points
 
-evok-node can be extended without changing its own code, at two different levels.
+evok-node can be extended without changing its own code, at two different levels. Both are plugins — one mechanism for every kind, built-in or not: a package declares them, and a kind's owner loads them (02b).
 
 **A new component** is a driver plugin or an api plugin — each a manifest-loaded module, hosted by a runner (§4) exactly like a built-in driver or api, because nothing in §2 through §9 distinguishes "built-in" from "plugin".
 
-**New content inside an existing driver** does not add a component. A new device or register-map definition extends what a driver already understands — 09 has the concrete mechanism for driver-extension — and a driver may also ship its own additions to the nextgen api and the inspector UI, beyond what generic introspection already exposes (17). Both stay inside the driver that declares them and leave §2's two kinds untouched.
+**New content inside an existing driver** does not add a component. A device type, a hardware definition, a Modbus binder, a DALI controller, a home template or rule extends what a driver already understands — each a plugin of the kind its owner defines (02b §5.2) — and a driver may also ship its own additions to the nextgen api and the inspector UI, beyond what generic introspection already exposes (17). Both stay inside the driver that declares them and leave §2's two kinds untouched.
 
 ## 11. Package ↔ component mapping
 
 | Package | Role |
 |---|---|
-| `module-sdk` | The module contract and the wire contract in one place: `ModuleDescriptor`, `ModuleInstance`, `InstanceContext` and the runtime guard a loaded module is checked against (02 §4); the envelope, addressing, methods and error kinds a module speaks through it (03); the common services every instance receives through `InstanceContext` — `Logger`, `Clock`, `Deadline`, the scheduler (04); the value vocabulary — `ValueType`, `Values`, `checkValue` (03a); and the endpoint-type vocabulary a driver and an api both need — the three `EndpointType` shapes and `device()` (05a §3). Depends on nothing of ours — root of the DAG. Published to npm, like `client`, for third-party plugin authors. |
+| `module-sdk` | The module contract and the wire contract in one place: `ModuleDescriptor`, `ModuleInstance`, `InstanceContext` and the runtime guard a loaded module is checked against (02 §4); the plugin contract — `KindDefinition`, `PluginRegistry`, the `driver`, `api` and `device` kinds (02b); the envelope, addressing, methods and error kinds a module speaks through it (03); the common services every instance receives through `InstanceContext` — `Logger`, `Clock`, `Deadline`, the scheduler (04); the value vocabulary — `ValueType`, `Values`, `checkValue` (03a); and the endpoint-type vocabulary a driver and an api both need — the three `EndpointType` shapes and `device()` (05a §3). Depends on nothing of ours — root of the DAG. Published to npm, like `client`, for third-party plugin authors. |
 | `hw-definitions` | Platform facts — device/model definitions, generated inventory, address resolution. Depends on nothing but the module contract; never resolves a `kind` against a real `DeviceType` (07a §2). |
 | `modbus-kit` | The Modbus transport (07), *and* `hw-modbus-kit` (07a) — the binder that turns a `hw-definitions`-resolved definition into bound `driver-kit` devices for `driver-onboard`/`driver-extension`. The two stay in separate source subpaths; the package boundary no longer separates them. |
 | `main` | Orchestration: config, the runner, spawn, supervise, reload. |

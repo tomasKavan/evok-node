@@ -12,9 +12,8 @@ Out of scope for v1, stated once here rather than per-section: DALI2 control-dev
 
 ```ts
 interface DaliConfig {
-  daliCtrlKind: string;                 // resolves a DaliControllerFactory — §3
+  ctrl: PluginRef;                      // Values.plugin('dali-controller') — { use, config }, §3, 02b §8
   transport: DaliTransportConfig;       // §4
-  ctrl?: unknown;                       // opaque here — validated only by the resolved factory's own schema
 }
 
 type DaliTransportConfig =
@@ -26,26 +25,24 @@ type DaliTransportConfig =
 drivers:
   DALI1:
     type: dali
-    daliCtrlKind: dali-foxtron-ASCII
+    ctrl: { use: dali-foxtron-ASCII }        # no config — dali-foxtron-ASCII needs nothing extra, its own schema says so
     transport: { kind: line, line: { kind: serial, path: /dev/ttyUSB0, baudRate: 19200, dataBits: 8, stopBits: 1, parity: even } }
-    ctrl: {}                                 # dali-foxtron-ASCII needs nothing extra — its own schema says so
 ```
 
-Same two-schema sequencing 02 §5 step 4 already uses for a whole driver's body, one level deeper: `main` validates `DaliConfig` itself (`daliCtrlKind`/`transport` known here, `ctrl` opaque); this driver's own `configure()` then resolves `daliCtrlKind` (§3) and checks `ctrl` against that factory's own `config` (03a §5, binding). A `ctrl` that doesn't parse, or a `transport.kind` the resolved factory doesn't declare support for (§3's `acceptsTransport`), is fatal at `configure()` — same tier as an unresolvable `daliCtrlKind` itself.
+`main` checks `ctrl` like a body, one level down (02b §8): an unknown `use` or a `config` that fails the controller's own `config` is an issue before apply, at `['ctrl', 'config', …]`. This driver's `configure()` then resolves `ctrl.use` (§3) and decodes `ctrl.config` with it. A `transport.kind` the controller doesn't declare (§3's `acceptsTransport`) is fatal at `configure()`.
 
-How many DALI buses live behind one `transport` — one, or several multiplexed over it — is entirely the resolved controller's own business, declared inside `ctrl`, never a key this file defines generically. §7 covers what that means for addressing.
+How many DALI buses live behind one `transport` — one, or several multiplexed over it — is entirely the resolved controller's own business, declared inside `ctrl.config`, never a key this file defines generically. §7 covers what that means for addressing.
 
 ## 3. Pluggable controllers — the `dali-controller` plugin kind
 
-Same mechanism as `modbus-kind-binder` (07a §7), not a new one. New manifest kind, identifying field `ctrlKind`:
+A `dali-controller` plugin (02b §5.2), nestable — the driver's `ctrl` names one:
 
 ```json
 // @acme/evok-node-dali-acme — package.json
-{
-  "evokNodePlugin": {
-    "manifestVersion": "1",
-    "plugins": [{ "kind": "dali-controller", "ctrlKind": "dali-acme-x1", "path": "./dist/index.js", "export": "acmeX1Controller" }]
-  }
+"evokNode": {
+  "manifest": 2,
+  "namespaces": ["acme"],
+  "contributes": [{ "kind": "dali-controller", "id": "acme.dali-x1", "path": "./dist/index.js", "export": "acmeX1Controller" }]
 }
 ```
 
@@ -66,17 +63,16 @@ interface DaliController {
   onHealth(cb: (h: DaliBusHealth) => void): void;         // push — a controller with no spontaneous fault reporting just never calls this
 }
 
-interface DaliControllerFactory<Config> {
-  readonly ctrlKind: string;
-  readonly config: ValueType<Config>;   // 03a
+interface DaliControllerFactory<Config> extends Configurable<Config> {   // meta, config, rules — 02b §5.1
+  readonly ctrlKind: string;            // the plugin's id
   readonly acceptsTransport: readonly ('line'|'modbus')[];
   create(transport: LineTransport | ModbusTransport, config: Config, deps: { clock: Clock; log: Logger }): ReadonlyMap<number, DaliController>;
 }
 ```
 
-`create()` returns one `DaliController` per DALI bus the resolved config actually exposes over this one transport, keyed by `busIndex` — the controller's own numbering, never inferred, validated for contiguity, or renumbered by this driver; it's used only as an opaque map key and tail segment (§7). `dali-foxtron-ASCII` (§6) always returns a one-entry map at `busIndex: 0` — not a special case this driver branches on, just the common size of that map. An empty map is fatal at `configure()`, same tier as an unresolvable `daliCtrlKind`.
+`create()` returns one `DaliController` per DALI bus the resolved config actually exposes over this one transport, keyed by `busIndex` — the controller's own numbering, never inferred, validated for contiguity, or renumbered by this driver; it's used only as an opaque map key and tail segment (§7). `dali-foxtron-ASCII` (§6) always returns a one-entry map at `busIndex: 0` — not a special case this driver branches on, just the common size of that map. An empty map is fatal at `configure()`, same tier as an unresolvable `ctrl.use`.
 
-Registered one of two ways, same duality as `modbus-kind-binder` (07a §7): direct, `registerCtrl(factory)`, for a controller known at this package's own build time — `dali-foxtron-ASCII` (§6) uses this; manifest, the `package.json` shape above, resolved lazily via `ctx.plugins.resolve('dali-controller', ctrlKind)`, memoized the same way every other kind is (02 §4). `isDaliControllerFactory` is registered as `'dali-controller'`'s own guard at this package's module-load time, same shape as `isModbusKindBinder` (07a §7).
+The built-in `dali-foxtron-ASCII` (§6) is a plugin in this package's own manifest; any controller is resolved through `ctx.plugins.resolve('dali-controller', ctrl.use)` (02b §6.2). This package defines the kind; its guard, `isDaliControllerFactory`, checks the shape and `ctrlKind` against the id, the same way as `isModbusKindBinder` (07a §7).
 
 `DaliBusExceptionKind` is this driver's own closed `domain-error` vocabulary (03 §7) for a transmission the controller itself refuses or can't complete — `'bus-collision-unresolved' | 'buffer-full' | 'controller-error'` — distinct from `'unreachable'`/`'timeout'`, which cover the controller or line simply not answering at all.
 
@@ -88,7 +84,7 @@ The serial/TCP byte transport itself — `LineTransport`/`LineTransportConfig`, 
 
 ### 4.2. Modbus-backed controllers
 
-For a `daliCtrlKind` whose `acceptsTransport` includes `'modbus'`: this driver calls 07's own `createModbusTransport(transport.modbus, ctx)` (07 §4) and hands the resolved controller factory's `create()` (§3) whatever `ModbusTransport` comes back — direct wire or relay facade, entirely `transport.modbus.kind`'s own answer (07 §4, §6); this driver never branches on it itself. This is also the natural home for a controller kind that maps *several* DALI buses onto one Modbus connection via distinct register blocks (§3's `ReadonlyMap` return exists for exactly this, worked example in §7) — no built-in controller does this yet (§13); it exists so one has somewhere real to build against without this driver reinventing Modbus.
+For a controller whose `acceptsTransport` includes `'modbus'`: this driver calls 07's own `createModbusTransport(transport.modbus, ctx)` (07 §4) and hands the resolved controller factory's `create()` (§3) whatever `ModbusTransport` comes back — direct wire or relay facade, entirely `transport.modbus.kind`'s own answer (07 §4, §6); this driver never branches on it itself. This is also the natural home for a controller kind that maps *several* DALI buses onto one Modbus connection via distinct register blocks (§3's `ReadonlyMap` return exists for exactly this, worked example in §7) — no built-in controller does this yet (§13); it exists so one has somewhere real to build against without this driver reinventing Modbus.
 
 ## 5. The frame model
 
@@ -191,13 +187,14 @@ Its session state (§11) is naturally keyed by `busIndex` internally (`Map<busIn
 drivers:
   DALI1:
     type: dali
-    daliCtrlKind: acme-dali-modbus-2bus
-    transport: { kind: modbus, modbus: { kind: modbus-tcp, host: 10.0.0.5, port: 502 } }
     ctrl:
-      unitId: 1
-      buses:
-        - { index: 0, registerBase: 0 }
-        - { index: 1, registerBase: 1000 }
+      use: acme.dali-modbus-2bus
+      config:
+        unitId: 1
+        buses:
+          - { index: 0, registerBase: 0 }
+          - { index: 1, registerBase: 1000 }
+    transport: { kind: modbus, modbus: { kind: modbus-tcp, host: 10.0.0.5, port: 502 } }
 ```
 
 `acmeDaliModbus2BusController.create(transport, ctrlConfig, deps)` opens the one `ModbusTransport` and returns `Map { 0 => DaliController, 1 => DaliController }` — two controllers, one connection. Resulting addresses, all under the one driver id:
@@ -213,15 +210,15 @@ DALI1:$health              # aggregate — degraded if either bus is (§7.2)
 
 ```yaml
 drivers:
-  DALI_BUS1: { type: dali, daliCtrlKind: dali-foxtron-ASCII, transport: { kind: line, line: { kind: tcp, host: 10.0.0.9, port: 23 } } }
-  DALI_BUS2: { type: dali, daliCtrlKind: dali-foxtron-ASCII, transport: { kind: line, line: { kind: tcp, host: 10.0.0.9, port: 24 } } }
+  DALI_BUS1: { type: dali, ctrl: { use: dali-foxtron-ASCII }, transport: { kind: line, line: { kind: tcp, host: 10.0.0.9, port: 23 } } }
+  DALI_BUS2: { type: dali, ctrl: { use: dali-foxtron-ASCII }, transport: { kind: line, line: { kind: tcp, host: 10.0.0.9, port: 24 } } }
 ```
 
 ```
 DALI_BUS1:bus.0.gear.5     DALI_BUS2:bus.0.gear.5   # the driver id already disambiguates — bus.0 in both, by construction
 ```
 
-The tail grammar is identical either way; what differs is only whether one `daliCtrlKind` hands back a multi-entry bus map from one transport, or several driver instances each get their own one-entry map.
+The tail grammar is identical either way; what differs is only whether one controller hands back a multi-entry bus map from one transport, or several driver instances each get their own one-entry map.
 
 ### 7.2. Health
 

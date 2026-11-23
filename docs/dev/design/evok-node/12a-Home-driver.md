@@ -223,10 +223,9 @@ interface TemplateState<St> {
 }
 
 interface AssemblyTemplate<F extends Record<string, EndpointType | OptionalEndpointType>, R extends Record<string, Role>, S, St = never> {
-  readonly kind: string;               // 'dimmable-from-dali', 'dimmable-from-ao', 'switch-from-di', 'timer', ... — must equal the manifest's templateKind
+  readonly kind: string;               // 'dimmable-from-dali', 'dimmable-from-ao', 'switch-from-di', 'timer', ... — the plugin's id (02b §5.1)
   readonly deviceType: DeviceType<F>;   // the exported home DeviceType object (05a §3.5: one kind, one object)
-  readonly label: LocalizedText;     // 04 §7
-  readonly hint?: LocalizedText;
+  readonly meta: PluginMeta;          // 02b §5.1 — label, description, helpMd
   readonly roles: R;                 // e.g. { gear: { types: [DaliGear], min: 1, max: 1, label: 'Gear' } }, { relays: { types: [UnipiRo, UnipiDo], min: 1, max: 4, label: 'Relays' } }
   readonly settings?: ValueType<S>; // annotated, defaults included (03a §4); absent ⇒ no settings
   readonly state?: ValueType<St>;   // what the template persists — below; absent ⇒ nothing
@@ -260,7 +259,7 @@ Handlers answer from memory, the way every driver does (01): `assemble()` subscr
 
 A `SET` forwarded to a source that can't take it — not up, not answering — throws `SourceUnreachable` (05a §3.5) and is answered `unreachable`. It is never queued and replayed later.
 
-Each built-in `DeviceType` (§2) ships with the templates its own built-in source drivers warrant — listed per type in the 12c index — and a template is itself a manifest-loaded, `kind`-resolved module (01 §10; `{ "kind": "home-template", "templateKind": "dimmable-from-dali", … }`), so a driver plugin for hardware this driver doesn't know about yet can ship its own template for an existing `DeviceType` without touching this package — the rainwater driver ships `valve-from-rainwater-supply` for `WaterValve` (12c-11 §3). It imports that `DeviceType` from `@evok-node/driver-home`; it never rebuilds one under the same kind (05a §3.5).
+Each built-in `DeviceType` (§2) ships with the templates its own built-in source drivers warrant — listed per type in the 12c index — and a template is itself a `home-template` plugin (02b §5.2; `{ "kind": "home-template", "id": "dimmable-from-dali", … }`), so a driver plugin for hardware this driver doesn't know about yet can ship its own template for an existing `DeviceType` without touching this package — the rainwater driver ships `valve-from-rainwater-supply` for `WaterValve` (12c-11 §3). It imports that `DeviceType` from `@evok-node/driver-home`; it never rebuilds one under the same kind (05a §3.5).
 
 ## 3a. Template bundles
 
@@ -284,9 +283,8 @@ interface BundleContext<S> {
 }
 
 interface TemplateBundle<S = unknown> {
-  readonly kind: string;                          // 'iaq-unipi' — must equal the manifest's bundleKind
-  readonly label: LocalizedText;                  // 04 §7
-  readonly hint?: LocalizedText;
+  readonly kind: string;                          // 'iaq-unipi' — the plugin's id (02b §5.1)
+  readonly meta: PluginMeta;                      // 02b §5.1
   readonly anchor: Selection;                     // §2.4, always 1–1 — e.g. { types: [UnipiUnitType], min: 1, max: 1, label: 'Sensor' }
   readonly members: Readonly<Record<string, { readonly templateKind: string; readonly label: LocalizedText }>>;
   readonly settings?: ValueType<S>;              // annotated, defaults included; absent ⇒ none
@@ -301,7 +299,7 @@ interface TemplateBundle<S = unknown> {
 - **After creation each member is an ordinary `local` device**, with `bundle` set (§4.1): edited and removed on its own, its template's settings changed through `updateDevice`. Only the bundle's name and membership are the bundle's.
 - **Members see each other.** `ctx.peer(member, type)` (§3) is a `RemoteDevice` (05a §3.8a) on another member's tail: its last values and its methods — how two members keep an interlock (12c-07 §3.2). `undefined` when the device is in no bundle, the member was not created or was removed, or its kind isn't `type`. A peer is never a source: it doesn't count toward `reachable`, and the template answers for it not being there.
 - **A `matter` node needs no bundle**: its devices are already one product, linked by `origin.nodeId` (§4.1). 16a uses either link the same way (16a).
-- A bundle is a manifest-loaded, `kind`-resolved module, like a template (§3): `{ "kind": "home-bundle", "bundleKind": "iaq-unipi", … }`.
+- A bundle is a `home-bundle` plugin, like a template (§3, 02b §5.2): `{ "kind": "home-bundle", "id": "iaq-unipi", … }`.
 
 ## 4. Device storage and lifecycle
 
@@ -399,7 +397,7 @@ Management (§5) reports one `status` per device — for a human, beside the `re
 |---|---|
 | `ok` | `reachable` |
 | `unreachable` | not `reachable`; its source still exists |
-| `missing` | its source is gone — a `matter` endpoint left the node's PartsList, a `remote` device left the remote's introspection or is no longer `exposed` there |
+| `missing` | its source is gone — a `matter` endpoint left the node's PartsList, a `remote` device left the remote's introspection or is no longer `exposed` there — or its template is: no `home-template` plugin resolves its `templateKind` (02b §7) |
 
 A `missing` device keeps its record and its tail; it is never removed automatically. A rule using it is `errored` (12b §7). It returns to `ok` on its own when its source comes back — a `matter` endpoint matched by `uniqueId` first (§4a) — or the user removes it (§5).
 
@@ -466,7 +464,7 @@ type DeviceStatus = 'ok' | 'unreachable' | 'missing';   // §4.3
 // devices
 listDeviceTypes(): readonly { kind: string; templates: readonly string[] }[];
 listTemplates(args: { deviceType: string }): readonly {
-  kind: string; label: LocalizedText; hint?: LocalizedText;
+  kind: string; meta: PluginMeta;      // 02b §5.1
   form: ValueSchema;                   // §2.4 — format `schema` on the wire
 }[];
 createDevice(args: {                   // always a `local` device
@@ -493,7 +491,7 @@ listDevices(): readonly (DeviceRecord & { status: DeviceStatus })[];
 
 // bundles (§3a)
 listBundleKinds(): readonly {
-  kind: string; label: LocalizedText; hint?: LocalizedText;
+  kind: string; meta: PluginMeta;      // 02b §5.1
   form: ValueSchema;                   // { anchor: ref (home.source, filtered by anchor.types), settings }
   members: Readonly<Record<string, { templateKind: string; label: LocalizedText }>>;
 }[];

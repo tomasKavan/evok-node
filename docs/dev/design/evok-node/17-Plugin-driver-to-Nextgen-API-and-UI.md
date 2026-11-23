@@ -13,7 +13,11 @@ API (15) and the inspector (16).
 - **What needs explicit contribution:** display metadata, units, grouping, visual layout, custom
   controls.
 - **The inspector plugin seam:** how a driver ships UI without `ui` depending on the driver. Nothing
-  imports `ui`, and `ui` must not import a plugin — so the mechanism has to be runtime.
+  imports `ui`, and `ui` must not import a plugin — so the mechanism has to be runtime. It is the
+  `inspector-panel` plugin kind, owned by `ui`, target `browser` (02b §5.2): its shape, how the api
+  serves a package's browser module, and how the SPA loads it.
+- **Plugin management view:** packages, their plugins and statuses, install from the registry or a
+  `.tgz`, staged changes and the restart (02a §2.5, 02b §9).
 - **Degradation.** What nextgen and the UI show for a data type they do not recognise. Never nothing,
   never a crash — state the fallback.
 - **Versioning across three moving parts** (driver, API schema, UI), and what breaks when they

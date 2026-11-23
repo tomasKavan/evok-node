@@ -16,18 +16,17 @@ rule B:  hall timer elapsed       →  hall light off
 
 ## 2. Rule kinds
 
-A **rule kind** is the recipe: which devices may trigger a rule, which devices it controls, what a user fills in, and the function that runs. Like a template (12a §3), it is a manifest-loaded, `kind`-resolved module (02 §4), so a plugin can add one without touching this package:
+A **rule kind** is the recipe: which devices may trigger a rule, which devices it controls, what a user fills in, and the function that runs. Like a template (12a §3), it is a plugin — kind `home-rule` (02b §5.2) — so a plugin package can add one without touching this package:
 
 ```json
-{ "kind": "home-rule", "ruleKind": "toggle-on-press", "path": "./dist/index.js", "export": "TogglePress" }
+{ "kind": "home-rule", "id": "toggle-on-press", "path": "./dist/index.js", "export": "TogglePress" }
 ```
 
 ```ts
 // @evok-node/driver-home
 interface RuleKind<T extends Slots, A extends Slots, O> {
-  readonly kind: string;               // must equal the manifest's ruleKind
-  readonly label: LocalizedText;       // 04 §7
-  readonly hint?: LocalizedText;
+  readonly kind: string;               // the plugin's id (02b §5.1)
+  readonly meta: PluginMeta;           // 02b §5.1
   readonly triggers: T;                // §3, at least one slot
   readonly actions: A;                 // §3, at least one slot
   readonly options?: ValueType<O>;    // annotated (03a §4) — §3; absent ⇒ no options
@@ -36,7 +35,7 @@ interface RuleKind<T extends Slots, A extends Slots, O> {
 }
 ```
 
-A kind whose `kind` disagrees with its manifest entry, with no trigger slot or no action slot, or whose slots break §3, is a packaging mistake — rejected when the kind is resolved.
+A kind whose `kind` disagrees with its plugin id, with no trigger slot or no action slot, or whose slots break §3, is a packaging mistake — rejected when the kind is resolved.
 
 ### 2.1. Built-in kinds
 
@@ -259,7 +258,7 @@ Same conventions as 12a §5: validate before anything is persisted, answer `doma
 type RuleStatus = 'ok' | 'errored' | 'throttled' | 'disabled' | 'device-removed';   // §7
 
 listRuleKinds(): readonly {
-  kind: string; label: LocalizedText; hint?: LocalizedText;
+  kind: string; meta: PluginMeta;        // 02b §5.1
   form: ValueSchema;                     // 12a §2.4 — { triggers, actions, options }; format `schema` on the wire
   limit: TriggerLimit;                   // the effective default
 }[];

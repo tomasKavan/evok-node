@@ -128,12 +128,12 @@ Configuration written from the Inspector; a static-only configuration stays poss
 **Refs:** 01 §2–§4 · 02 · 03 §8–§11 · 04 §3, §7 · 03a · 05a §3.1 · 06 §5a · 08 §2 · 13 · 15 · 16
 
 ### M3.7b — Plugins: general rules   `area/plugins`
-Every plugin kind in the system in one place — drivers, apis, WS extensions, device types, templates, rule kinds, UI plugins — and the rules they share: manifest, descriptor, config, links, versions. Nested plugin config — a plugin's config inside a module's config (DALI `ctrl`, a WS api's extensions) — and how `validate` and the forms see it. Then each plugin kind's doc is refined against these rules.
+Every plugin kind in the system in one place — drivers, apis, WS extensions, device types, templates, rule kinds, UI plugins — and the rules they share: manifest, descriptor, config, links, versions. Nested plugin config — a plugin's config inside a module's config (DALI `ctrl`, a WS api's extensions) — and how `validate` and the forms see it. Plugin packages managed from the Inspector: install, update, remove. Then each plugin kind's doc is refined against these rules.
 **Done when:** 02b designed; the docs of each plugin kind agree with it; the nested-config Open in STATUS is closed.
 **Refs:** 01 §10 · 02 §4 · 02a · 03 §8 · 03a · 05a · 12 · 12a · 13 §2 · 15
 
 ### M3.8 — WS API   `area/api`
-Renamed from nextgen. Relays internal messaging. `ws-kit` (13 §2): sessions, hello, relay, fan-out, WS extensions (the contract in 15). The Home API is built on it too. Auth and ACL as WS extensions using 13a, reacting to `actor` and `proof` (13 §5). The hello advertises `evokNodeVersion` (12a §4b). Session language (`hello.lang`, `Accept-Language`, `setLang`) and the localization engine resolving `LocalizedText` at the edge (03a §4).
+Renamed from nextgen. Relays internal messaging. `ws-kit` (13 §2): sessions, hello, relay, fan-out, WS extensions (the contract in 15). The Home API is built on it too. Auth and ACL as WS extensions using 13a, reacting to `actor` and `proof` (13 §5). The hello advertises `evokNodeVersion` (12a §4b). Session language (`hello.lang`, `Accept-Language`, `setLang`) and the localization engine resolving `LocalizedText` at the edge (03a §4). Message size, for a `.tgz` uploaded to `installPackage` (02b §12).
 **Done when:** 15 designed and renamed; `api-nextgen` renamed in docs.
 **Refs:** 03 · 13 · 13a · 15
 
@@ -143,9 +143,9 @@ Structure, logic, wireframes, mobile vs desktop, frameworks, design guide. Basic
 **Refs:** 15 · 05a · 04 · 11
 
 ### M3.10 — Inspector UI: plugins   `area/ui`
-Plugin approach. Main plugins: unipi system, unipi local, unipi extension, DALI (with commissioning workflow), Home config and control.
+Plugin approach: the `inspector-panel` kind (02b §5.2). Main plugins: unipi system, unipi local, unipi extension, DALI (with commissioning workflow), Home config and control. Plugin management view (02a §2.5); who uses a plugin outside config (02b §12).
 **Done when:** 17 designed.
-**Refs:** 16 · 08 · 09 · 11 · 12 · 12a
+**Refs:** 16 · 02a §2.5 · 02b · 08 · 09 · 11 · 12 · 12a
 
 ### M3.11 — Home API   `area/api`
 On `ws-kit` (13 §2); understands only the home driver. Relays the subset of management 12a §5 lists.
@@ -168,9 +168,9 @@ Numbering and reorganisation per the map above. Links, forward references. Brevi
 **Refs:** dev README §4 · AGENTS.md
 
 ### M3.15 — Packages & dependencies   `area/packages`
-Revisit package definitions and bootstrapping. What is exposed, in which package, and who uses it. Adjust dependency-cruiser.
+Revisit package definitions and bootstrapping. What is exposed, in which package, and who uses it. Adjust dependency-cruiser. Plugin package bootstrapping (02b §12): the host's `@evok-node/*` seen from a plugin generation, `npm` on the PLC, the daemon's install path, the restart behind `restartDaemon`.
 **Done when:** basics/01 package list matches every design doc; `WORKSPACE_DEPS` covers every designed package.
-**Refs:** basics/01 · 01 §11 · `.dependency-cruiser.cjs`
+**Refs:** basics/01 · 01 §11 · 02b §9, §12 · `.dependency-cruiser.cjs`
 
 ### M3.16 — Testing: unit test review   `area/testing`
 **Done when:** basics/03 tier 1 rules match the final design.

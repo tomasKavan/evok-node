@@ -23,7 +23,7 @@ api-<plugin> ── e.g. MQTT (§10)
 
 ## 2. Terms
 
-| Term | Means | Manifest `kind` |
+| Term | Means | Plugin kind (02b §5.2) |
 |---|---|---|
 | **api** | an instance under `apis:` in config | — |
 | **API module** | the package code behind an api's `type` | `api` |
@@ -36,7 +36,7 @@ Packages are named `api-<name>`.
 
 ## 3. An API module
 
-An API module is a module like a driver (02 §4): a `ModuleDescriptor`, a `ModuleInstance`, resolved through the manifest, hosted by the runner. Two differences:
+An API module is a module like a driver (02 §4): a `ModuleDescriptor`, a `ModuleInstance`, an `api` plugin (02b), hosted by the runner. Two differences:
 
 - **Its links are `drivers:`** (03 §8), main's own field, stripped before the module's schema runs. Nothing else in its config says which drivers its clients reach. An api on `ws-kit` also gets its extensions' own links (15, 03 §8), never relayed to clients.
 - **Nothing addresses it.** Only a `DriverId` is addressable (03 §3), so an api never calls `onRequest` (03 §4).

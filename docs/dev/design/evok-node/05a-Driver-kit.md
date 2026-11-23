@@ -111,11 +111,12 @@ Some device concepts need more than one address to be themselves — a digital i
 ```ts
 // @evok-node/module-sdk
 interface DeviceType<Fields extends Record<string, EndpointType | OptionalEndpointType>> {
-  readonly kind: string;    // resolves against a kind: "device" manifest entry's own deviceKind (§3.5) — fatal at bindDevice() if it doesn't resolve, or if the resolved module's own kind disagrees
+  readonly kind: string;    // the id of its `device` plugin (02b §5.2) — fatal at bindDevice() if no such plugin, or if the plugin's own kind disagrees (§3.5)
   readonly fields: Fields;  // '@' is the reserved root key, answering GET/SET/CALL on the device's own tail with no suffix; every other key is a sibling field, addressed at `<tail>.<key>`
+  readonly meta?: PluginMeta;   // 02b §5.1 — absent ⇒ the kind itself is the label
 }
 
-function device<F extends Record<string, EndpointType | OptionalEndpointType>>(kind: string, fields: F): DeviceType<F>;
+function device<F extends Record<string, EndpointType | OptionalEndpointType>>(kind: string, fields: F, meta?: PluginMeta): DeviceType<F>;
 function optional<T extends EndpointType>(type: T): OptionalEndpointType<T>;   // marks a field a driver may leave unbound — §3.5
 ```
 
@@ -261,29 +262,33 @@ interface DriverKit {
 }
 ```
 
-`bindDevice` itself stays synchronous, and still takes an already-resolved `DeviceType` — resolving one from a bare `kind` string is always a separate, earlier step, never something `bindDevice` does on a caller's behalf. Most drivers never need that step: `07a`'s own built-in kinds (`unipi.di`, `unipi.ao`, …) are `import`ed directly, the same way `DIDevice` above is, and go straight into `bindDevice` with no resolution at all. `resolveDeviceKind(kind)` exists for the other case — a `kind` string with no compile-time import behind it, known only from a definition or a plugin's own runtime data (`07a`'s generic walk, resolving a YAML feature's `kind`, is the concrete caller). It's a thin wrapper over `ctx.plugins.resolve('device', kind)` (02 §4, 03 §9), and this is where `isDeviceType` actually lives — registered once, against `PluginRegistry`'s `'device'` kind, at `driver-kit`'s own module-load time, before any instance built on it can call either method:
+`bindDevice` itself stays synchronous, and still takes an already-resolved `DeviceType` — resolving one from a bare `kind` string is always a separate, earlier step, never something `bindDevice` does on a caller's behalf. Most drivers never need that step: `07a`'s own built-in kinds (`unipi.di`, `unipi.ao`, …) are `import`ed directly, the same way `DIDevice` above is, and go straight into `bindDevice` with no resolution at all. `resolveDeviceKind(kind)` exists for the other case — a `kind` string with no compile-time import behind it, known only from a definition or a plugin's own runtime data (`07a`'s generic walk, resolving a YAML feature's `kind`, is the concrete caller). It's a thin wrapper over `ctx.plugins.resolve('device', kind)` (02b §6.2, 03 §9). `isDeviceType` is the guard of the `device` kind, which `module-sdk` defines (02b §5.2):
 
 ```ts
-// @evok-node/module-sdk, module-load time, once
-// Duck-typed, same reasoning as isModuleDescriptor (02 §4): a plugin may bundle its own
-// copy of module-sdk's types, and there's no `instanceof` to rely on across that boundary.
-function isDeviceType(mod: unknown, deviceKind: string): DeviceType {
+// @evok-node/module-sdk — duck-typed, 02b §5.1
+function isDeviceType(mod: unknown, id: string): DeviceType {
   if (typeof mod !== 'object' || mod === null
       || typeof (mod as DeviceType).kind !== 'string'
       || typeof (mod as DeviceType).fields !== 'object' || (mod as DeviceType).fields === null) {
-    throw new Error(`type "${deviceKind}": not a valid DeviceType`);
+    throw new Error(`type "${id}": not a valid DeviceType`);
   }
-  if ((mod as DeviceType).kind !== deviceKind) {
-    throw new Error(`type "${deviceKind}": exported DeviceType.kind is "${(mod as DeviceType).kind}"`);
+  if ((mod as DeviceType).kind !== id) {
+    throw new Error(`type "${id}": exported DeviceType.kind is "${(mod as DeviceType).kind}"`);
   }
   return mod as DeviceType;
 }
-pluginRegistry.registerKindGuard('device', isDeviceType);
+const deviceKindDefinition: KindDefinition<DeviceType> = {
+  kind: 'device', meta: { label: 'Device type' }, target: 'node',
+  guard: isDeviceType,
+  metaOf: t => t.meta ?? { label: t.kind },
+};
 ```
+
+Every `DeviceType` — a built-in one too — is a `device` plugin in its own package's manifest. Importing it directly is only a shortcut to the same object (02b §6.2).
 
 `bindDevice` is the only way to bind anything — there is no separate `bind()` for a lone endpoint (§3.3: a single-`'@'`-field `DeviceType` is that case, not a special one). It's fatal in any of the following, all the same tier — a packaging or driver-author mistake, never a business-logic case worth degrading gracefully for:
 
-- `type.kind` doesn't resolve in the device manifest — a cheap, local table lookup against the `deviceKind → {path, export}` table every process gets at spawn (02 §6) — or the object `bindDevice` was actually handed fails the same `isDeviceType` check above. This is `bindDevice`'s own, independent re-check — it runs unconditionally, whether `type` arrived by direct import or by an earlier `resolveDeviceKind` call, because a direct import never goes through `resolveDeviceKind` at all and still needs catching if it's wrong. It's the same `isDeviceType` function above, called directly rather than through `PluginRegistry` — `bindDevice` already has the object in hand, so there's nothing to `import()`, only the guard's own shape/`kind`-agreement check left to run:
+- `type.kind` is not a `device` plugin — `ctx.plugins.has('device', type.kind)`, a lookup in the manifest every process gets at spawn (02b §6.1) — or the object `bindDevice` was actually handed fails the same `isDeviceType` check above. This is `bindDevice`'s own, independent re-check — it runs unconditionally, whether `type` arrived by direct import or by an earlier `resolveDeviceKind` call, because a direct import never goes through `resolveDeviceKind` at all and still needs catching if it's wrong. It's the same `isDeviceType` function above, called directly rather than through `PluginRegistry` — `bindDevice` already has the object in hand, so there's nothing to `import()`, only the guard's own shape/`kind`-agreement check left to run:
 
   ```ts
   isDeviceType(type, type.kind);   // throws synchronously on shape mismatch — bindDevice lets it propagate, unchanged
@@ -652,8 +657,8 @@ Subscribing to a `Device`'s own tail — the literal tail, or one reached throug
 Tier 1 (unit; `basics/03-Testing.md`), against `driver-kit`'s own fixtures — a minimal fixture driver with a handful of fixture `DeviceType`s, no real transport:
 
 - Wildcard resolution (§6): a `DI.*` subscription picks up a fixture endpoint added after subscribing (a topology-generation bump) and drops one removed, with no re-subscribe from the caller.
-- `bindDevice()`'s checks (§3.5): a fixture `DeviceType` whose own `kind` isn't in the device manifest is fatal at `bindDevice()`, before `attach()`; independently, a fixture `DeviceType` whose exported `kind` disagrees with its manifest entry's `deviceKind` is fatal; a duplicate `tail` is fatal independently of either; binding a second, different `DeviceType` object under a `kind` already bound in this driver is fatal.
-- `resolveDeviceKind()` (§3.5): resolves a fixture `deviceKind` string to the same `DeviceType` a direct import of that fixture would give, and the result binds identically either way; a second call for the same `deviceKind` returns the memoized value, asserted by the fixture's own load-side-effect counter staying at 1; an unregistered `deviceKind` rejects, naming it, before `bindDevice()` ever runs.
+- `bindDevice()`'s checks (§3.5): a fixture `DeviceType` whose own `kind` is no `device` plugin is fatal at `bindDevice()`, before `attach()`; independently, a fixture `DeviceType` whose exported `kind` disagrees with its manifest entry's `id` is fatal; a duplicate `tail` is fatal independently of either; binding a second, different `DeviceType` object under a `kind` already bound in this driver is fatal.
+- `resolveDeviceKind()` (§3.5): resolves a fixture `device` id to the same `DeviceType` a direct import of that fixture would give, and the result binds identically either way; a second call for the same id returns the memoized value, asserted by the fixture's own load-side-effect counter staying at 1; an id that is no `device` plugin rejects, naming it, before `bindDevice()` ever runs.
 - Introspection payload (§4): `$introspect` on a fixture driver returns `{driverId, driverTypeName, type: 'driver-kit', form: 'full', generation, kinds, devices}`; each kind appears once in `kinds` however many devices use it; each `KindEntry` lists every declared field, `optional()` ones included; each `FieldEntry` is exactly `shape`/`subscribe`/`effect?`/`schema`/`setSchema?`/`argsSchema?`/`access?`; a device that leaves an `optional()` field unbound lists it in `unbound`; a fixture device with a single `'@'` field still appears as an ordinary `DeviceRef` — assert `codec`/`setCodec`/`argsCodec`/`resultCodec` themselves never leak onto the wire, only their serializable counterparts do.
 - Access marks (§3.1b): a field whose type declares no `access` has no `access` in its `FieldEntry`; one that declares marks carries exactly those keys, defaults never filled in — `inClients` included; a fixture driver answers the same call the same way with and without marks.
 - Change log (§3.8): each `bindDevice`/`unbindDevice` raises `n` by one and emits a `DriverKitChange` whose `from` is the previous generation; `GET` with `since` inside the last 16 changes answers one merged `change` (bind then unbind of one tail → `null`); `since` 17 changes back, or with another epoch, answers `full`; a `change` carries a `KindEntry` only for a kind first bound after `from`; `options.since` on another address or method, or malformed, is `bad-payload`.

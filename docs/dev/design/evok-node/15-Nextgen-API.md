@@ -32,12 +32,9 @@
 - **WS extensions** (13 §2) — the contract `ws-kit` gives every api built on it:
 
 ```ts
-interface WsExtensionDescriptor<Config> {      // manifest kind `ws-extension`
-  readonly meta: ModuleMeta;                   // 02 §4
-  readonly config: ValueType<Config>;          // 03a
-  rules?(config: Config): readonly Issue[];
-  declaredLinks?(config: Config): { readonly drivers: readonly DriverId[] };   // its private drivers (03 §8)
-  create(ctx: ExtensionContext, config: Config): WsExtension;                  // once, at the api's configure
+// a ws-extension plugin, nestable (02b §5.2); declaredLinks are its private drivers (03 §8)
+interface WsExtensionDescriptor<Config> extends Configurable<Config> {   // meta, config, rules, declaredLinks — 02b §5.1
+  create(ctx: ExtensionContext, config: Config): WsExtension;          // once, at the api's configure
 }
 
 interface WsExtension {
@@ -67,8 +64,8 @@ interface ExtensionContext {
   - **The api stays agnostic.** Users, zones, languages are the extensions'; the api only offers these services.
   - **An extension sees only what the api's clients see**, plus its private drivers. Its own calls carry the api's `Origin` and skip the hooks (13 §5).
   - **Cleanup by `ws-kit`:** on drain and stop it drops every subscription and callback of an extension, then calls its `stop()`. An api has no reload (13 §3), so an extension has none either.
-  - **The api's descriptor combines its extensions'** — config, rules, links. Links are `drivers:` plus every extension's `declaredLinks`; only `drivers:` is relayed to clients. How `validate` and the forms see an extension's config inside the api's is M3.7b's (02b).
-  - **This api lists its extensions in config**, e.g. `extensions: { auth: { idp: auth }, acl: { idp: auth } }`. The Home API fixes its own (18).
+  - **Extensions in config:** `extensions: Values.array(Values.plugin('ws-extension'))` — list order is the onion order. `main` checks each one's config and adds its `declaredLinks` to the api's links (02b §8); only `drivers:` is relayed to clients.
+  - **This api lists its extensions**, e.g. `extensions: [{ use: auth, config: { idp: auth } }, { use: acl, config: { idp: auth } }]`. The Home API fixes its own (18).
 - **Access marks** (05a §3.1b) are used as the types wrote them, as on the Home API — no override and no per-client profile (13 §5).
 
 **Inputs:** research/01 (as contrast) · research/08 · to_revision/0003 ·

@@ -86,11 +86,16 @@ One driver, one config shape, one handshake/bind path for both — the model nev
 
 ## 7. Bring-your-own definition
 
-The practical path for a device this driver's own authors never heard of, and its limits. Namespace: `custom/modbus/<vendor>/<device>.yaml` (`13 §1`) — `acme`'s `wm-3f` sharing a line with ordinary Unipi units (§2's example) is the concrete shape. Past the definition file itself, three things a custom device may need, each already covered by `07a`'s own mechanism rather than anything specific to this driver:
+The practical path for a device this driver's own authors never heard of, and its limits. Its definition comes from one of two places:
+
+- **A file the operator writes**, `custom/modbus/<vendor>/<device>.yaml` under `/etc/evok-node/hw_definitions/` — `acme`'s `wm-3f` sharing a line with ordinary Unipi units (§2's example).
+- **A `hw-definition` plugin** (02b §5.2) in the vendor's package, id `modbus/<vendor>/<device>`, shipped together with the kinds, binder and handshake below.
+
+A `definition:` id resolves to a file under `/etc/evok-node/hw_definitions/` first, then to a `hw-definition` plugin of that id. They never overlap: our own files use reserved namespaces, and a plugin may use only its own (02b §4). Past the definition itself, three things a custom device may need, each already covered by `07a`'s own mechanism rather than anything specific to this driver:
 
 - **An unknown `kind`.** Resolved the same way as any other — `resolveDeviceKind` (05a §3.5) — to a real `DeviceType` a third-party package ships, `<vendor>.<name>`-shaped like every kind (07a §3a). The type itself must already exist and be resolvable — a binder never fabricates one.
-- **A register layout the generic walk can't express.** The same `ModbusKindBinder`, registered either directly (a driver-extension bundle statically depending on `acme`'s package, full typing, no manifest involved) or as a `kind: "modbus-kind-binder"` manifest entry resolved lazily the first time this line's `configure()` needs it (`07a §7`).
-- **An identity check that isn't Unipi's.** A `handshake` name registered the identical two ways (`07a §9`) — direct `registerHandshake()`, or a `kind: "modbus-handshake"` manifest entry — or `none` when the device has no identity block to check at all.
+- **A register layout the generic walk can't express.** A `modbus-binder` plugin (`07a §7`), resolved the first time this line's `configure()` needs it.
+- **An identity check that isn't Unipi's.** A `modbus-handshake` plugin (`07a §9`), or `none` when the device has no identity block to check at all.
 
 **A third-party device we ship.** Its definition is ours, under `modbus/<vendor>/<device>`, and its kind is in 07a §10.5 — `modbus/dyp/ds1603da-3r`, the rainwater driver's level sensor (12i). It speaks only 9600 baud and has no register to change that (research/15 §1.4), so it gets a line of its own:
 
@@ -105,7 +110,7 @@ drivers:
       - { unit: 3, definition: modbus/dyp/ds1603da-3r }   # retention tank
 ```
 
-The limit worth being honest about: none of this is a YAML-only extension point. A genuinely new kind or handshake is code — a package with its own `evokNodePlugin` manifest entry, or a build-time dependency — never something expressible purely inside the definition file itself. What the definition file *does* fully control is which already-registered kind, binder, and handshake name a given unit uses.
+The limit worth being honest about: none of this is a YAML-only extension point. A genuinely new kind or handshake is code — a plugin package (02b) — never something expressible purely inside the definition file itself. What the definition file *does* fully control is which already-registered kind, binder, and handshake name a given unit uses.
 
 ## 8. Failure modes
 
@@ -128,6 +133,6 @@ Tier 1 (`design/basics/03-Testing.md`), against the simulator — no hardware:
 - Cycle-time budget: a fixture line with several units' worth of fixture blocks computes the expected cycle time; a fixture whose sum exceeds 25% of the shortest fixture unit's factory-default MWD timeout warns (or refuses, past the harder threshold) at `configure()`, before any handshake runs.
 - Runtime-degraded isolation: one fixture unit whose simulator handshake fails never starts a scan loop and never contributes to the line's cycle time, while a sibling unit on the same line handshakes and binds normally, unaffected.
 - Extensions vs accessories: a fixture accessory-shaped definition (sensor kinds only) binds with no `unipi.sectionWatchdog` present; a fixture `xG18`-shaped definition (extension unit, accessory kinds) binds identically to any other accessory.
-- Bring-your-own, end to end: a fixture custom unit of its own fixture kind, using a manifest-declared `ModbusKindBinder` and a manifest-declared `HandshakeFn`, handshakes and binds correctly, and a `GET`/`SET` round-trip reaches the binder's own handlers.
+- Bring-your-own, end to end: a fixture custom unit of its own fixture kind, using a fixture package's `hw-definition`, `modbus-binder` and `modbus-handshake` plugins, handshakes and binds correctly, and a `GET`/`SET` round-trip reaches the binder's own handlers.
 - Tails: two units of the same fixture definition on one line bind without a duplicate-tail fatal, each under its own `<unit>.` prefix; `<unit>.typeInfo` answers the configured definition while its unit's handshake is still failing.
 - One full run against two simulated units on one line, of different kinds, end to end: `configure()` → per-unit `handshake()` → `bindDefinition()` → a `GET`/`SET` round-trip against at least one channel on each.

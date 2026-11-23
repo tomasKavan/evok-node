@@ -2,9 +2,9 @@
 
 ## 1. Scope
 
-The `main` driver is main's face on the bus: it shows the config, the running instances and the installed plugins, and it validates and applies changes to the dynamic config (02 §3a). The bootstrap api sets up the first WS API. This file also states the dynamic file's own rules — revisions, secrets, write order, where the files live, backup — and what the inspector SPA does when the api serving it reloads.
+The `main` driver is main's face on the bus: it shows the config, the running instances and the plugin packages, validates and applies changes to the dynamic config (02 §3a), and installs and removes packages (02b §9). The bootstrap api sets up the first WS API. This file also states the dynamic file's own rules — revisions, secrets, write order, where the files live, backup — and what the inspector SPA does when the api serving it reloads.
 
-It assumes 02 (config, merge §3a, startup §5, reload §5.1) and 03a (values, `checkValue`, `Issue`). Not here: who may call the `main` driver — that is the api's auth and ACL (13 §5, 13a).
+It assumes 02 (config, merge §3a, startup §5, reload §5.1), 02b (plugins, packages) and 03a (values, `checkValue`, `Issue`). Not here: who may call the `main` driver — that is the api's auth and ACL (13 §5, 13a).
 
 ## 2. The `main` driver
 
@@ -13,7 +13,7 @@ It assumes 02 (config, merge §3a, startup §5, reload §5.1) and 03a (values, `
 - **Reserved id `main`**, type `main`, package `driver-main` (01 §11). One per system, never an entry in either file: `main` always spawns it (02 §5 step 6).
 - **A driver like any other** — its own `worker_thread`, built on driver-kit (05a). Not code inside `main`: `main` stays off every request path (01 §2), and a plugin that crashes or hangs while `describe` resolves it (§2.5) takes this worker down, not `main`.
 - **Reached through an api that names it**: `drivers: ['*', main]`. `'*'` never includes it (03 §8).
-- **Read-only in static mode.** With `dynamicConfig` off, the readings, `describe`, `restart` and `reload` work; every write answers `static-config`.
+- **Read-only in static mode.** With `dynamicConfig` off, the readings, `describe`, `restart`, `reload` and `restartDaemon` work; every other write — packages included — answers `static-config`.
 
 ### 2.2. The control channel
 
@@ -26,6 +26,7 @@ interface MainControl {
   apply(candidate: DynamicFile, baseRevision: number): Promise<ApplyResult>;          // §3.1
   restart(key: InstanceKey): Promise<void>;
   reload(): Promise<void>;                                                  // the same as systemctl reload
+  restartDaemon(): Promise<void>;                                           // stop every instance and exit — 02b §9.4
 }
 
 type DynamicFile = { revision: number; drivers: Record<Id, Entry>; apis: Record<Id, Entry> };
@@ -33,11 +34,11 @@ type InstanceKey = `drivers.${string}` | `apis.${string}`;   // as in config pat
 type Entry = { type: string; run?: Placement; drivers?: readonly string[]; [body: string]: Value };   // head + body, 02 §5 step 3
 ```
 
-`main` validates, because only `main` sees the whole picture — both files, every module's value type, links, cycles. Before it does, the `main` driver resolves every `type` in the candidate in its own worker (02 §4's `PluginRegistry`): a plugin that throws or hangs on import is an issue there and never reaches `main`.
+`main` validates, because only `main` sees the whole picture — both files, every module's value type, links, cycles. Before it does, the `main` driver resolves every `type` and every nested plugin (02b §8) in the candidate in its own worker (02b §6.2): a plugin that throws or hangs on import is an issue there and never reaches `main`.
 
 ### 2.3. Readings
 
-Declared with `Values` (03a); shown as TS for brevity. All three are subscribable.
+Declared with `Values` (03a); shown as TS for brevity. All four are subscribable.
 
 ```ts
 config: {
@@ -66,11 +67,19 @@ type InstanceInfo = {
   links: readonly DriverId[];                         // resolved, '*' expanded
 };
 
-plugins: readonly PackageInfo[];                      // from the manifest (02 §4) — nothing imported
+packages: {                                           // 02b §6.1, §9 — nothing imported
+  pending: boolean;                                   // staged changes wait for a restart
+  list: readonly PackageInfo[];
+}
 type PackageInfo = {
-  name: string; version: string; source: 'builtin' | 'plugin';
-  plugins: readonly { kind: string; id: string; label?: LocalizedText;
-                      status: 'unresolved' | 'ok' | 'error'; error?: string }[];
+  name: string; version: string; source: 'builtin' | 'system' | 'user';
+  status: PackageStatus; detail?: string;             // 02b §7
+  pending?: 'install' | 'update' | 'remove' | 'enable' | 'disable';
+  next?: string;                                      // the staged version — pending 'install' or 'update'
+  requires: Readonly<Record<string, string>>;
+  defines: readonly { kind: string; label?: LocalizedText }[];
+  plugins: readonly { kind: string; id: string; label?: LocalizedText;   // label once described
+                      status: PluginStatus; detail?: string }[];
 };
 ```
 
@@ -78,13 +87,20 @@ type PackageInfo = {
 
 | Method | Effect | Args | Result | `errorKinds` |
 |---|---|---|---|---|
-| `describe` | `none` | `{ kind: 'driver' \| 'api', type }` | `{ meta: ModuleMeta, config: ValueSchema }` | `unknown-type`, `load-failed` |
+| `describe` | `none` | `{ kind, id }` | `PluginDescription` (02b §6.2) | `unknown-plugin`, `load-failed` |
 | `validate` | `none` | `Changeset` | `{ issues, plan }` | `static-config` |
 | `apply` | `mutates` | `Changeset` | `ApplyResult` | `static-config`, `conflict`, `busy` |
 | `revisions` | `none` | — | `{ revision, at: Date }[]` | `static-config` |
 | `rollback` | `mutates` | `{ revision, baseRevision }` | `ApplyResult` | `unknown-revision`, and `apply`'s |
 | `restart` | `mutates` | `{ key }` | void | `unknown-instance` |
 | `reload` | `mutates` | — | void | `busy` |
+| `inspectPackage` | `none` | `{ source }` | `PackageReport` | `npm-failed`, `busy` |
+| `installPackage` | `mutates` | `{ source }` | `PackageReport` | `static-config`, `not-active`, `npm-failed`, `busy` |
+| `removePackage` | `mutates` | `{ name }` | `PackageReport` | `static-config`, `unknown-package`, `builtin`, `system`, `in-use`, `busy` |
+| `enablePackage`, `disablePackage` | `mutates` | `{ name }` | void | `static-config`, `unknown-package`, `builtin`, `in-use` (disable) |
+| `discardStaged` | `mutates` | — | void | `static-config`, `busy` |
+| `rollbackPackages` | `mutates` | — | `PackageReport` | `static-config`, `no-previous`, `busy` |
+| `restartDaemon` | `mutates` | — | void | — |
 
 ```ts
 type Changeset = {
@@ -104,11 +120,50 @@ type ApplyResult =
 - `reload` answers before it runs, like `apply` (§3.1). A rejected reload shows as `phase: 'rejected'`, its issues in `config.issues`.
 - `main`'s own cross-instance checks report `code: 'rule'` with these ids: `static-entry`, `reserved-id`, `reserved-type`, `id-collision`, `unknown-type`, `load-failed`, `unknown-link`, `cycle`, `bootstrap-needs-dynamic`, `restart-needed` (a changed `dynamicConfig`, 02 §5.1).
 
-### 2.5. Plugins
+### 2.5. Packages
 
-`plugins` imports nothing. `describe` resolves one module type in this worker, on demand, so a picker ("add a driver") gets labels and a form only for what it shows. A plugin that fails to load answers `load-failed` and its entry in `plugins` turns `error`.
+`packages` imports nothing. `describe` resolves one plugin in this worker, on demand, so a picker ("add a driver") gets labels and a form only for what it shows. A plugin that fails answers `load-failed`, and its status in `packages` turns `load-failed`.
 
-Installing and removing plugins is not designed — **Open, below**. What is known: in v1 it means writing packages and then restarting the daemon, because the manifest is assembled once (02 §4) and `main` cannot unload a module it imported; packages would live outside dpkg's directories, e.g. `/var/lib/evok-node/plugins/node_modules`, as a second manifest root. `PackageInfo` is grouped by package because that is what an install acts on.
+Install, update and remove never change the running daemon. They stage the next generation (02b §9.2); a restart activates it:
+
+```
+inspectPackage({ source })      → PackageReport      nothing written
+installPackage({ source })      → PackageReport      next generation built and checked (02b §9.3), then staged; also an update
+removePackage({ name })         → PackageReport      staged
+enablePackage / disablePackage  → plugins.json       at the next start
+discardStaged()                                      next removed
+rollbackPackages()              → PackageReport      previous staged as next
+restartDaemon()                                      02b §9.4
+```
+
+```ts
+type PackageSource =
+  | { npm: { name: string; version?: string } }    // version: a semver range; omitted ⇒ latest
+  | { tarball: Uint8Array };                       // an uploaded .tgz — format bytes
+
+type PackageReport = {
+  name: string; version: string; publisher?: string;
+  integrity: string;                               // sha512, from npm — 02b §10
+  requires: Readonly<Record<string, { range: string; met: boolean }>>;
+  status: PackageStatus;                           // as it would be after the restart — 02b §7
+  plugins: readonly { kind: string; id: string; status: PluginStatus }[];
+  changes: readonly { name: string; from?: string; to?: string }[];   // every package the restart adds, changes or removes — dependencies too
+  usedBy: readonly InstanceKey[];                  // entries whose type or nested plugin (02b §8) is in this package
+};
+```
+
+```
+installPackage({ npm: { name: '@acme/evok-node-wm3f', version: '^1.4' } })
+  → { name: '@acme/evok-node-wm3f', version: '1.4.2', status: 'active', integrity: 'sha512-…',
+      plugins: [ { kind: 'driver', id: 'acme.wm3f', status: 'unresolved' }, … ],
+      changes: [ { name: '@acme/evok-node-wm3f', to: '1.4.2' }, { name: 'crc', to: '4.3.2' } ], usedBy: [] }
+packages.pending → true
+```
+
+- **Refused, nothing staged:** a package that would not be `active` — `not-active`, with the report; removing or disabling one a static entry uses — `in-use`. One a dynamic entry uses is allowed: the entry will be left out (02 §5), and `usedBy` says which.
+- **A built-in** is never removed or disabled (`builtin`); **a system package** only enabled or disabled (`system`).
+- **One staging at a time** (`busy`). npm runs with a deadline; its failure answers `npm-failed` with npm's own message.
+- **Access:** every package write is `administer` with `proof`; `inspectPackage` is `administer` (05a §3.1b).
 
 ## 3. Apply
 
@@ -292,15 +347,15 @@ Tier 1 (unit; `basics/03-Testing.md`), against a fake `MainControl` and a fixtur
 
 - Readings follow `snapshot`/`onChange`; a left-out entry shows `state: 'left-out'` with its issues.
 - `apply`: a stale `baseRevision` is `conflict`; a second apply while one runs is `busy`; `invalid` writes nothing; the answer precedes the first prepare.
-- A fixture plugin that throws on import: `describe` answers `load-failed`, its `plugins` entry turns `error`, and the fake `main` never resolves it.
+- A fixture plugin that throws on import: `describe` answers `load-failed`, its status in `packages` turns `load-failed`, and the fake `main` never resolves it.
+- Packages (§2.5), against a fake npm: `installPackage` stages `next` and never writes `current`; a would-be `conflict` answers `not-active` and stages nothing; removing a package a static entry uses is `in-use`, one a dynamic entry uses is staged with `usedBy`; a built-in is `builtin`; a second install while one runs is `busy`; `discardStaged` and `rollbackPackages` move only `next`.
 - Write order (§5.2): stopped after each step, the files on disk read back consistent; the missing revision copy is written at startup.
 - Revisions: pruning beyond `keepRevisions`; a secret survives while a kept revision refers to it; `rollback` makes a new revision.
 - Secrets (§4): a ref keeps the value, a plain value gets a new ref, a left-out optional member is removed; a ref from another entry is `sensitive-missing`; no reading, issue or log line ever holds a stored value.
-- Static mode: every write is `static-config`; readings, `describe`, `restart` and `reload` work.
+- Static mode: every write is `static-config`; readings, `describe`, `restart`, `reload` and `restartDaemon` work.
 - Bootstrap: `auto` opens and closes as `wsSeesMain` changes; `always` redirects; POST answers 409 when a ws api sees `main`, 422 with issues, 201 with the created entry.
 - `urlOf` (§7): `publicUrl` unchanged with a new port → no redirect; no `publicUrl` and a new port or host → redirect; a wildcard host keeps the browser's hostname.
 
 ## 9. Open
 
-- **Installing and removing plugins** (§2.5) → M3.15: where plugin packages live and how the manifest finds them is package bootstrapping.
-- **A plugin's config inside a module's config is opaque to `validate`** — DALI's `ctrl` (12 §2) is checked only at the driver's `configure()`, so a bad one shows as a failed instance after apply, not as an issue. → M3.10, which designs the DALI inspector plugin.
+None. Package bootstrapping, plugin usage outside config and upload size are 02b §12's.

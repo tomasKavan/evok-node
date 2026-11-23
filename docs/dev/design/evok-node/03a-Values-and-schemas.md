@@ -9,6 +9,7 @@ What a value is beyond the wire's `Value` (03 §2): its TypeScript type, the run
 | a driver (05a §3.1) | endpoint values, method arguments and results | apis, the inspector (16) |
 | a template, a rule kind (12a §3, 12b §2) | settings, options | the inspector's and the Home UI's forms |
 | a module (02 §4) | its config | `main` (validation), the inspector's config forms (02a) |
+| a nestable plugin (02b §8) — a DALI controller, a WS extension | its config, inside a module's | the same |
 
 Published in `@evok-node/module-sdk` (01 §11). Not here: endpoint shapes (05a §3.1), refs (05a §3.10), `LocalizedText` (04 §7), resolving text at the edge (15).
 
@@ -45,6 +46,7 @@ interface Annotations {                                // for a human form — �
   readonly optional?: boolean;                         // a struct member a caller may omit; decode leaves it absent
   readonly actor?: true;                               // the caller, filled by the api — 13 §5; Values.actor() only
   readonly sensitive?: true;                           // never read back: a password, a token — §4
+  readonly plugin?: { readonly kind: string };         // a plugin ref { use, config } — 02b §8; Values.plugin() only
 }
 
 interface Semantics extends Annotations {
@@ -99,6 +101,7 @@ const Values: {
   readonly text: (s?: Semantics) => ValueType<LocalizedText>;
   readonly schema: (s?: Semantics) => ValueType<ValueSchema>;
   readonly actor: () => ValueType<Actor | undefined>;   // optional struct { realm, id?, name? }, annotated actor — 13 §5
+  plugin(kind: string, a?: Annotations): ValueType<PluginRef>;   // struct { use, config = {} }, annotated plugin — 02b §8
   optional<T>(c: ValueType<T>): ValueType<T | undefined>;   // sets the member's `optional` — §4
   struct<F extends Record<string, ValueType<unknown>>>(fields: F, a?: Annotations): ValueType<{ readonly [K in keyof F]: Infer<F[K]> }>;
   record<V>(values: ValueType<V>, s?: Semantics & { keys?: RecordSchema['keys'] }): ValueType<Readonly<Record<string, V>>>;
@@ -144,6 +147,7 @@ store: method('mutates', Values.void, Values.struct({
 - `LocalizedText` travels in full, every language; the WS API resolves it for the session's language (15) — `label`, `hint`, `helpMd`, `enumLabels`. A value that is itself user-facing text has format `text`; a value that is itself a schema (a template's form) has format `schema`, so the edge finds the text inside it too.
 - `label` and `hint` are plain text, short enough for a list, a picker or a tooltip. `helpMd` is longer help in Markdown, shown in a help panel. A UI renders it without raw HTML: a plugin wrote it.
 - `actor` marks the member an api fills with its own caller and never relays from a client (13 §5). Only `Values.actor()` sets it, and only as a struct member of a method's arguments; anywhere else it is a packaging mistake, rejected when the value type is built.
+- `plugin` marks a plugin ref `{ use: string, config: json }` of one nestable kind (02b §8). `checkValue` checks its shape only; `main` checks `config` against the chosen plugin. Only `Values.plugin()` sets it; for a kind that is not nestable it is rejected when the value type is built.
 - `sensitive` marks a value that is never read back — a password, a token. Legal on a `string` or `bytes` member only; anywhere else it is rejected when the value type is built. Config is its user: 02a keeps such a value in the secrets file and reads it back as a ref.
 - `{ type: 'void' }` is `Values.void`'s schema — a method's result only, on the wire a success with no body. Never a struct member, an array item, or a reading's or channel's schema.
 
@@ -157,6 +161,7 @@ How a generic form renders each schema:
 | `array` | ordered rows; add, remove, reorder |
 | `union` | a selector for `tag`, then that variant's fields only |
 | a `ref` | a picker filled from `$refs` (05a §3.10) |
+| a `plugin` | a picker of the kind's plugins (02a §2.3), then the chosen one's `config` form (`describe`) |
 
 ## 5. Checking — `checkValue` and `Issue`
 
@@ -210,7 +215,7 @@ checkValue(schema, body, { limits: 'binding' }) → [
 
 ```
 inspector form, every edit        checkValue(schema, draft, { limits: 'binding' })     no round trip
-validate, apply (02a §3.1)         main: refs resolved → checkValue → decode → rules(config) → cross-instance checks (02 §5)
+validate, apply (02a §3.1)         main: refs resolved → checkValue → nested plugins (02b §8) → decode → rules(config) → cross-instance checks (02 §5)
 main at startup (02 §5)            the same chain
 driver-kit, SET/CALL payload       checkValue(schema, payload) → bad-payload (05a §3.5)
 ```

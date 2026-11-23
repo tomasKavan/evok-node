@@ -134,7 +134,7 @@ type Generation = { readonly epoch: string; readonly n: number };   // §5a
 
 interface IntrospectionBase {
   readonly driverId: DriverId;
-  readonly driverTypeName: string;   // the manifest's own typeName for this driver (02 §4) — display/attribution
+  readonly driverTypeName: string;   // the instance's `type` — the driver plugin's id (02b §4) — display/attribution
   readonly type: string;             // open — this file defines only the root; whoever answers a given type owns its own payload shape
   readonly form: 'full';             // the whole table — §5a has the other form, 'change'
   readonly generation: Generation;   // §5a
@@ -246,7 +246,7 @@ A link is opened once, by `main`, never by a module and never at message time (0
 
 - **An api's links are `main`'s own, generic, parsed field** — `drivers:` on an `apis:` entry (02 §3), sibling to `type`/`run`. 01 §9 frames "an api declares which driver ids it consumes" as a rule for every api, not a per-api convention, so the field is standardized at `main`'s level.
 - **A driver's links are its own descriptor's business** — `ModuleDescriptor.declaredLinks(config)` (02 §4), because 01 §7 already frames a shared-transport declaration as living inside the depending driver's own schema, bundled with whatever else that relationship needs (its own address on the shared bus, say). A generic field couldn't carry that extra context without `main` having to understand it, which is exactly what stays opaque.
-- **An api's WS extensions declare theirs the same way** — `WsExtensionDescriptor.declaredLinks(config)` (15). `main` adds them to that api's links; the api relays only `drivers:` to its clients.
+- **A nested plugin declares its own the same way** — `declaredLinks(config)` of any `Values.plugin` in a module's config (02b §8), a WS extension's (15) the common case. `main` adds them to that module's links; an api relays only `drivers:` to its clients.
 
 ```ts
 // @evok-node/module-sdk
@@ -269,12 +269,12 @@ interface InstanceContext {
   readonly log: Logger;                 // 04 §3
   readonly clock: Clock;                // 04 §4
   readonly messaging: MessagingHandle;  // §4
-  readonly plugins: PluginRegistry;     // 02 §4 — this placement's own; built once from pluginManifest, at spawn
+  readonly plugins: PluginRegistry;     // 02b §6.2 — this placement's own; built once from the plugin manifest, at spawn
   reportFatal(detail: string): void;    // fire-and-forget — never awaited, never throws — §11
 }
 ```
 
-`ctx.messaging` is the same object, same shape, for the life of the instance — never replaced, only mutated underneath by the runner as links come and go. This follows straight from 02 §4: `createInstance(ctx)` receives `ctx` exactly once, synchronously, and no later call receives it again, so whatever `ctx.messaging` is has to survive every reload without changing identity. `ctx.plugins` is the same object for the same reason, though for a different one underneath: it isn't mutated across a reload at all — the `pluginManifest` it was built from (02 §5, §6) is assembled once, at startup, and never changes, so there is nothing for a reload to update. A driver rarely calls it directly; a driver built on `driver-kit` or `hw-modbus-kit` uses that kit's own encapsulation instead (`resolveDeviceKind`, `resolveKindBinder`, `resolveHandshake` — 05a §3.5, 07a §7/§9), each a thin wrapper over `ctx.plugins.resolve(kind, id)`.
+`ctx.messaging` is the same object, same shape, for the life of the instance — never replaced, only mutated underneath by the runner as links come and go. This follows straight from 02 §4: `createInstance(ctx)` receives `ctx` exactly once, synchronously, and no later call receives it again, so whatever `ctx.messaging` is has to survive every reload without changing identity. `ctx.plugins` is the same object for the same reason, though for a different one underneath: it isn't mutated across a reload at all — the plugin manifest it was built from (02b §6.1, 02 §6) is assembled once, at startup, and never changes, so there is nothing for a reload to update. A driver rarely calls it directly; a driver built on `driver-kit` or `hw-modbus-kit` uses that kit's own encapsulation instead (`resolveDeviceKind`, `resolveBinder`, `resolveHandshake` — 05a §3.5, 07a §7/§9), each a thin wrapper over `ctx.plugins.resolve(kind, id)`.
 
 **Startup** is two barriers, reusing the shape reload already has rather than inventing a second one (02 §5, §6; pseudocode in §11):
 

@@ -133,7 +133,7 @@ features:
     disabled: true
 ```
 
-`kind` names an existing, generic `DeviceType` — `unipi.temp`, `unipi.humidity`, `unipi.ai` (07a §10) — resolved through the same deviceKind manifest every other driver uses (02 §4, 05a §3.5). Reusing them is deliberate: a 1-Wire temperature reading is not a different *kind* of thing from an IAQ temperature reading, only a different way of reaching one. `unipi.ai` is chosen over `unipi.ao` for voltage because `VDD`/`VAD`/`vis` are read-only measurements; `unipi.ao` is a writable channel, and its already-declared `voltage10` variant fits DS2438's range with no schema change.
+`kind` names an existing, generic `DeviceType` — `unipi.temp`, `unipi.humidity`, `unipi.ai` (07a §10) — resolved as a `device` plugin like every other driver's (02b §5.2, 05a §3.5). Reusing them is deliberate: a 1-Wire temperature reading is not a different *kind* of thing from an IAQ temperature reading, only a different way of reaching one. `unipi.ai` is chosen over `unipi.ao` for voltage because `VDD`/`VAD`/`vis` are read-only measurements; `unipi.ao` is a writable channel, and its already-declared `voltage10` variant fits DS2438's range with no schema change.
 
 `attribute` names exactly the property `owserver` exposes for that ROM id — `temperature`, `VDD`, `HIH4000/humidity`. It is not an address in the Modbus sense: `owserver` has already done whatever scratchpad or paged-memory read the chip's own protocol requires and handed back a decoded value under that name before this driver ever sees it. There is nothing more raw available without bypassing `owserver` entirely, which this driver does not do (§1).
 
@@ -147,9 +147,9 @@ packages/hw-definitions/definitions/onewire/dallas/ds18b20.yaml     # this repo,
 /etc/evok-node/hw_definitions/custom/onewire/acme/...               # operator's own, never touched by us
 ```
 
-Same `evok-node-data` package, same install path, same `custom/` escape hatch — nothing new.
+Same `evok-node-data` package, same install path, same `custom/` escape hatch — nothing new. A vendor's package may also ship a chip as a `hw-definition` plugin, id `onewire/<vendor>/<chip>` (02b §5.2, 09 §7).
 
-**The familyCode index is this driver's own responsibility, not a new `hw-definitions` capability.** Every other resolution path in this catalogue is a point lookup: config names an exact id, one file loads. `driver-onewire` has no id to look up — only a family code read off a live ROM address — so at `configure()` it walks its own `onewire/` catalog root and builds a `familyCode → definition` index in memory. `hw-definitions` keeps doing per-file parse and validation exactly as it does for Modbus; it never gains a "resolve by field" API of its own.
+**The familyCode index is this driver's own responsibility, not a new `hw-definitions` capability.** Every other resolution path in this catalogue is a point lookup: config names an exact id, one file loads. `driver-onewire` has no id to look up — only a family code read off a live ROM address — so at `configure()` it walks its own `onewire/` catalog root, plus every `hw-definition` plugin whose id starts with `onewire/` (`ctx.plugins.list`, 02b §6.2), and builds a `familyCode → definition` index in memory. Two definitions claiming one family code fail `configure()`, naming both. `hw-definitions` keeps doing per-file parse and validation exactly as it does for Modbus; it never gains a "resolve by field" API of its own.
 
 ## 5. Discovery and adoption
 
@@ -178,7 +178,7 @@ A `romId` discovered whose family code matches no catalog entry appears in the c
 
 ## 6. Binding
 
-Per adopted device, per enabled feature: resolve `feature.kind` through the deviceKind manifest (02 §4, 05a §3.5) to a real `DeviceType`, then `bindDevice()` it under a tail derived from the ROM id and the feature's own `attribute` — `2895DCD509000035.VDD` alongside `2895DCD509000035.VAD`, `.vis`, and so on; a chip with one feature binds a bare `2895DCD509000035`. `unbindDevice()` on `remove` tears all of a device's tails down together.
+Per adopted device, per enabled feature: resolve `feature.kind` as a `device` plugin (02b §5.2, 05a §3.5) to a real `DeviceType`, then `bindDevice()` it under a tail derived from the ROM id and the feature's own `attribute` — `2895DCD509000035.VDD` alongside `2895DCD509000035.VAD`, `.vis`, and so on; a chip with one feature binds a bare `2895DCD509000035`. `unbindDevice()` on `remove` tears all of a device's tails down together.
 
 Because `owserver` already decoded the value, there is no per-chip driver code and no register-block walk to write, the way 07a §6 needs for Modbus. One generic handler covers every feature of every chip: `onGet` is `ctx.tx.readAttribute(romId, feature.attribute)`, full stop. An escape hatch mirroring 07a §7's `ModbusKindBinder` stays reserved for a chip that genuinely needs more than "read one named attribute" — neither shipped chip family does, since `owserver` already does the hard part for both.
 
