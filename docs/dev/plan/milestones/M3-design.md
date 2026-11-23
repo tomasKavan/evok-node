@@ -113,6 +113,7 @@ A library APIs use, not an API. Upstream identity provider (authentik). Users, r
 
 ### M3.6a — 2N access driver   `area/2n`
 A driver for 2N Access Unit 2.0 / IP Verso 2.0 over the HTTP API: switches, door state, I/O, events over `log/subscribe`/`log/pull`, `grantaccess` for a user. API account and secrets via 13a. Map from the identity provider's users to 2N users; the 2N's users come from the identity provider through Access Commander — the driver never writes the 2N directory. DeviceTypes for `lock-from-2n`'s roles.
+PINs: the identity provider drives Access Commander's directory, the clear PIN readable only by its LDAP account (13a).
 **Done when:** 12e designed; 12c-09 §3.2 has no Open.
 **Refs:** research/matter/08 §4 · 12c-09 §3.2 · 13a · 05a
 

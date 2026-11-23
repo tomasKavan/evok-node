@@ -108,7 +108,9 @@ allowed = privilege(session, address) >= markOrDefault(element)    // 05a §3.1b
 | IdP refresh token | shell only | the IdP's (30 d, rotated on use) |
 | ID token bound to K | shell → node, once | minutes |
 | K, B private keys | phone hardware | per install; B until biometry changes |
-| K, B public keys, PIN verifier (Argon2id) | each node | until removed |
+| K, B public keys | each node | until removed |
+| PIN hash (Argon2id) | the IdP's hash attribute, synced to each node | until the admin changes the PIN |
+| clear PIN | the IdP only, readable by Access Commander's LDAP account alone | until the admin changes it |
 | node key | node | per install |
 | sync API token | node | set by the admin |
 
@@ -118,8 +120,32 @@ allowed = privilege(session, address) >= markOrDefault(element)    // 05a §3.1b
 |---|---|---|
 | a session on this node | works, refreshed by the node | works |
 | a proof | works: B, or the PIN | works: a passkey, or the PIN |
-| a new session where PIN or keys were enrolled | one-time local: device key + biometry (`l2`) or name + PIN (`l1`) | one-time local: passkey (`l2`) or name + PIN (`l1`) |
-| a new session on a node never used | refused | refused |
+| a new session where keys were registered | one-time local: device key + biometry (`l2`), or the PIN (`l1`) | one-time local: passkey (`l2`), or the PIN (`l1`) |
+| a new session on a node never used | one-time local by PIN only (`l1`) — the hash is synced | the same |
+
+**Levels, proof and PINs**
+
+| Level | Reached by |
+|---|---|
+| `l1` | any login: password, a site login with `amr` `pwd`, a refreshed session, the PIN |
+| `l2` | device key with biometry, a passkey with user verification, a site login with MFA |
+
+- Freshness is kept apart from the level, as the time of each factor — not as more levels.
+- **A proof is per call:** kind `uv` (biometry on the phone, a passkey in a browser) or `pin`. `ack` — a confirmation only — counts when the session proved `uv` within the last 5 minutes.
+- **The PIN identifies the user**, without a name. In a call that asks for proof, it makes that one call run as the PIN's user: checked against their grants, `actor` = that user; the session itself does not change.
+- **PINs:** 6 digits or more, set by an admin in the IdP and unique across the site (the admin's to keep unique for now). The IdP keeps the clear PIN for 2N Access Commander, which drives the 2N directory (12e, M3.6a), readable only by its LDAP account; and an Argon2id hash, written when the PIN is set — the only form nodes sync. Failures are counted per source and across the site, with growing delays.
+- **No anonymous access.** A kiosk-like device — a wall panel, a kitchen tablet — is an enrolled client, `client:<id>`: enrolled once by QR, with its own device key, its own grants and its own name in the log. Where its record lives follows PLC to PLC (below). Proof on it is the PIN of the person at it.
+- **A guest** is an IdP user with a PIN and narrow grants (the front door), disabled after the visit.
+
+**Rules, closures, storage**
+
+- **A rule may call a `proof` method** (unlock at 7:00) when its author's session was `l2` when the rule was created or changed through an api; the author and the time are recorded with the rule (12b). A rule runs inside the home driver, so this is checked at creation, never per call.
+- **Access closures** — garage door, gate, door — are their own DeviceType, `AccessClosure`, whose `open` and `goTo` carry `access.proof`; `Closure` keeps windows and roof windows (12c-07).
+- **`driver-auth`'s own tails** — sessions, proofs — are never relayed to clients, even with `auth` in an api's `drivers:`: a "not relayable" access mark (05a §3.1b). Management tails (users, sessions as a list, `administer`) may be relayed.
+- **Storage:** its own SQLite file, mode 0600 — one owner (01 §7), not the KV driver.
+- **Tokens:** our own token service on `jose` + `openid-client`; `oidc-provider` only if third-party OIDC clients ever come.
+- **Sync** every 5 minutes; a webhook from the IdP is only a "sync now" hint.
+- **Clock:** after a power cut with no NTP and no IdP, offline logins are allowed on the saved time — it is behind, never ahead — and logged.
 
 **Names and TLS**
 

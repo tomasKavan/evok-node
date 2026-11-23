@@ -44,7 +44,7 @@ Every `lock` and `unlock` records who did it in `lastOperation`:
 - **`unlock` is marked `access.proof`** (05a §3.1b, 13 §5): the api gets proof before it relays the call. What the proof is — a confirmation by a logged-in user, a PIN the identity provider resolves to a user — is 13a's. The device trusts the call it gets.
 - Opened at the lock — a 2N keypad, card, exit button — the source and user come from the source (§3.2).
 
-**Open:** what `proof` asks of a caller — M3.6 (13a).
+What counts as proof — biometry, the PIN, or a confirmation shortly after biometry — is 13a's.
 
 ## 2. Fields
 
