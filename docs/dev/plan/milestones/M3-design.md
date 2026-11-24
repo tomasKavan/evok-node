@@ -138,7 +138,7 @@ Numbering and reorganisation per the map above, M5's docs included — before co
 **Refs:** dev README §4 · AGENTS.md
 
 ### M3.15 — Packages & dependencies   `area/packages`
-Revisit package definitions and bootstrapping. What is exposed, in which package, and who uses it. Adjust dependency-cruiser. Plugin package bootstrapping (02b §12): the host's `@evok-node/*` seen from a plugin generation, `npm` on the PLC, the daemon's install path, the restart behind `restartDaemon`.
+Revisit package definitions and bootstrapping. What is exposed, in which package, and who uses it. Adjust dependency-cruiser. Plugin package bootstrapping (02b §12): the host's `@evok-node/*` seen from a plugin generation, `npm` on the PLC, the daemon's install path.
 **Done when:** basics/01 package list matches every design doc; `WORKSPACE_DEPS` covers every designed package.
 **Refs:** basics/01 · 01 §11 · 02b §9, §12 · `.dependency-cruiser.cjs`
 

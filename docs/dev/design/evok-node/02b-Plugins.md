@@ -286,7 +286,7 @@ apis:
 |---|---|---|---|
 | `builtin` | the daemon's own `node_modules` | the `evok-node` Debian package | read-only |
 | `system` | `/usr/lib/evok-node/plugins/node_modules` | another Debian package | enable, disable |
-| `user` | `/var/lib/evok-node/plugins/current/node_modules` | the `main` driver (02a §2.5) | managed |
+| `user` | `/var/lib/evok-node/plugins/current/node_modules` | the `main` driver (02a §2.5), or `evok-node plugins sync` (§9.5) | managed, unless locked (§9.5) |
 
 A built-in package cannot be disabled.
 
@@ -314,7 +314,7 @@ A built-in package cannot be disabled.
 npm install <spec> --omit=dev --ignore-scripts --legacy-peer-deps --registry <main.plugins.registry>
 ```
 
-- **`<spec>`** is `name@range` from the registry, or an uploaded `.tgz` (02a §2.5).
+- **`<spec>`** is `name@range` from the registry, an uploaded `.tgz` (02a §2.5), or a `file:` tarball on the PLC (§9.5).
 - **No install scripts.** Native code comes prebuilt for the PLC's `cpu` and `os` (e.g. `prebuildify`). A package without a build for this machine is `incompatible`.
 - **`@evok-node/*` is always the host's copy.** A plugin lists them as `peerDependencies`; they are never installed into a generation, and one that ends up with its own copy is refused. One copy matters: a template hands the home driver the very `DeviceType` object the home driver binds (05a §3.5).
 - **Checked before staging.** After npm, the `main` driver runs assembly (§6.1) over the would-be roots. A package that would not be `active` is refused, and nothing is staged.
@@ -322,12 +322,60 @@ npm install <spec> --omit=dev --ignore-scripts --legacy-peer-deps --registry <ma
 
 ### 9.4. Activation
 
-A staged change takes effect at a daemon restart — the manifest is assembled once, and a loaded module cannot be unloaded. `restartDaemon` (02a §2.4) stops every instance (02 §6) and exits; systemd starts the daemon again, and the SPA reconnects (02a §7).
+A staged change takes effect at a daemon restart — the manifest is assembled once, and a loaded module cannot be unloaded. `restartDaemon` (02a §2.4) stops every instance (02 §6) and exits; systemd starts the daemon again (`Restart=always`, basics/01 §3.2.2), and the SPA reconnects (02a §7).
+
+### 9.5. Provisioned deployments
+
+A fleet set up by automation (Ansible, say) gets a fixed set of user packages, declared in the static config, and the Inspector cannot change it:
+
+```yaml
+# /etc/evok-node/config.yaml — written by Ansible
+main:
+  dynamicConfig: false
+  plugins:
+    locked: true
+    packages:                                                   # npm specs
+      '@acme/evok-node-wm3f': 1.4.2
+      '@other/solar-profiles': 2.1.0
+      '@acme/evok-node-x': file:/opt/pkgs/acme-x-1.0.0.tgz     # offline
+```
+
+- **`locked`** freezes the user root and `plugins.json` for the `main` driver: every package write answers `plugins-locked` (02a §2.5). It is independent of `dynamicConfig` — a static config may still leave packages to the Inspector, for home templates and rules, which live in KV, not in config.
+- **`packages`** is the user root's whole content. It needs `locked: true` — without it, the issue `packages-need-lock`, fatal like any static-file issue (02 §5). Exact versions keep every PLC of a fleet identical; a range is allowed.
+- **`evok-node plugins sync`** (basics/01 §3.2.1) builds a generation with exactly `packages` (§9.2, the npm flags and checks of §9.3) and stages it as `next`. It runs as the daemon's user, as every `evok-node` subcommand does; started as root — Ansible's `become` — it switches to that user, so the user root never holds a file the daemon cannot write. The daemon need not run; it never installs anything itself, so a boot never needs the network.
+- **One staging at a time.** `plugins sync` and the `main` driver's package writes (02a §2.5) take `/var/lib/evok-node/plugins/.lock`; a second one waits for it — the `main` driver answers `busy` instead.
+
+```
+evok-node plugins sync [--config file] [--update]
+  packages read from file — by default the static config
+  current built from the same packages (same specs; a file: spec also the same sha512) → prints "unchanged", exit 0
+  otherwise → builds and checks a generation, stages it as next              → prints "staged", exit 0
+  a package that would not be active, npm fails, no packages declared       → the reason, exit 1, nothing staged
+  --update: rebuild even when unchanged — picks up newer versions in a range
+```
+
+```yaml
+# Ansible — packages first, so the config is checked against the plugins it names
+- template: { src: config.yaml.j2, dest: /etc/evok-node/config.candidate.yaml }
+- command: evok-node plugins sync --config /etc/evok-node/config.candidate.yaml
+  register: sync
+  changed_when: "'staged' in sync.stdout"
+  notify: restart evok-node
+- template:
+    src: config.yaml.j2
+    dest: /etc/evok-node/config.yaml
+    validate: evok-node config check %s      # against the staged plugins — basics/01 §3.2.1
+  notify: restart evok-node
+```
+
+A config that fails the check is never written, the play fails, and the restart handler does not run: the staged generation waits, unused, for the next run.
+
+- **Drift.** At startup, a `current` not built from the declared `packages` — a hand change, a sync not run — is the issue `plugins-drift` in `main:config` (02a §2.3), naming the packages that differ. It is not fatal; a static entry whose plugin is then missing is (02 §5).
 
 ## 10. Security
 
 - **A plugin runs inside the daemon, with its rights.** There is no sandbox and no permission model: installing a package is trusting its author.
-- **Managing packages is `administer` with proof** (02a §2.5, 05a §3.1b).
+- **Managing packages is `administer` with proof** (02a §2.5, 05a §3.1b). A locked deployment (§9.5) leaves it to whoever may write the static config and run `plugins sync` on the PLC.
 - **Before an install** the Inspector shows the name, version, publisher and the npm `integrity` (sha512) — `inspectPackage`. Signatures: not in v1.
 - **Install scripts never run** (§9.3). Plugin text is rendered without raw HTML (03a §4).
 
@@ -343,10 +391,10 @@ Tier 1 (unit; `basics/03-Testing.md`) — `module-sdk` and `main`, fixture packa
 - `resolve` order: a plugin without `meta.label` is rejected; an export whose own id differs from the manifest's is rejected; a `data` plugin's guard gets the parsed file.
 - `Values.plugin` (§8): a non-nestable kind is rejected when the value type is built; an unknown `use`, and a nested `config` issue at its prefixed path, are issues of the module's body; nested `declaredLinks` join the module's; a nested ref inside a nested config is checked.
 - Generations (§9.2): `next` becomes `current` at start and `previous` is kept; an install never writes into `current`; rollback stages `previous`; a generation with its own `@evok-node/*` copy is refused; a fixture install script never runs.
+- Provisioned (§9.5), against a fake npm: a `sync` started as root writes files the daemon's user owns; a `sync` while the `main` driver stages waits for the lock; `plugins sync` stages a generation with exactly `packages`; a second run prints `unchanged` and stages nothing; a changed spec, a `file:` tarball with a new sha512, and `--update` stage again; a would-be `conflict` exits 1 and stages nothing; `packages` without `locked` is `packages-need-lock`; a `current` that differs from `packages` gives `plugins-drift` and the daemon starts.
 
 ## 12. Open
 
-- **Package bootstrapping** → M3.15: how a generation finds the host's `@evok-node/*`; `npm` on the PLC (a dependency of the Debian package); the daemon's own install path; the systemd restart behind `restartDaemon`.
+- **Package bootstrapping** → M3.15: how a generation finds the host's `@evok-node/*`; `npm` on the PLC (a dependency of the Debian package); the daemon's own install path.
 - **Usage outside config** → M3.9: a removed home template still named by device records shows as `missing` devices (12a §4.2), but nothing tells the Inspector before the removal. A "who uses this plugin" query for kind owners is not designed.
-- **Upload size** of a `.tgz` through the WS API → M3.8.
 - **`inspector-panel`** — its shape and how the SPA loads it → M3.9.

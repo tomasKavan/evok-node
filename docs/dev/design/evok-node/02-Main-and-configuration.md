@@ -14,7 +14,7 @@ The distinction is not academic — conflating the first two is exactly where EV
 
 Global config is small: which drivers and apis exist, plus main's own operational settings, and nothing else — no defaults that quietly change a *module's* behaviour out from under it. Everything a specific instance needs is that instance's own slice, opaque to `main` and to every other instance.
 
-The one property at this level that is not a driver or an api is `main:` — main's own settings: `logging` ([04 §3](04-Common-services.md#3-logging)), `dynamicConfig` and `keepRevisions` (§3a), `plugins.registry` (02b §9.3), `bootstrap` (02a). It is optional, and only the static file holds it; absent, `main` logs to stdout/journald only, at `info`, and runs on the static file alone.
+The one property at this level that is not a driver or an api is `main:` — main's own settings: `logging` ([04 §3](04-Common-services.md#3-logging)), `dynamicConfig` and `keepRevisions` (§3a), `plugins` — `registry`, `locked`, `packages` (02b §9.3, §9.5), `bootstrap` (02a). It is optional, and only the static file holds it; absent, `main` logs to stdout/journald only, at `info`, and runs on the static file alone.
 
 `drivers:` and `apis:` are maps keyed by id. The key is the instance's **identity** — the thing reload compares old and new config on (§5). An id is not a device address and not a display name; renaming one is deletion plus creation, not a rename, and anything keyed on that id (its KV namespace, 06 §2) goes with it. `main` and `bootstrap` are reserved (02a): an entry with either as its id or its `type` is a configuration error. `kv` is reserved too, but as an optional entry (§3b).
 
@@ -202,6 +202,8 @@ Startup is one sequence, run once, in order:
      keepRevisions: Values.uint16({ min: 1, default: 20 }),
      plugins: Values.struct({
        registry: Values.string({ default: 'https://registry.npmjs.org' }),   // 02b §9.3
+       locked: Values.bool({ default: false }),                             // 02b §9.5
+       packages: Values.optional(Values.record(Values.string())),           // name → npm spec — 02b §9.5; needs locked
      }),
      bootstrap: Values.optional(Values.struct({
        enabled: Values.string({ enumValues: ['off', 'auto', 'always'], default: 'off' }),
@@ -238,6 +240,8 @@ Every failure from step 1 through 5 in a built-in package or the static file is 
 
 A left-out entry stays in its file, and `main:config` shows it with its issues (02a §2.3); it is only not spawned. Leaving one out never leaves another out. A reload that finds it valid adds it like a new entry; one that does not touch it leaves it out (§5.1).
 
+`evok-node config check` (basics/01 §3.2.1) runs steps 1 through 5 read-only — no generation swap, nothing spawned — and prints the issues.
+
 ### 5.1. Reload
 
 **Reload repeats steps 2 through 5 against the files as they are now.** It is triggered by `systemctl reload` (basics/01 §3.2), or by an apply through the `main` driver, right after `main` wrote the dynamic file (02a §3.1). A failure anywhere in those steps — a file no longer parses, an instance's body no longer fits its module's schema — rejects the reload outright: a caught, handled decision, not a thrown exception that could take `main` down. Every running instance is left exactly as it was; reload either replaces the whole config or changes nothing, never partially. **One exception: an entry already left out (§5) and not changed by this reload stays left out** and does not reject it; every entry the reload adds or changes must be valid.
@@ -261,7 +265,7 @@ Once steps 2 through 5 succeed, the new config **is** current — from here on `
 
 Link topology is diffed alongside config, for the same ids: `prepareReload` also closes whatever the new topology no longer needs for that id — the same "releases what nextConfig won't need" job it already has for anything else a module gives up (03 §9) — and `commitReload` opens whatever it newly needs, before calling the module's own `reload`. §8.5's `computeReloadPlan` grows the matching diff: for a changed id, old `declaredLinks`/`drivers` against new — empty whenever `isConfigEqual` is true for a declared list, since both are pure functions of `Config`. `'*'` is the exception: it follows the set of drivers, which is what the links-only bucket is for.
 
-**`main:` on reload.** `logging` and `keepRevisions` take effect at once. `bootstrap` is in the plan like an instance: added, removed or changed with `main.bootstrap`. A changed `dynamicConfig` takes effect only at the next daemon restart; until then `main:config` carries an issue saying so (02a §2.4).
+**`main:` on reload.** `logging`, `keepRevisions`, `plugins.registry` and `plugins.locked` take effect at once; a changed `plugins.packages` changes nothing until `plugins sync` and a restart (02b §9.5). `bootstrap` is in the plan like an instance: added, removed or changed with `main.bootstrap`. A changed `dynamicConfig` takes effect only at the next daemon restart; until then `main:config` carries an issue saying so (02a §2.4).
 
 A `start()` that rejects during commit — the config was valid, but the instance still could not come up — is accepted, not retried: `main` logs it and moves on to every other id in the batch. That instance is simply not running, current config or not, until the next reload or an explicit restart gives `start()` another chance. Being graceful under `start()` is the module's own responsibility; `main` does not compensate for it, the same way it does not retry a driver's own "device unreachable."
 
@@ -345,6 +349,7 @@ Manifest-root injection: `assembleManifest(rootDir?)` takes the fixture director
 - `isModuleDescriptor` rejects an export without `meta.label`, without `config.codec.decode`, or without `config.schema`.
 - `module-nested`: a bad nested `config` is an issue at `[<ref path>, 'config', …]`; the nested plugin's `declaredLinks` are in the instance's links.
 - A staged `next` generation becomes `current` before assembly (02b §9.2).
+- `config check`: with a staged `next`, a type only `next` has passes; `next` stays staged and nothing is spawned; an issue exits 1.
 
 ### 8.4. Config parse and validate
 

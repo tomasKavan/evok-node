@@ -13,7 +13,8 @@ It assumes 02 (config, merge §3a, startup §5, reload §5.1), 02b (plugins, pac
 - **Reserved id `main`**, type `main`, package `driver-main` (01 §11). One per system, never an entry in either file: `main` always spawns it (02 §5 step 6).
 - **A driver like any other** — its own `worker_thread`, built on driver-kit (05a). Not code inside `main`: `main` stays off every request path (01 §2), and a plugin that crashes or hangs while `describe` resolves it (§2.5) takes this worker down, not `main`.
 - **Reached through an api that names it**: `drivers: ['*', main]`. `'*'` never includes it (03 §8).
-- **Read-only in static mode.** With `dynamicConfig` off, the readings, `describe`, `restart`, `reload` and `restartDaemon` work; every other write — packages included — answers `static-config`.
+- **Read-only in static mode.** With `dynamicConfig` off, every config write answers `static-config`; the readings, `describe`, `restart`, `reload` and `restartDaemon` work.
+- **Packages follow `main.plugins.locked`, not the mode** (02b §9.5). Locked, every package write answers `plugins-locked`.
 
 ### 2.2. The control channel
 
@@ -69,6 +70,8 @@ type InstanceInfo = {
 
 packages: {                                           // 02b §6.1, §9 — nothing imported
   pending: boolean;                                   // staged changes wait for a restart
+  locked: boolean;                                    // main.plugins.locked — 02b §9.5
+  declared?: Readonly<Record<string, string>>;        // main.plugins.packages, when set
   list: readonly PackageInfo[];
 }
 type PackageInfo = {
@@ -95,11 +98,11 @@ type PackageInfo = {
 | `restart` | `mutates` | `{ key }` | void | `unknown-instance` |
 | `reload` | `mutates` | — | void | `busy` |
 | `inspectPackage` | `none` | `{ source }` | `PackageReport` | `npm-failed`, `busy` |
-| `installPackage` | `mutates` | `{ source }` | `PackageReport` | `static-config`, `not-active`, `npm-failed`, `busy` |
-| `removePackage` | `mutates` | `{ name }` | `PackageReport` | `static-config`, `unknown-package`, `builtin`, `system`, `in-use`, `busy` |
-| `enablePackage`, `disablePackage` | `mutates` | `{ name }` | void | `static-config`, `unknown-package`, `builtin`, `in-use` (disable) |
-| `discardStaged` | `mutates` | — | void | `static-config`, `busy` |
-| `rollbackPackages` | `mutates` | — | `PackageReport` | `static-config`, `no-previous`, `busy` |
+| `installPackage` | `mutates` | `{ source }` | `PackageReport` | `plugins-locked`, `not-active`, `npm-failed`, `busy` |
+| `removePackage` | `mutates` | `{ name }` | `PackageReport` | `plugins-locked`, `unknown-package`, `builtin`, `system`, `in-use`, `busy` |
+| `enablePackage`, `disablePackage` | `mutates` | `{ name }` | void | `plugins-locked`, `unknown-package`, `builtin`, `in-use` (disable) |
+| `discardStaged` | `mutates` | — | void | `plugins-locked`, `busy` |
+| `rollbackPackages` | `mutates` | — | `PackageReport` | `plugins-locked`, `no-previous`, `busy` |
 | `restartDaemon` | `mutates` | — | void | — |
 
 ```ts
@@ -118,7 +121,7 @@ type ApplyResult =
 - Every entry the changeset adds or changes must be valid, and so must the cross-instance checks. A left-out entry the changeset does not touch stays left out (02 §5.1).
 - `restart` is 02 §5.1's explicit restart: the runner stops and starts the instance. `drivers.main` cannot be restarted this way (`unknown-instance`).
 - `reload` answers before it runs, like `apply` (§3.1). A rejected reload shows as `phase: 'rejected'`, its issues in `config.issues`.
-- `main`'s own cross-instance checks report `code: 'rule'` with these ids: `static-entry`, `reserved-id`, `reserved-type`, `id-collision`, `unknown-type`, `load-failed`, `unknown-link`, `cycle`, `bootstrap-needs-dynamic`, `restart-needed` (a changed `dynamicConfig`, 02 §5.1).
+- `main`'s own cross-instance checks report `code: 'rule'` with these ids: `static-entry`, `reserved-id`, `reserved-type`, `id-collision`, `unknown-type`, `load-failed`, `unknown-link`, `cycle`, `bootstrap-needs-dynamic`, `restart-needed` (a changed `dynamicConfig`, 02 §5.1), `packages-need-lock` and `plugins-drift` (02b §9.5).
 
 ### 2.5. Packages
 
@@ -162,8 +165,9 @@ packages.pending → true
 
 - **Refused, nothing staged:** a package that would not be `active` — `not-active`, with the report; removing or disabling one a static entry uses — `in-use`. One a dynamic entry uses is allowed: the entry will be left out (02 §5), and `usedBy` says which.
 - **A built-in** is never removed or disabled (`builtin`); **a system package** only enabled or disabled (`system`).
-- **One staging at a time** (`busy`). npm runs with a deadline; its failure answers `npm-failed` with npm's own message.
+- **One staging at a time** (`busy`), shared with `evok-node plugins sync` through a lock file (02b §9.5). npm runs with a deadline; its failure answers `npm-failed` with npm's own message.
 - **Access:** every package write is `administer` with `proof`; `inspectPackage` is `administer` (05a §3.1b).
+- **Locked** (02b §9.5): the readings, `describe`, `inspectPackage` and `restartDaemon` work; the user root changes only through `evok-node plugins sync`.
 
 ## 3. Apply
 
@@ -352,10 +356,11 @@ Tier 1 (unit; `basics/03-Testing.md`), against a fake `MainControl` and a fixtur
 - Write order (§5.2): stopped after each step, the files on disk read back consistent; the missing revision copy is written at startup.
 - Revisions: pruning beyond `keepRevisions`; a secret survives while a kept revision refers to it; `rollback` makes a new revision.
 - Secrets (§4): a ref keeps the value, a plain value gets a new ref, a left-out optional member is removed; a ref from another entry is `sensitive-missing`; no reading, issue or log line ever holds a stored value.
-- Static mode: every write is `static-config`; readings, `describe`, `restart`, `reload` and `restartDaemon` work.
+- Static mode: every config write is `static-config`; readings, `describe`, `restart`, `reload` and `restartDaemon` work; package writes work unless locked.
+- Locked: every package write is `plugins-locked`, in static and dynamic mode alike; `inspectPackage` and `restartDaemon` work.
 - Bootstrap: `auto` opens and closes as `wsSeesMain` changes; `always` redirects; POST answers 409 when a ws api sees `main`, 422 with issues, 201 with the created entry.
 - `urlOf` (§7): `publicUrl` unchanged with a new port → no redirect; no `publicUrl` and a new port or host → redirect; a wildcard host keeps the browser's hostname.
 
 ## 9. Open
 
-None. Package bootstrapping, plugin usage outside config and upload size are 02b §12's.
+None. Package bootstrapping and plugin usage outside config are 02b §12's.

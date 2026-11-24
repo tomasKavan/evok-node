@@ -98,6 +98,42 @@ Notes:
 - `Recommends: unipi-os-configurator evok-node-data`
 - `Conflicts: evok`
 
+#### 3.2.1. The `evok-node` command
+
+`/usr/bin/evok-node` — the `bin` of `@evok-node/main`. One executable, so the daemon and its tools share config parsing, plugin assembly and generations.
+
+| Subcommand | Does | Exit |
+|---|---|---|
+| `run` | the daemon — the unit's `ExecStart` | — |
+| `config check [file]` | [02 §5](/docs/dev/design/evok-node/02-Main-and-configuration.md) steps 1–5, read-only: no generation swap, nothing spawned. `file` stands in for the static config; the dynamic file is the current one. Plugins come from `next` when one is staged, else `current` — what the daemon will start with. | 0; 1 with the issues |
+| `plugins sync [--config file] [--update]` | [02b §9.5](/docs/dev/design/evok-node/02b-Plugins.md) — `main.plugins.packages` from `file`, by default the static config | 0 with `unchanged` or `staged`; 1 with the reason |
+
+- **It runs as the daemon's user** (§3.2.2) — the owner of `/var/lib/evok-node/`. Started as root, it switches to that user before reading anything; started as another user, it exits 1. `config check` imports plugins (02b §6.2), so this holds for it too.
+- **Output** is for people on stdout; `--json` prints the same result as JSON, for automation.
+
+#### 3.2.2. Service and user
+
+The daemon runs as the system user **`evok-node`**, never as root by default: a plugin runs with the daemon's rights (02b §10). `postinst` creates the user and group.
+
+```ini
+# evok-node.service — sketch
+[Service]
+User=evok-node
+Group=evok-node
+SupplementaryGroups=dialout                 # serial lines, RS-485
+AmbientCapabilities=CAP_NET_BIND_SERVICE    # an api on a port below 1024 (13 §9)
+ExecStart=/usr/bin/evok-node run
+ExecReload=/bin/kill -HUP $MAINPID          # 02 §5.1
+Restart=always                              # restartDaemon exits — 02b §9.4
+```
+
+| Path | Owner | Mode |
+|---|---|---|
+| `/etc/evok-node/` | `root:evok-node` | `0750`, files `0640` — the static config belongs to whoever may write `/etc` |
+| `/var/lib/evok-node/` | `evok-node:evok-node` | `0750`; secrets `0600` (02a §5.1) |
+
+**Running as root** stays possible, for hardware that turns out to need it: a systemd drop-in with `User=root`, and `chown -R root: /var/lib/evok-node`. The command follows the owner of `/var/lib/evok-node/` (§3.2.1), so nothing else changes. The daemon logs a warning at startup when it runs as root.
+
 ### 3.3. Replacing classic evok
 
 `evok` and `evok-node` are in conflict. Can't be installed on one system at the same time. (Occupying same port and openning same serial files). `evok-unipi-data` and `evok-node-data` is ok to have on one system simultaneously.
