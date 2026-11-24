@@ -92,7 +92,8 @@ Four comments are required, and they are the only ones that are:
 Mandatory minimum:
 - Node 24 (LTS)
 - `zod` for validations outside 03a's value types
-- Vue.js 3 and Prime Vue v5 for inspector SPA
+- Vue 3 + Vite and Nuxt UI v4 (Tailwind CSS v4) for the inspector SPA; the Nuxt framework is not used
+- The SPA loads nothing from the internet: fonts, icons and other assets are bundled in its build
 - TBD
 
 ## 9. User-facing strings
