@@ -1,6 +1,6 @@
 # 01 — Access and security at a glance
 
-> Written ahead of the code, from the design in [`design/evok-node/13a`](../dev/design/evok-node/13a-Auth-and-ACL.md). Not implemented yet.
+> Written ahead of the code, from the design in [`design/kapsle/13a`](../dev/design/kapsle/13a-Auth-and-ACL.md). Not implemented yet.
 
 ## 1. How it fits together
 
@@ -37,9 +37,9 @@ A **role** is a group in the IdP with a grants attribute. Members of a group als
 
 ```jsonc
 // group "resident"
-{ "evok": { "v": 1, "grants": [{ "privilege": "operate", "scope": "zone:common" }] } }
+{ "kapsle": { "v": 1, "grants": [{ "privilege": "operate", "scope": "zone:common" }] } }
 // group "tenant:flat3", parent "resident"
-{ "evok": { "v": 1, "grants": [{ "privilege": "manage", "scope": "zone:flat3" }] } }
+{ "kapsle": { "v": 1, "grants": [{ "privilege": "manage", "scope": "zone:flat3" }] } }
 ```
 
 | Privilege | Allows |
@@ -91,10 +91,10 @@ A rule may open a door on its own (for example at 7:00) only if its author was a
 
 | Task | Where |
 |---|---|
-| one `evok` app for the whole site; add each PLC's `https://<name>/auth/callback` to its redirect list | IdP |
-| groups with `evok.grants` for every role | IdP |
-| a service account per PLC, `evok.nodeKey` = the key shown in the Inspector; `evok.delegate: true` if it relays users' calls to other PLCs | IdP |
-| a service account per wall panel, `evok.clientKeys` from its enrolment | IdP |
+| one `kapsle` app for the whole site; add each PLC's `https://<name>/auth/callback` to its redirect list | IdP |
+| groups with `kapsle.grants` for every role | IdP |
+| a service account per PLC, `kapsle.nodeKey` = the key shown in the Inspector; `kapsle.delegate: true` if it relays users' calls to other PLCs | IdP |
+| a service account per wall panel, `kapsle.clientKeys` from its enrolment | IdP |
 | PINs: 6 digits or more, unique across the site | IdP |
 | `nodeId` (unique in the site), `mode: site`, the IdP issuer, the sync API token | each PLC, `driver-auth` config |
 | one HTTPS name per PLC, its own certificate (Let's Encrypt, DNS-01), the same name at home through local DNS | DNS, each PLC |

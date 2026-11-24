@@ -1,5 +1,5 @@
 
-# EVOK (Python) Bug Archaeology — Findings and Design Lessons for `evok-node`
+# EVOK (Python) Bug Archaeology — Findings and Design Lessons for `kapsle`
 
 **Scope of evidence.** Full git history of `UniPiTechnology/evok` (unshallowed: 1045 commits, 2016→2025-09, HEAD `47c95c8`, tags up to `3.0.6`); all 153 GitHub issues (27 open / 126 closed) enumerated, ~25 read in full; the 3 open + 60 closed PRs listed; the pinned `pymodbus` fork; and community threads (Unipi forum, HA, third-party clients) gathered by a parallel pass.
 
@@ -410,7 +410,7 @@ Current EVOK 3 does better in places: `owdevice.py::poll` has a per-sensor `lost
 
 ---
 
-## 9. Design lessons for `evok-node`
+## 9. Design lessons for `kapsle`
 
 Ordered by how much real-world pain each one prevents.
 

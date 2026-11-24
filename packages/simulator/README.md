@@ -1,4 +1,4 @@
-# `@evok-node/simulator`
+# `@kapsle/simulator`
 
 Serves any model in the map corpus, and injects the faults hardware cannot be asked for: wrong CRCs,
 truncated frames, stale responses, silent slaves.

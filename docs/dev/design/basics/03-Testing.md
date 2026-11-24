@@ -2,11 +2,11 @@
 
 There are 3 services to be regulary, properly and thoroughly tested:
 
-- `evok-node` service - this is the core of testing,
+- `kapsle` service - this is the core of testing,
 - helper simulator services and
 - rig control service.
 
-Simulator services and rig control service is tested only by first tier - unit tests. These components are made only to enable E2E testing of the `evok-node`. 
+Simulator services and rig control service is tested only by first tier - unit tests. These components are made only to enable E2E testing of the `kapsle`. 
 
 ## 1. How to test
 
@@ -17,7 +17,7 @@ Simulator services and rig control service is tested only by first tier - unit t
 Unit testing uses vite framework and it's run by `vitest run` or rather `npm run test`. Watch mode can be enabled by `vitest` or rather `npm run test:watch`.
 
 #### 1.1.1. Unit testing
-Each component of `evok-node`, simulators or rig control service must have it's own testing module. Using `src/**/*.test.ts` convention. Unit tests should include boundary scenarios and test of module's basic functionality.
+Each component of `kapsle`, simulators or rig control service must have it's own testing module. Using `src/**/*.test.ts` convention. Unit tests should include boundary scenarios and test of module's basic functionality.
 
 #### 1.1.2. Unit test focus
 Unit test must allways test at least codecs, data types, data conversions, address computaitons, transport framing, timeouts, counters and similar.

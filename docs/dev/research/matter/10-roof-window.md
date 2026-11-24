@@ -65,7 +65,7 @@ What the KLF 150 has to be set to, for P2 (§5) [I]:
 | Input pair | 1/2, one product only | 3/4, one product only |
 | Output | A, default 2 s pulse | B, default 2 s pulse |
 | Input behaviour | default: < 1.5 s to end, longer runs while held, both = stop | the same |
-| Groups, scenes, set positions | none — evok-node does positions by time | none |
+| Groups, scenes, set positions | none — kapsle does positions by time | none |
 
 To test at commissioning, with a stopwatch on the DI: `close` on a closed window, `close` on an open one, `open` with the rain sensor wet — pulse or not, and its delay after the relay.
 
@@ -87,16 +87,16 @@ To check in the software when setting it up: the output options ("output functio
 - No native interlock between window and cover; users sequence them in their own logic [V S7].
 - Roller shutter SML: after a power loss, STOP then DOWN within 30 s starts a new end-position adjustment [V S13]. Travel time: [GAP] — measured at commissioning (S7: 45 s).
 
-### 2.3. What evok-node can know
+### 2.3. What kapsle can know
 
-| Event | Seen by evok-node |
+| Event | Seen by kapsle |
 |---|---|
 | a move commanded through the KLF | yes — it closed the relay; the output pulses on success (§1.3) |
 | a move from an INTEGRA remote or VELUX app | no [I]; output pulse: [GAP] |
 | rain closing the window | no [V S10] |
 | entrapment stop | no [I] |
 
-Time-based position tracking (as 12c-06) is right only while every move goes through the KLF [I]. A window that rain closed is in the safe state for the interlock; a window opened by remote while the cover is down is not, and evok-node can't prevent it (§2.2) [I].
+Time-based position tracking (as 12c-06) is right only while every move goes through the KLF [I]. A window that rain closed is in the safe state for the interlock; a window opened by remote while the cover is down is not, and kapsle can't prevent it (§2.2) [I].
 
 ## 3. Matter
 
@@ -108,7 +108,7 @@ Time-based position tracking (as 12c-06) is right only while every move goes thr
 - A window exported as a Window Covering would be opened by "open all blinds" — the garage-door failure in [07 §2](07-garage-door.md) [I].
 - Matter has no link between two endpoints that exclude each other; only the bridge knows (as [07 §1.8](07-garage-door.md) for a lock) [I]. A refused move: `MainState` `Protected` ("Commands MAY be rejected", feature `PT`) for the window; `BUSY` for the cover (12c-06 §4).
 
-## 4. evok-node today
+## 4. kapsle today
 
 | Where | What |
 |---|---|

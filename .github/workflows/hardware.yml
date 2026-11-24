@@ -19,7 +19,7 @@ jobs:
     if: >
       github.event_name != 'pull_request' ||
       contains(github.event.pull_request.labels.*.name, 'hardware-required')
-    # Deliberately not `runs-on: [self-hosted, evok-rig]` yet: a self-hosted label
+    # Deliberately not `runs-on: [self-hosted, kapsle-rig]` yet: a self-hosted label
     # with no runner behind it queues a workflow forever instead of failing, and a
     # check that hangs is worse than one that is honest about being empty.
     runs-on: ubuntu-latest

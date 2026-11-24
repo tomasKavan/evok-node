@@ -1,4 +1,4 @@
-# `@evok-node/driver-onboard`
+# `@kapsle/driver-onboard`
 
 The controller's own I/O — sections 1..3 — reached by Modbus TCP to `unipitcp` on `127.0.0.1:502`. EVOK
 never speaks SPI and neither do we.

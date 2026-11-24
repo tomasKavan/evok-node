@@ -50,7 +50,7 @@ Also Tier 0: **golden-transcript replay** of the captured stock-EVOK responses (
 4. **Low voltage only.** 24 V DC throughout. No mains switching anywhere in the rig — agents
    will be driving these relays unattended.
 5. **The rig is not the thing under test.** Fault injection and power control run on an
-   independent host, so a wedged evok-node cannot disable the mechanism that recovers it.
+   independent host, so a wedged kapsle cannot disable the mechanism that recovers it.
 
 ### Units
 
@@ -91,8 +91,8 @@ arm64 target — no cross-compilation surprises.
 
 #### Rule: the instrument must not share code with the thing being measured
 
-The rig service **must not use evok-node, and must not use our Modbus stack.** If it did, a bug
-in the shared transport could make a test pass that should fail — and a wedged evok-node would
+The rig service **must not use kapsle, and must not use our Modbus stack.** If it did, a bug
+in the shared transport could make a test pass that should fail — and a wedged kapsle would
 disable the mechanism meant to recover it.
 
 So the rig drives its own I/O through **sysfs only** (`/run/unipi-plc/by-sys/…`): plain file
@@ -179,7 +179,7 @@ version: 1
 host:
   unit: Patron_M527
   address: 10.0.0.10
-  io_access: sysfs                 # never Modbus, never evok-node
+  io_access: sysfs                 # never Modbus, never kapsle
   sysfs_root: /run/unipi-plc/by-sys
 
 units:                             # devices under test
@@ -226,7 +226,7 @@ rig bus cut ext_a / restore ext_a
 rig onewire disconnect ow_sensor3
 rig fault inject --bus ext_b --kind late-response --ms 500
 rig fault clear --bus ext_b
-rig loopback verify ro_to_di          # independent of evok-node: drive and observe directly
+rig loopback verify ro_to_di          # independent of kapsle: drive and observe directly
 rig capture start|stop --bus ext_a    # bus-level frame capture for post-hoc analysis
 rig reset                             # known-good state: all power on, all buses restored, no faults
 ```
@@ -244,7 +244,7 @@ when a timing test fails, frame-level capture is the difference between a diagno
 - **Long-running soak**: days of continuous polling with periodic injected faults, asserting
   bounded RSS, bounded latency p99, zero lost counter increments, and no unexplained state.
   Upstream's worst bugs (#141, #30) only appeared after days or weeks.
-- **Upstream's own `examples/test_*.py`** run unmodified against evok-node.
+- **Upstream's own `examples/test_*.py`** run unmodified against kapsle.
 - **Real client acceptance**: Node-RED with `@unipitechnology/node-red-contrib-unipi-evok`, and
   Home Assistant with `ha-unipi-neuron` — **through nginx on :80**, since that is the only way
   the HA client can talk to us at all.

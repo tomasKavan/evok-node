@@ -1,4 +1,4 @@
-# `@evok-node/api-compat`
+# `@kapsle/api-compat`
 
 Byte-compatible with EVOK 3.0.6 for real clients. Permanent, first-class, never deprecated (G-3).
 

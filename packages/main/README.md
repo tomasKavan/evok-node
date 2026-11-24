@@ -1,4 +1,4 @@
-# `@evok-node/main`
+# `@kapsle/main`
 
 Parses config, validates it, spawns and supervises drivers and APIs, handles reload. **On no request
 path, ever.**

@@ -27,7 +27,7 @@ JWT (RFC 9068 shape):
 ```json
 {"typ":"at+jwt","alg":"EdDSA","kid":"k1"}
 {"iss":"https://auth.site-a.example/application/o/evok/","sub":"u-42",
- "aud":"urn:evok:site-a:node:basement","client_id":"home-ui","iat":1793376000,
+ "aud":"urn:kapsle:site-a:node:basement","client_id":"home-ui","iat":1793376000,
  "exp":1793376900,"jti":"f3c1…","acr":"pin","roles":["tenant:flat-3"]}
 ```
 Biscuit (authority block signed by the issuer; block 1 appended later by anyone, no key):
@@ -89,13 +89,13 @@ IdP session (login at the IdP, `sid`) and a client's tokens have separate lifeti
 | Browser | yes — non-extractable WebCrypto key; stolen token alone is useless, but XSS can still make proofs while the page is open [V S8 §2, §11.4] | poor — certificate prompts [V S9 §5, §6.4] |
 | Native / shell app | yes, key in OS key store (→ 06) [I] | possible, TLS-stack dependent [I] |
 | PLC | yes (key in 0600 file or TPM on Edge) [I] | natural fit [I] |
-| WebSocket | proof covers HTTP method + URI only [V S8 §4.2]; browser cannot add a `DPoP` header to the WS handshake [I]; would need a proof in the first message (no standard) [I] | works on `wss` if TLS ends at evok-node [I] |
+| WebSocket | proof covers HTTP method + URI only [V S8 §4.2]; browser cannot add a `DPoP` header to the WS handshake [I]; would need a proof in the first message (no standard) [I] | works on `wss` if TLS ends at kapsle [I] |
 
 - DPoP replay: accept proofs only for seconds–minutes; keep `jti`s for that window; a server nonce with server time avoids client clock problems [V S8 §11.1].
 
 ## 3. Revocation and logout
 
-| Mechanism | Status | Direction | Fit for evok-node |
+| Mechanism | Status | Direction | Fit for kapsle |
 |---|---|---|---|
 | RFC 7009 revocation | RFC; in `oidc-provider`, `openid-client` [V S40][V S41] | client → AS | client logout at replica / IdP [I] |
 | RFC 7662 introspection | RFC; same libs [V S40] | RS → AS, online per check | needs the IdP online; not for the hot path [I] |

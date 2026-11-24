@@ -65,9 +65,9 @@ No product certified as Mounted On/Off Control was found; hardwired relays on th
 
 ## 6. Proposals for 12c (not binding)
 
-- **P1 — Matter type for a Unipi relay.** A DIN-rail relay is hardwired, so the spec's choice is Mounted On/Off Control, with On/Off Plug-in Unit also in `DeviceTypeList` (§1). Exposing both keeps Apple and Google working (§4). The evok-node `DeviceType` name could then stay `OnOffPlugInUnit` (what clients see) or become neutral; 12c decides.
+- **P1 — Matter type for a Unipi relay.** A DIN-rail relay is hardwired, so the spec's choice is Mounted On/Off Control, with On/Off Plug-in Unit also in `DeviceTypeList` (§1). Exposing both keeps Apple and Google working (§4). The kapsle `DeviceType` name could then stay `OnOffPlugInUnit` (what clients see) or become neutral; 12c decides.
 - **P2 — light vs load.** A relay that switches only a light is better an `OnOffLight` (Google's advice, §4); `OnOffPlugInUnit` is for loads that aren't lights — socket, pump, fan, heater.
-- **P3 — timed on.** LT makes `OnWithTimedOff` mandatory on a bridged unit (§2). Input for the `TimerRelay` / `onFor` decision: Matter already has "on for N" on every on/off unit, max ≈ 109 min. Either matter.js runs the countdown (16a sees only `SET onOff`), or 16a maps it to evok-node's own timer.
+- **P3 — timed on.** LT makes `OnWithTimedOff` mandatory on a bridged unit (§2). Input for the `TimerRelay` / `onFor` decision: Matter already has "on for N" on every on/off unit, max ≈ 109 min. Either matter.js runs the countdown (16a sees only `SET onOff`), or 16a maps it to kapsle's own timer.
 - **P4 — `StartUpOnOff`.** Mandatory attribute; a candidate for a template setting (12a §2.3), exposed read-only. Ecosystems mostly don't edit it (§4).
 
 ## 7. Sources

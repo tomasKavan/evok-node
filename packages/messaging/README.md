@@ -1,4 +1,4 @@
-# `@evok-node/messaging`
+# `@kapsle/messaging`
 
 The single source of truth for the **internal** driver↔API contract: envelopes, request and event
 shapes, the introspection descriptor, error kinds, correlation, deadlines, and the fan-in helper that

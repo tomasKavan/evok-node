@@ -190,7 +190,7 @@ AutoRelockTime / Timeout elapsed              →  Locked
 - Wicket door contact open during a run: stops at once and blocks [V S20].
 - "Sie müssen den Handsender generell mit Sichtkontakt zum Tor bedienen, wenn nur eine Sicherheitseinrichtung vorhanden ist!" [V S20].
 - Travel speed, ProMatic 4: max 20 cm/s open, 14 cm/s close [V S21]; SupraMatic: [GAP]. A 2.2 m door then takes ≥ 11 s / ≥ 16 s [I].
-- Other command sources stay active: hand remotes, wall buttons (impulse, terminal 21), BiSecur app [V S20]. evok-node sees their moves only through K01/K02 (and K03) [I].
+- Other command sources stay active: hand remotes, wall buttons (impulse, terminal 21), BiSecur app [V S20]. kapsle sees their moves only through K01/K02 (and K03) [I].
 
 ### 3.4. State from K01 / K02 / K03
 
@@ -245,7 +245,7 @@ Open grants access; close removes it but can hurt someone [I].
 - A pulse relay left on when the daemon dies: the master watchdog reboots the section into its saved defaults (research/02 §4.8) [V]; relay then off [I]. A held open/close/stop input on the UAP: [GAP] (§3.1).
 - Stop and a direction pulse at the same time: [GAP]. Interlock as for covers ([06 §3.3](06-window-covering.md)) [I].
 
-## 6. evok-node today
+## 6. kapsle today
 
 | Where | What |
 |---|---|
@@ -263,7 +263,7 @@ Open grants access; close removes it but can hurt someone [I].
 - **P5 — moves from elsewhere** update `state` from the relays; a command in flight is not assumed done until an end is reached [I].
 - **P6 — Matter projection.** Closure `0x0230`, tag `GarageDoor`, features `PS` (+ `PT` for lockouts; `VT` if a vent RO is added); `SecureState` = closed; `MainState` from `motion`; `PhysicallyBlocked` from `obstructed`. Window Covering fallback only behind a setting, given §2. Apple support: unknown (§2).
 - **P7 — access (to 13a).** Open needs the higher assurance level, close the lower one (§5.2); rules may close freely, opening by a rule needs explicit consent. Remote close warns first — the drive's own pre-warning (menus 32/33) covers every source, a light/buzzer role does not [I]. On Matter (§1.8): B — a virtual Door Lock child (PIN, `AutoRelockTime`) gates `MoveTo(open)`; close is never gated; the lock is checked when a command arrives, not during the move. A as an alternative without PIN. Moves from the drive's own inputs are never gated (§3.3).
-- **P8 — lockouts.** A `locked` setting/role blocks evok-node's commands (Loxone `Off`/`DisPc`); the drive's own inputs stay active (§3.3).
+- **P8 — lockouts.** A `locked` setting/role blocks kapsle's commands (Loxone `Off`/`DisPc`); the drive's own inputs stay active (§3.3).
 
 ## 8. Sources
 

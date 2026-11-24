@@ -1,12 +1,12 @@
 # 04 — Authorization
 
-**Research, not design.** Authorization models (RBAC, parametric roles, ReBAC, ABAC), in-process engines for Node 24, fast per-message checks, where roles live, an action vocabulary taken from Matter, home-automation permission models, and what a role scope could point to in evok-node. Feeds 13a (M3.6).
+**Research, not design.** Authorization models (RBAC, parametric roles, ReBAC, ABAC), in-process engines for Node 24, fast per-message checks, where roles live, an action vocabulary taken from Matter, home-automation permission models, and what a role scope could point to in kapsle. Feeds 13a (M3.6).
 
 ## 1. Models
 
 ### 1.1. RBAC (NIST, ANSI INCITS 359-2004)
 
-| Component | What it defines | Note for evok-node |
+| Component | What it defines | Note for kapsle |
 |---|---|---|
 | Core RBAC | users, roles, operations, objects, permissions; `UA ⊆ USERS × ROLES`, `PA ⊆ PERMS × ROLES`; a session maps a user to an *activated subset* of roles [V S1 §5.1] | Role activation per session fits "several auth levels per session": a role could be usable only at a given level [I] |
 | Hierarchical RBAC | general (any partial order) or limited (tree) role hierarchies [V S1 §5.2] | e.g. `admin ≥ tenant ≥ guest` |
@@ -143,7 +143,7 @@ Cortex-A53 numbers are a **[GAP]** — run the same script on a Patron. Expect s
 | CASL | one `Ability` per user, rules shared with the UI [V S26] | rebuild | UI hides what `can()` denies |
 | OpenFGA | — | — | ListObjects: "what objects a user can see" [V S14] |
 
-For evok-node [I]: a site has hundreds of devices and ~4 privileges, so a full per-session table `address → privilege bits` is small and cheap to build at `onConnection` (1.1 ms for all users in §2.2). Check = one `Map.get` + bit test. Triggers to rebuild: role assignment change (replica sync, 05), introspection change (device added, moved to another room, imported), auth-level change in the session (03). The same table filters `$introspect`. Existing SUBSCRIBEs must be re-checked on rebuild or per event (EMQX lesson; HA practice).
+For kapsle [I]: a site has hundreds of devices and ~4 privileges, so a full per-session table `address → privilege bits` is small and cheap to build at `onConnection` (1.1 ms for all users in §2.2). Check = one `Map.get` + bit test. Triggers to rebuild: role assignment change (replica sync, 05), introspection change (device added, moved to another room, imported), auth-level change in the session (03). The same table filters `$introspect`. Existing SUBSCRIBEs must be re-checked on rebuild or per event (EMQX lesson; HA practice).
 
 ## 4. Where roles live
 
@@ -167,9 +167,9 @@ Matter ACL entries are **fabric-scoped** with fields Privilege, AuthMode (CASE, 
 | Manage | Operate, View [V-src S34] | per cluster element | Thermostat `SystemMode`, `MinHeatSetpointLimit` write; OnOff `StartUpOnOff`; DoorLock `AutoRelockTime`, `OperatingMode` [V-src S35] |
 | Administer | Manage, Operate, ProxyView, View [V-src S34] | Access Control cluster [V S33] | DoorLock `SetUser`, `SetCredential`, `SetWeekDaySchedule` [V-src S35] |
 
-Mapping to evok-node — **all [I]**:
+Mapping to kapsle — **all [I]**:
 
-| evok-node operation | Privilege |
+| kapsle operation | Privilege |
 |---|---|
 | `$introspect`, GET, SUBSCRIBE, CALL with `effect: 'none'` | view |
 | SET; CALL with `effect: 'mutates'` | operate |
@@ -194,7 +194,7 @@ Matter treats thermostat `SystemMode` as Manage but the setpoint as Operate, so 
 
 Summary [I]: consumer products give whole-home roles; per-room scope appears only in Loxone (and, unexposed, in HA). A multi-flat house with tenants needs scoping that consumer products do not offer.
 
-## 7. Scope for evok-node
+## 7. Scope for kapsle
 
 What a role parameter could point to [I]:
 
@@ -227,7 +227,7 @@ Devices outside their room's rule (e.g. a boiler-room valve shown in flat 3, a s
 - **P5 — No policy engine on the hot path.** Hand-written TS evaluator over the table; Casbin or CASL acceptable if expressiveness is needed; Cedar-WASM too slow per message in Node (§2.2) but usable for offline validation.
 - **P6 — Roles from the replica.** Token carries identity, session and `acr`; the verifier resolves assignments by user id from the replica; optional role version claim to detect staleness.
 - **P7 — Filter introspection with the same table** (view privilege), as HA does for `get_states`.
-- **P8 — Matter bridge alignment.** If tenants use Matter controllers, map evok-node scopes to per-fabric ACL targets (endpoints of their flat).
+- **P8 — Matter bridge alignment.** If tenants use Matter controllers, map kapsle scopes to per-fabric ACL targets (endpoints of their flat).
 
 ## 9. Sources
 

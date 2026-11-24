@@ -1,11 +1,11 @@
-# `@evok-node/hw-definitions`
+# `@kapsle/hw-definitions`
 
 What the hardware *is* — **our** hardware definitions, the product-id → board-code model descriptors, and
 the generated `(model, section, kind, channel) → (register, bitOffset, coil)` tables.
 
 Definitions are ours and ship with this package; nothing is read from `/etc/evok` at runtime, and no Unipi
 data package is a dependency. Definition ids are paths — `modbus/unipi/xs11` — and the operator's
-own live under `/etc/evok-node/hw_definitions/custom/`, a disjoint namespace with no merge. Format:
+own live under `/etc/kapsle/hw_definitions/custom/`, a disjoint namespace with no merge. Format:
 [research/13](/docs/dev/research/13-config-and-hw-definition-format.md).
 
 The one audited address function lives here, with the `/16` bank stride and `%16` mask in exactly one

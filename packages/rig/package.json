@@ -1,5 +1,5 @@
 {
-  "name": "@evok-node/rig",
+  "name": "@kapsle/rig",
   "version": "0.0.0",
   "description": "Hardware-rig control service. Private, sysfs only, no workspace dependencies.",
   "type": "module",

@@ -1,4 +1,4 @@
-# `@evok-node/api-nextgen`
+# `@kapsle/api-nextgen`
 
 Our own WS and HTTP surface.
 

@@ -1,4 +1,4 @@
-# `@evok-node/modbus`
+# `@kapsle/modbus`
 
 Framing, transaction correlation, timing, backoff and per-device quarantine — the supervising wrapper
 around `modbus-serial`, not our own framer.
@@ -14,6 +14,6 @@ engine above — the source tree still separates "wire protocol" from "hardware 
 the package boundary no longer does.
 
 Depends on `client` for the `modbus-remote` transport (design/07 §4.1), which reaches a Raw Relay Driver on
-another evok-node over its WS API.
+another kapsle over its WS API.
 
 **Must not depend on:** any driver, any api, `main`.

@@ -1,10 +1,10 @@
-# `@evok-node/driver-kit`
+# `@kapsle/driver-kit`
 
 How to be a driver: the endpoint dispatcher (`bind`/`unbind`/`attach`), the handshake, deadline
 enforcement, and assembling the introspection catalogue.
 
 Does **not** own a generic scan loop or `readAt`/`stale` — that turned out to be transport-specific
-enough that `hw-modbus-kit` (`@evok-node/modbus`, design/07a) owns its own, rather than this package
+enough that `hw-modbus-kit` (`@kapsle/modbus`, design/07a) owns its own, rather than this package
 guessing at a shared shape before a second scan-based driver exists to correct it against. Revisit once
 one does.
 

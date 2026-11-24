@@ -93,7 +93,7 @@ Do this while the Patrons still run stock EVOK. Once replaced, it's unrecoverabl
 19. **`packages/rig` — a codeable deliverable.** A small TypeScript service deployed on the
     test-host M527, exposing the `rig` CLI/HTTP surface. **Hard constraints, enforced by a
     dependency rule in CI:**
-    - **must not import anything from evok-node `core/`** — the instrument cannot share code with
+    - **must not import anything from kapsle `core/`** — the instrument cannot share code with
       the thing it measures, or a shared bug makes a test pass that should fail;
     - **must not use a Modbus client at all** — I/O goes through **sysfs** file reads/writes
       (`/run/unipi-plc/by-sys/…`), a completely different mechanism from the code under test;
@@ -105,7 +105,7 @@ Do this while the Patrons still run stock EVOK. Once replaced, it's unrecoverabl
     (late responses, bad CRC, wrong unit id, silence, t3.5 violations) — that is its entire
     purpose, so it cannot be built on a library that prevents malformed output.
 21. **`rig loopback verify`** — proves the rig itself is sound, end to end, *before* any
-    evok-node code depends on it. Run it as a CI precondition for the `hardware` job: if the rig
+    kapsle code depends on it. Run it as a CI precondition for the `hardware` job: if the rig
     is miswired, hardware tests must fail loudly rather than mysteriously.
 
 ### CI topology consequence

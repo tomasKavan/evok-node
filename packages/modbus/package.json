@@ -1,5 +1,5 @@
 {
-  "name": "@evok-node/modbus",
+  "name": "@kapsle/modbus",
   "version": "0.0.0",
   "description": "Modbus transport: framing, correlation, timing and circuit breakers.",
   "type": "module",
@@ -20,7 +20,7 @@
     "clean": "tsc -b --clean"
   },
   "dependencies": {
-    "@evok-node/messaging": "0.0.0"
+    "@kapsle/messaging": "0.0.0"
   },
   "publishConfig": {
     "access": "public"

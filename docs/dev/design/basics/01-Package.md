@@ -16,30 +16,30 @@ This is a monolith repository containing all:
 
 All documentation is in [`/docs/dev`](/docs/dev/README.md) or [`/docs/user`](/docs/user/README.md). Follow there to learn more.
 
-To organize source code and logic modules npm workspaces are used. All source code is in [`/packages`](/packages) directory. All packages lives under `@evok-node/` namespace and are buildable independedly. 
+To organize source code and logic modules npm workspaces are used. All source code is in [`/packages`](/packages) directory. All packages lives under `@kapsle/` namespace and are buildable independedly. 
 
 ### 1.1. Package list
 
 Relevant to the tool:
-- **[`main`](/packages/main/)** - the daemon: config, validation, spawn, supervise, reload. Documented in this file, in [01-Achitecture](/docs/dev/design/evok-node/01-System-architecture.md) and in [02-Main-and-configuration.md](/docs/dev/design/evok-node/02-Main-and-configuration.md).
-- **[`messaging`](/packages/messaging)** - the internal driver↔API contract: envelopes, introspection. Documented in [03-Internal-messaging](/docs/dev/design/evok-node/03-Internal-messaging.md).
-- **[`line-kit`](/packages/line-kit)** - protocol-agnostic serial/TCP byte transport, shared by `modbus-kit` and `driver-dali`. See [07b-Line-kit.md](/docs/dev/design/evok-node/07b-Line-kit.md).
+- **[`main`](/packages/main/)** - the daemon: config, validation, spawn, supervise, reload. Documented in this file, in [01-Achitecture](/docs/dev/design/kapsle/01-System-architecture.md) and in [02-Main-and-configuration.md](/docs/dev/design/kapsle/02-Main-and-configuration.md).
+- **[`messaging`](/packages/messaging)** - the internal driver↔API contract: envelopes, introspection. Documented in [03-Internal-messaging](/docs/dev/design/kapsle/03-Internal-messaging.md).
+- **[`line-kit`](/packages/line-kit)** - protocol-agnostic serial/TCP byte transport, shared by `modbus-kit` and `driver-dali`. See [07b-Line-kit.md](/docs/dev/design/kapsle/07b-Line-kit.md).
 - **[`modbus`](/packages/modbus)** - modbus transport layer: framing, correlation, timing, circuit breakers.
 - **[`hw-definitions`](/packages/hw-definitions)** - unipi hardware definitions. Relevant mostly for `driver-onboard` and `driver-extension`.
-- **[`driver-kit`](/packages/driver-kit)** - shared driver runtime: scan loop, reading state, handshake, introspection. See [05-Drivers.md](/docs/dev/design/evok-node/05-Drivers.md).
-- **[`driver-onboard`](/packages/driver-onboard)** - the controller's own I/O sections, over Modbus TCP. Documented in [08-Onboard-driver.md](/docs/dev/design/evok-node/08-Onboard-driver.md).
-- **[`driver-extension`](/packages/driver-extension)** - Unipi RTU extensions, one instance per RS-485 line. For docu see [09-Extension-driver.md](/docs/dev/design/evok-node/09-Extension-driver.md).
-- **[`driver-dali`](/packages/driver-dali)** - pluggable DALI controllers (Foxtron ASCII built in), raw bus access, stored gears/groups, commissioning. See [12-DALI-driver.md](/docs/dev/design/evok-node/12-DALI-driver.md).
-- **[`api-ws`](/packages/api-ws)** - The WS API: every driver over WebSocket, serves the inspector. Documented in [15-WS-API.md](/docs/dev/design/evok-node/15-WS-API.md).
-- **[`driver-main`](/packages/driver-main)** - the `main` driver: config, instance state, apply, restart. See [02a](/docs/dev/design/evok-node/02a-Main-driver-and-bootstrap.md).
-- **[`api-bootstrap`](/packages/api-bootstrap)** - sets up the first WS API, then redirects to it. See [02a](/docs/dev/design/evok-node/02a-Main-driver-and-bootstrap.md).
-- **[`ui`](/packages/ui)** - the web SPA, over the WS API. Described in [16-Inspector-UI.md](/docs/dev/design/evok-node/16-Inspector-UI.md).
+- **[`driver-kit`](/packages/driver-kit)** - shared driver runtime: scan loop, reading state, handshake, introspection. See [05-Drivers.md](/docs/dev/design/kapsle/05-Drivers.md).
+- **[`driver-onboard`](/packages/driver-onboard)** - the controller's own I/O sections, over Modbus TCP. Documented in [08-Onboard-driver.md](/docs/dev/design/kapsle/08-Onboard-driver.md).
+- **[`driver-extension`](/packages/driver-extension)** - Unipi RTU extensions, one instance per RS-485 line. For docu see [09-Extension-driver.md](/docs/dev/design/kapsle/09-Extension-driver.md).
+- **[`driver-dali`](/packages/driver-dali)** - pluggable DALI controllers (Foxtron ASCII built in), raw bus access, stored gears/groups, commissioning. See [12-DALI-driver.md](/docs/dev/design/kapsle/12-DALI-driver.md).
+- **[`api-ws`](/packages/api-ws)** - The WS API: every driver over WebSocket, serves the inspector. Documented in [15-WS-API.md](/docs/dev/design/kapsle/15-WS-API.md).
+- **[`driver-main`](/packages/driver-main)** - the `main` driver: config, instance state, apply, restart. See [02a](/docs/dev/design/kapsle/02a-Main-driver-and-bootstrap.md).
+- **[`api-bootstrap`](/packages/api-bootstrap)** - sets up the first WS API, then redirects to it. See [02a](/docs/dev/design/kapsle/02a-Main-driver-and-bootstrap.md).
+- **[`ui`](/packages/ui)** - the web SPA, over the WS API. Described in [16-Inspector-UI.md](/docs/dev/design/kapsle/16-Inspector-UI.md).
 
 Supporting, testing and other:
 - **[`simulator`](/packages/simulator)** - Tool to simulate modbus slave based on given static map and configurable event reaction. See [`design/simulator`](/docs/dev/design/simulator/README.md).
 - **[`rig`](/packages/rig)** - hardware-rig control service. Private, low level access to devices. No sharing code with main tool. Documented in [`design/test-rig](/docs/dev/design/test-rig/README.md). Rig is private package.
 - **[`client`](/packages/client)** - WS API wire types and TypeScript client. Based on [user docu](/docs/user/README.md), TBD: deployed to npm.
-- **[`plugin-sdk`](/packages/plugin-sdk)** - published types (`ModuleDescriptor`, `ModuleInstance`, `InstanceContext`) and the runtime guard (`isModuleDescriptor`) a driver or api plugin author builds against — the same check `main` runs on a loaded module. Published to npm, like `client`. See [02-Main-and-configuration.md §4](/docs/dev/design/evok-node/02-Main-and-configuration.md).
+- **[`plugin-sdk`](/packages/plugin-sdk)** - published types (`ModuleDescriptor`, `ModuleInstance`, `InstanceContext`) and the runtime guard (`isModuleDescriptor`) a driver or api plugin author builds against — the same check `main` runs on a loaded module. Published to npm, like `client`. See [02-Main-and-configuration.md §4](/docs/dev/design/kapsle/02-Main-and-configuration.md).
 
 ## 2. Toolchain
 
@@ -58,19 +58,19 @@ When using toolchain it's desired to use shortcuts defined in package.json inste
 
 Tool is installed with Debian packages onto [Unipi Base OS](https://kb.unipi.technology/en:files:software:os-images:00-start) (Debian arm Linux). Supported versions are Debian 12 and Debian 13. 
 
-There are two packages `evok-node` and `evok-node-data`.
+There are two packages `kapsle` and `kapsle-data`.
 
-### 3.1. `evok-node-data`
+### 3.1. `kapsle-data`
 
 Holds configuration files for supported Unipi devices and `autogen` script used by (plugged to) `unipi-os-configurator` to configure specific device.
 
 Package lives in [`/packages/hw-definitions`](/packages/hw-definitions/README.md). 
 
-Package contains set of yaml files using Modbus transport description format defined at [07-Modbus-driver](/docs/dev/design/evok-node/07-Modbus-driver.md). Each file describes endpoints reacheable using Modbus (TCP or RTU) connected to Unipi device. Modbus driver uses these files to read/write/configure endpoints using Modbus commands.
+Package contains set of yaml files using Modbus transport description format defined at [07-Modbus-driver](/docs/dev/design/kapsle/07-Modbus-driver.md). Each file describes endpoints reacheable using Modbus (TCP or RTU) connected to Unipi device. Modbus driver uses these files to read/write/configure endpoints using Modbus commands.
 
-Package also contains [autogen script](/packages/hw-definitions/src/autogen.py). This script is plugged into `unipi-os-configurator` and called after installation and when any HW changes. It creates `autogen.yaml` file in `/etc/evok-node/`. It can be used to configure `evok-node` daemon. See [`02-Main-and-configuration.md`](/docs/dev/design/evok-node/02-Main-and-configuration.md) and respective "configuration" sections of [08-Onboard-driver.md](/docs/dev/design/evok-node/08-Onboard-driver.md) and [10-Onewire-driver.md](/docs/dev/design/evok-node/10-Onewire-driver.md).
+Package also contains [autogen script](/packages/hw-definitions/src/autogen.py). This script is plugged into `unipi-os-configurator` and called after installation and when any HW changes. It creates `autogen.yaml` file in `/etc/kapsle/`. It can be used to configure `kapsle` daemon. See [`02-Main-and-configuration.md`](/docs/dev/design/kapsle/02-Main-and-configuration.md) and respective "configuration" sections of [08-Onboard-driver.md](/docs/dev/design/kapsle/08-Onboard-driver.md) and [10-Onewire-driver.md](/docs/dev/design/kapsle/10-Onewire-driver.md).
 
-Autogen script is installed to `/opt/unipi/os-configurator/run.d/61-evok-node-autogen.sh`. To run autogen after installation postinst script contains
+Autogen script is installed to `/opt/unipi/os-configurator/run.d/61-kapsle-autogen.sh`. To run autogen after installation postinst script contains
 ```
 dpkg-trigger os-configurator-force
 ```
@@ -79,67 +79,67 @@ in configure case.
 Script greatly inspired by [autogen script](https://github.com/UnipiTechnology/evok-unipi-data/blob/main/evok-autogen.py) in `evok-unipi-data` package.
 
 Notes:
-- `Recommends: unipi-os-configurator evok-node`
-- All yaml files with hw definitions are installed to `/etc/evok-node/hw_definitions`. Files are considered as conffiles and should be listed in controlfile.
+- `Recommends: unipi-os-configurator kapsle`
+- All yaml files with hw definitions are installed to `/etc/kapsle/hw_definitions`. Files are considered as conffiles and should be listed in controlfile.
 
-### 3.2. `evok-node`
+### 3.2. `kapsle`
 
 Contains the tool, configuration and system.d service. 
 
 Package lives in [`/packages/main`](/packages/main/README.md).
 
-System.d service responds to `start`, `stop`, `restart` and `reload` commands. Reload is described in [02-Main-and-configuration](/docs/dev/design/evok-node/02-Main-and-configuration.md).
+System.d service responds to `start`, `stop`, `restart` and `reload` commands. Reload is described in [02-Main-and-configuration](/docs/dev/design/kapsle/02-Main-and-configuration.md).
 
-Configuration file is `/etc/evok-node/config.yaml`. Runtime data goes to `/var/lib/evok-node/` directory — with `main.dynamicConfig`, the dynamic config, its revisions and its secrets too ([02a §5.1](/docs/dev/design/evok-node/02a-Main-driver-and-bootstrap.md)).
+Configuration file is `/etc/kapsle/config.yaml`. Runtime data goes to `/var/lib/kapsle/` directory — with `main.dynamicConfig`, the dynamic config, its revisions and its secrets too ([02a §5.1](/docs/dev/design/kapsle/02a-Main-driver-and-bootstrap.md)).
 
 Package is not recommending `nginx` or any other web server. It's user/admin responsibility to configure it if needed.
 
 Notes:
-- `Recommends: unipi-os-configurator evok-node-data`
+- `Recommends: unipi-os-configurator kapsle-data`
 - `Conflicts: evok`
 
-#### 3.2.1. The `evok-node` command
+#### 3.2.1. The `kapsle` command
 
-`/usr/bin/evok-node` — the `bin` of `@evok-node/main`. One executable, so the daemon and its tools share config parsing, plugin assembly and generations.
+`/usr/bin/kapsle` — the `bin` of `@kapsle/main`. One executable, so the daemon and its tools share config parsing, plugin assembly and generations.
 
 | Subcommand | Does | Exit |
 |---|---|---|
 | `run` | the daemon — the unit's `ExecStart` | — |
-| `config check [file]` | [02 §5](/docs/dev/design/evok-node/02-Main-and-configuration.md) steps 1–5, read-only: no generation swap, nothing spawned. `file` stands in for the static config; the dynamic file is the current one. Plugins come from `next` when one is staged, else `current` — what the daemon will start with. | 0; 1 with the issues |
-| `plugins sync [--config file] [--update]` | [02b §9.5](/docs/dev/design/evok-node/02b-Plugins.md) — `main.plugins.packages` from `file`, by default the static config | 0 with `unchanged` or `staged`; 1 with the reason |
+| `config check [file]` | [02 §5](/docs/dev/design/kapsle/02-Main-and-configuration.md) steps 1–5, read-only: no generation swap, nothing spawned. `file` stands in for the static config; the dynamic file is the current one. Plugins come from `next` when one is staged, else `current` — what the daemon will start with. | 0; 1 with the issues |
+| `plugins sync [--config file] [--update]` | [02b §9.5](/docs/dev/design/kapsle/02b-Plugins.md) — `main.plugins.packages` from `file`, by default the static config | 0 with `unchanged` or `staged`; 1 with the reason |
 
-- **It runs as the daemon's user** (§3.2.2) — the owner of `/var/lib/evok-node/`. Started as root, it switches to that user before reading anything; started as another user, it exits 1. `config check` imports plugins (02b §6.2), so this holds for it too.
+- **It runs as the daemon's user** (§3.2.2) — the owner of `/var/lib/kapsle/`. Started as root, it switches to that user before reading anything; started as another user, it exits 1. `config check` imports plugins (02b §6.2), so this holds for it too.
 - **Output** is for people on stdout; `--json` prints the same result as JSON, for automation.
 
 #### 3.2.2. Service and user
 
-The daemon runs as the system user **`evok-node`**, never as root by default: a plugin runs with the daemon's rights (02b §10). `postinst` creates the user and group.
+The daemon runs as the system user **`kapsle`**, never as root by default: a plugin runs with the daemon's rights (02b §10). `postinst` creates the user and group.
 
 ```ini
-# evok-node.service — sketch
+# kapsle.service — sketch
 [Service]
-User=evok-node
-Group=evok-node
+User=kapsle
+Group=kapsle
 SupplementaryGroups=dialout                 # serial lines, RS-485
 AmbientCapabilities=CAP_NET_BIND_SERVICE    # an api on a port below 1024 (13 §9)
-ExecStart=/usr/bin/evok-node run
+ExecStart=/usr/bin/kapsle run
 ExecReload=/bin/kill -HUP $MAINPID          # 02 §5.1
 Restart=always                              # restartDaemon exits — 02b §9.4
 ```
 
 | Path | Owner | Mode |
 |---|---|---|
-| `/etc/evok-node/` | `root:evok-node` | `0750`, files `0640` — the static config belongs to whoever may write `/etc` |
-| `/var/lib/evok-node/` | `evok-node:evok-node` | `0750`; secrets `0600` (02a §5.1) |
+| `/etc/kapsle/` | `root:kapsle` | `0750`, files `0640` — the static config belongs to whoever may write `/etc` |
+| `/var/lib/kapsle/` | `kapsle:kapsle` | `0750`; secrets `0600` (02a §5.1) |
 
-**Running as root** stays possible, for hardware that turns out to need it: a systemd drop-in with `User=root`, and `chown -R root: /var/lib/evok-node`. The command follows the owner of `/var/lib/evok-node/` (§3.2.1), so nothing else changes. The daemon logs a warning at startup when it runs as root.
+**Running as root** stays possible, for hardware that turns out to need it: a systemd drop-in with `User=root`, and `chown -R root: /var/lib/kapsle`. The command follows the owner of `/var/lib/kapsle/` (§3.2.1), so nothing else changes. The daemon logs a warning at startup when it runs as root.
 
 ### 3.3. Replacing classic evok
 
-`evok` and `evok-node` are in conflict. Can't be installed on one system at the same time. (Occupying same port and openning same serial files). `evok-unipi-data` and `evok-node-data` is ok to have on one system simultaneously.
+`evok` and `kapsle` are in conflict. Can't be installed on one system at the same time. (Occupying same port and openning same serial files). `evok-unipi-data` and `kapsle-data` is ok to have on one system simultaneously.
 
 EVOK configuration is not migrated. To replace `evok`:
 1. Uninstall or purge `evok`.
-2. Install `evok-node`. Autogen creates the hardware configuration (§3.1); the rest is configured again.
+2. Install `kapsle`. Autogen creates the hardware configuration (§3.1); the rest is configured again.
 
 #### 3.3.1. REMOVED

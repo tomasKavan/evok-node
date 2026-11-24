@@ -218,11 +218,11 @@ new MimClient(config, transport?)   // transport absent ⇒ SerialTransport (mod
 
 - A custom transport is already supported. The slave address is the transport's, not the request's: one transport per MIM [V-src S23].
 - `SerialTransport` waits `interFrameDelayMs` (default 10) before every request; with a custom transport, pacing is the transport's [V-src S23 `SerialTransport.ts`].
-- `index.ts` exports `SerialTransport`, which imports `modbus-serial` at load [V-src S23]. evok-node already uses `modbus-serial` (07 §2), so this adds no new dependency [I].
-- Errors are thrown; evok-node's `ModbusTransport` answers `CallOutcome` (07 §4) [V-src S23, V]. An adapter maps one to the other [I].
+- `index.ts` exports `SerialTransport`, which imports `modbus-serial` at load [V-src S23]. kapsle already uses `modbus-serial` (07 §2), so this adds no new dependency [I].
+- Errors are thrown; kapsle's `ModbusTransport` answers `CallOutcome` (07 §4) [V-src S23, V]. An adapter maps one to the other [I].
 - `getStatus()` reads B+0…B+31 in one FC3; `control()` writes each given field with FC6, in order [V-src S23 `IndoorUnit.ts`].
 - `getAllIndoorStatuses()` reads all 48 blocks, full — ≈ 5 s per MIM at 9600 baud [V-src S23, I §6].
-- Tests: Jest with a `MockTransport`; evok-node uses Vitest (basics/03) [V-src S23].
+- Tests: Jest with a `MockTransport`; kapsle uses Vitest (basics/03) [V-src S23].
 
 ### 8.2. Differences from the manual
 

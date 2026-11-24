@@ -129,7 +129,7 @@ Two consequences:
    them** — `GET /rest/all`, per-type GETs, a WS session (default filter *and* filtered), a
    webhook capture, and `GET /json/all`. L527 is the priority: three sections, both AI
    abstractions, and the 16-DI boundary in one dump. This is the compatibility oracle and it is
-   gone once EVOK is replaced. See `05-evok-node-design-notes.md` §7.4 item 7.
+   gone once EVOK is replaced. See `05-kapsle-design-notes.md` §7.4 item 7.
 2. **Record `/etc/evok/hw_definitions/*.yaml` and `/etc/evok/autogen.yaml` from each unit.**
    They are more trustworthy than the published doc examples. Also capture `unipiid` output (or the
    sysfs equivalent on Debian 12) and board firmware versions per section.

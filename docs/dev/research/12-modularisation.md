@@ -165,11 +165,11 @@ Driver and API ids are map keys, so uniqueness is free from YAML. Constrain them
 unfixable later.
 
 ```yaml
-# /etc/evok-node/config.yaml
+# /etc/kapsle/config.yaml
 drivers:
   PLC:
     type: onboard
-    autogen: true                              # /etc/evok-node/autogen.yaml supplies transport
+    autogen: true                              # /etc/kapsle/autogen.yaml supplies transport
     scan:  { fast: 50ms, slow: 1s }             # and devices both — ADR-0014
     retry: { initial: 500ms, max: 30s }        # unreachable-but-configured
 

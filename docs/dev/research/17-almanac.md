@@ -138,13 +138,13 @@ What "how much light the sun gives" can be built from:
 | client duties | — | cache; `If-Modified-Since`; don't fetch before `Expires`; coordinates ≤ 4 decimals (5+ ⇒ 403 on new products) [V S12] |
 | breach | — | 429, permanent ban on deliberate breach [V S12] |
 
-- An installer running evok-node for paying customers is likely commercial under Open-Meteo's terms → paid plan or another source [I]. The almanac should allow more than one provider [I].
+- An installer running kapsle for paying customers is likely commercial under Open-Meteo's terms → paid plan or another source [I]. The almanac should allow more than one provider [I].
 - Hourly fetch for one location = 24 calls/day, plus air quality — far under the limits [I].
 - **Offline by kind:** calendar and sun are local and always available; forecast and warnings are cached with their fetch time and go stale; actuals from hardware need no network [I].
 
 ## 6a. Storage — sizes
 
-design/evok-node README lists "Timeseries storage of readings" as a non-goal [V]. Estimates, 8 B per value [I]:
+design/kapsle README lists "Timeseries storage of readings" as a non-goal [V]. Estimates, 8 B per value [I]:
 
 | What is kept | Size | Writes |
 |---|---|---|

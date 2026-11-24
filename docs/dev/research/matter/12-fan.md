@@ -118,7 +118,7 @@ Register numbers from [16 §3](../16-airgenio.md).
 | on / standby (21001) | On/Off | good — keeps the flow level, as §1.3 |
 | manual level 20–100 % in 10 % steps (21002, ‰) | `PercentSetting`; optional `SPD` with `SpeedMax` 9 (20…100 %) | good; a value under 20 % needs a rule [I] |
 | actual level (15013/15014) | `PercentCurrent` | partial — two fans, one value |
-| DCV or evok-node demand control | `FanMode` Auto (`AUT`) | good |
+| DCV or kapsle demand control | `FanMode` Auto (`AUT`) | good |
 | Low / Medium / High | `FanMode` with `OffLowMedHighAuto` | good, if the levels are fixed percentages [I] |
 | boost (21009, timer) | — | none; `High` has no timer |
 | nonoccupied (21010) | — | none (Fan has no presets) |
@@ -153,7 +153,7 @@ Matter Fan fits fans on Unipi outputs directly [I]:
 
 Today 12c-02 lists "a fan" as an `OnOffPlugInUnit` use [V 12c-02 §1] — Apple shows it as a plug, not a fan [I].
 
-## 7. evok-node today
+## 7. kapsle today
 
 | Where | What |
 |---|---|
@@ -180,7 +180,7 @@ Today 12c-02 lists "a fan" as an `OnOffPlugInUnit` use [V 12c-02 §1] — Apple 
   }
   ```
 - **P3 — project as Fan or Air Purifier.** Air Purifier brings filter monitoring and composed sensors; Fan matches the spec text better (§5). Check Apple's rendering of both with a real endpoint before deciding.
-- **P4 — `Auto` = demand control.** Either the unit's DCV (needs an AQS wired to the unit) or evok-node's loop on the rooms' IAQ CO₂ writing the level ([16 P4](../16-airgenio.md)).
+- **P4 — `Auto` = demand control.** Either the unit's DCV (needs an AQS wired to the unit) or kapsle's loop on the rooms' IAQ CO₂ writing the level ([16 P4](../16-airgenio.md)).
 - **P5 — percent rule.** Below the unit's minimum: 0 → standby, 1–19 → 20 %; levels rounded to 10 % [I].
 - **P6 — supply setpoint stays off Matter.** Room temperature belongs to the room thermostats (12c-10); the unit's setpoint is a commissioning value.
 

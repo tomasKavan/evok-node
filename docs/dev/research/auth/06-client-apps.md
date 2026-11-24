@@ -37,7 +37,7 @@ Framework choice is M5.2. Here only auth capabilities matter.
 
 - BFF cookie: `Secure`, `HttpOnly` MUST; `SameSite=Strict`, `Path=/`, no `Domain` SHOULD; `__Host-` prefix. [V S2 §6.1.3.2]
 - A browser client's refresh tokens MUST be rotated or sender-constrained. [V S2 §6.3.2.3] DPoP with non-exportable browser keys raises the bar, but does not stop an attacker who starts a new flow. [V S2 §5.2.2]
-- For evok-node: the node serving the Home UI can **be** the BFF. The Home API session is then a cookie on the node origin and no token is in JS. [I] Cookies on a WS upgrade need an Origin check (02).
+- For kapsle: the node serving the Home UI can **be** the BFF. The Home API session is then a cookie on the node origin and no token is in JS. [I] Cookies on a WS upgrade need an Origin check (02).
 
 ## 2. Biometry-bound keys
 
@@ -53,7 +53,7 @@ Framework choice is M5.2. Here only auth capabilities matter.
 | `.userPresence` | biometry **or device passcode** (= `biometryAny or devicePasscode`) | still valid; biometry need not be enrolled [V S9] |
 | `.devicePasscode` | device passcode | n/a [V S7] |
 
-- The device passcode is the **phone's** secret, not an evok-node PIN. How it maps to auth levels: (03). [I]
+- The device passcode is the **phone's** secret, not a kapsle PIN. How it maps to auth levels: (03). [I]
 
 ### 2.2. Android (Keystore)
 

@@ -184,7 +184,7 @@ people who have run this for a decade. Build them in from day one.
     connection-state promise.
 34. **Reject nonsensical config at load.** `scan_frequency: 0` is an error or an explicit
     `mode: onDemand`, never a 10 kHz loop.
-35. **Ship `evok-node doctor` / `GET /diagnostics`**: config schema, port availability,
+35. **Ship `kapsle doctor` / `GET /diagnostics`**: config schema, port availability,
     required `/dev` and `/run/unipi-plc` nodes, kernel modules and overlays, board firmware
     vs a known-good floor, owserver reachability, exclusive bus ownership — pass/fail per
     check. Unipi's maintainers re-typed this checklist into forum posts for years; it belongs

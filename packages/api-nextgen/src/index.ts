@@ -5,4 +5,4 @@
  * resolvable entrypoint before any implementation lands. Delete it with the
  * first real export.
  */
-export const packageName: string = '@evok-node/api-nextgen';
+export const packageName: string = '@kapsle/api-nextgen';

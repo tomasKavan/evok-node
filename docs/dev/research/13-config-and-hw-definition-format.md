@@ -21,18 +21,18 @@ Two roots, **disjoint** — not layered, not merged, no precedence rules, no per
 
 ```
 ours    <pkg>/definitions/<transport>/<vendor>/<device>.yaml                  ours, overwritten on upgrade
-custom  /etc/evok-node/hw_definitions/custom/<transport>/<vendor>/<device>.yaml   theirs, never touched
+custom  /etc/kapsle/hw_definitions/custom/<transport>/<vendor>/<device>.yaml   theirs, never touched
 ```
 
 A definition is named by its **id**, and every reference to a device — in config or in generated
 inventory — names that id. Shape follows research/12's config sketch:
 
 ```yaml
-# /etc/evok-node/config.yaml
+# /etc/kapsle/config.yaml
 drivers:
   PLC:
     type: onboard
-    autogen: true                                        # main loads /etc/evok-node/autogen.yaml,
+    autogen: true                                        # main loads /etc/kapsle/autogen.yaml,
                                                          # which supplies transport and devices both
 
   PLC2:                                                  # the same driver, configured by hand
@@ -51,7 +51,7 @@ drivers:
       WM:   { unit: 7, definition: custom/modbus/acme/wm-3f }
 ```
 
-`/etc/evok-node/autogen.yaml` is written by our own `run.d` plugin script (§7) and names the same
+`/etc/kapsle/autogen.yaml` is written by our own `run.d` plugin script (§7) and names the same
 definition ids in the same shape, so `main` loads one or the other and the driver sees no difference.
 
 Two rules fall out, both **config-parse checks needing no handshake** — the same class as the three
@@ -82,7 +82,7 @@ An id is exactly the relative path under its root, in both roots:
 
 ```
 modbus/unipi/xs11          →  <pkg>/definitions/modbus/unipi/xs11.yaml
-custom/modbus/acme/wm-3f   →  /etc/evok-node/hw_definitions/custom/modbus/acme/wm-3f.yaml
+custom/modbus/acme/wm-3f   →  /etc/kapsle/hw_definitions/custom/modbus/acme/wm-3f.yaml
 ```
 
 Nothing we ship may be named `custom/…`, which is what makes the two namespaces provably disjoint
@@ -335,7 +335,7 @@ Four things the format does that EVOK's cannot:
    transcribes rather than interprets. Note `encoding` describes the **channel's value**, not the
    register's storage class: the register holding twelve DIs is `MixedBits`, but each channel is a `bool`.
 
-**No `access` field.** Writability follows from `kind`, which is a closed enum in `@evok-node/messaging`
+**No `access` field.** Writability follows from `kind`, which is a closed enum in `@kapsle/messaging`
 (ADR-0003) — `DI` and `AI` are read-only, `RO`/`DO`/`LED`/`AO` are writable — so a definition cannot
 contradict it or drift from it. The interesting case confirms the rule rather than breaking it: the DI's
 coil mirror is read-only in the map even though coils are normally writable, and no write can ever reach
@@ -457,7 +457,7 @@ An option is `code`, `unit`, `range`, and optionally `channels`. Notes on each:
 - **`options` is mandatory and non-empty whenever `mode` is present.** There is no placeholder value and
   no third state: either we know the enum and the feature offers mode switching, or `mode` is absent and
   it does not. A model whose enum we have not sourced is a definition we cannot write yet.
-- **`unit` from a closed set** — `V`, `mA`, `ohm`, `none` — living in `@evok-node/messaging` beside the
+- **`unit` from a closed set** — `V`, `mA`, `ohm`, `none` — living in `@kapsle/messaging` beside the
   other closed enums (ADR-0003). `none` is the off/disabled code, which keeps every option the same
   shape rather than special-casing code 0.
 - **`range` is a numeric pair, not a string.** `[0, 10]` rather than `"0..10V"`, because the driver can
@@ -554,7 +554,7 @@ Consequences to accept up front:
 1. **Volatile configuration.** Unipi 1.1's Description sheet says configuration is not persisted and
    must be re-applied on every power-on (research/06 §2.8). Does the definition declare
    `reapplyOnBoot: true` per feature, or is that driver policy?
-Settled: `/etc/evok-node/autogen.yaml` lives in the config root alongside `config.yaml`, as EVOK's
+Settled: `/etc/kapsle/autogen.yaml` lives in the config root alongside `config.yaml`, as EVOK's
 did. It is written by our `run.d` script and never by the daemon, so G-5's "never the daemon" clause
 holds. G-5's platform-facts row is what needs correcting, and it needs more than wording — see §8.
 

@@ -33,12 +33,12 @@ const PACKAGES = Object.keys(WORKSPACE_DEPS);
 
 /**
  * Matches the source tree of the named packages *and* their node_modules aliases.
- * A workspace import resolves through the `@evok-node/*` symlink, and whether the
+ * A workspace import resolves through the `@kapsle/*` symlink, and whether the
  * resolver reports the link or its target depends on options we would rather not
  * depend on, so both spellings are matched.
  */
 function workspacePath(names) {
-  return `(^|/)(packages|node_modules/@evok-node)/(${names.join('|')})(/|$)`;
+  return `(^|/)(packages|node_modules/@kapsle)/(${names.join('|')})(/|$)`;
 }
 
 /**
@@ -53,19 +53,19 @@ function assertManifestsMatchTable() {
 
   for (const pkg of PACKAGES) {
     const declared = Object.keys(require(`./packages/${pkg}/package.json`).dependencies ?? {})
-      .filter((name) => name.startsWith('@evok-node/'))
-      .map((name) => name.slice('@evok-node/'.length));
+      .filter((name) => name.startsWith('@kapsle/'))
+      .map((name) => name.slice('@kapsle/'.length));
 
     const permitted = new Set([...WORKSPACE_DEPS[pkg], ...(UNDECIDED_DEPS[pkg] ?? [])]);
 
     for (const dep of declared) {
       if (!permitted.has(dep)) {
-        problems.push(`packages/${pkg}/package.json declares @evok-node/${dep}, which the DAG forbids`);
+        problems.push(`packages/${pkg}/package.json declares @kapsle/${dep}, which the DAG forbids`);
       }
     }
     for (const dep of WORKSPACE_DEPS[pkg]) {
       if (!declared.includes(dep)) {
-        problems.push(`packages/${pkg}/package.json does not declare @evok-node/${dep}, which the DAG allows`);
+        problems.push(`packages/${pkg}/package.json does not declare @kapsle/${dep}, which the DAG allows`);
       }
     }
   }

@@ -121,7 +121,7 @@ via `location.port`). This works today only because Unipi OS ships nginx in fron
 **Without an equivalent, `ha-unipi-neuron` — our stated HA baseline — cannot be configured at
 all**, because `evok-ws-client` offers no port option.
 
-**Decision: keep nginx.** We do not ship a built-in `:80` listener. evok-node listens on
+**Decision: keep nginx.** We do not ship a built-in `:80` listener. kapsle listens on
 `:8080` exactly as EVOK does, and nginx in front is a documented deployment requirement.
 
 Consequences to handle:

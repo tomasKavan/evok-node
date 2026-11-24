@@ -53,7 +53,7 @@ The current revision is **final**. It was published on **31 July 2025** and repl
 | `acr_values` | authorization request | the classes wanted, in order of preference. `acr` is requested as a *voluntary* claim [V S6 §3.1.2.1] |
 | `max_age` | authorization request | if more time than this has passed since `auth_time`, the OP MUST actively reauthenticate. `max_age=0` ≡ `prompt=login` [V S6] |
 | `prompt=login` | authorization request | reauthenticate even if a session exists; if the OP cannot, it returns `login_required` [V S6] |
-| `claims` with essential `acr` | authorization request | `{"id_token":{"acr":{"essential":true,"values":["evok:l2"]}}}`: the OP MUST return one of these values; if it cannot, it MUST treat the result as a failed authentication [V S7] |
+| `claims` with essential `acr` | authorization request | `{"id_token":{"acr":{"essential":true,"values":["kapsle:l2"]}}}`: the OP MUST return one of these values; if it cannot, it MUST treat the result as a failed authentication [V S7] |
 
 The RP SHOULD check that the returned `acr` is appropriate [V S6 §3.1.3.7]. RFC 8176 calls relying on `amr` "more brittle" than relying on `acr`, because which methods count as good changes over time [V S8 §3].
 
@@ -95,12 +95,12 @@ Flow [V S11 §2, §4–6]:
 
 If the AS cannot meet the `acr`, it SHOULD fail with `unmet_authentication_requirements`. This stops the client from looping [V S11 §5]. The RFC says that "step up" and "levels" are metaphors: there is no interoperable hierarchy of methods [V S11]. RFC 9470 is HTTP-only. Nothing equivalent exists for WebSocket messages [I].
 
-### 2.4. Example access-token payload (evok values invented)
+### 2.4. Example access-token payload (kapsle values invented)
 
 ```json
 { "iss": "https://idp.site.lan/application/o/evok/", "sub": "u-7f3a", "aud": "node-basement",
   "iat": 1793372400, "exp": 1793373300, "auth_time": 1793372390,
-  "acr": "evok:l2", "amr": ["pop", "mfa"] }
+  "acr": "kapsle:l2", "amr": ["pop", "mfa"] }
 ```
 
 ### 2.5. authentik today
@@ -138,7 +138,7 @@ WebAuthn Level 3 has been a **W3C Recommendation since 25 Aug 2026** [V S13, S14
 
 Apple Pay is per-payment Face ID / Touch ID / passcode [GAP: Apple Platform Security guide not fetched]. AWS and Google console re-auth: [GAP] (search budget exhausted).
 
-### 4.2. For evok-node targets [I]
+### 4.2. For kapsle targets [I]
 
 | | Session elevation (level + window) | Per-operation proof bound to `driverId:tail` + method + nonce |
 |---|---|---|
@@ -170,7 +170,7 @@ Pattern: every product with a remote unlock asks for a **per-operation** PIN or 
 
 | | (a) PIN **identifies** a person | (b) PIN **confirms** a known user |
 |---|---|---|
-| evok-node cases | shared keypad, Matter remote PIN, 2N codes (from the IdP), PIN-only local login when the IdP is down | second factor or `proof` inside a session (Home UI unlock) |
+| kapsle cases | shared keypad, Matter remote PIN, 2N codes (from the IdP), PIN-only local login when the IdP is down | second factor or `proof` inside a session (Home UI unlock) |
 | Uniqueness | must be unique among **everyone who can reach the device**. Rejecting a chosen PIN as "taken" tells the user someone else's credential → prefer system-assigned PINs | none needed |
 | Guessing | each try matches *any* user: p = N / 10^d. 20 users, 4 digits: 1/500 per try; 6 digits: 1/50,000 | p = 1 / 10^d for one account |
 | Lockout | the account is unknown before a match, so throttle **per source/device**. A global lockout locks everyone out (DoS) | per account: e.g. PSD2 ≤ 5 [V S20], activation secret ≤ 10 [V S3], NIST password ≤ 100 [V S3] |

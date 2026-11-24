@@ -98,7 +98,7 @@ IEC 61812-1 (time relays) defines timing functions [V S16b]. Its function design
 | Eltako | `AV+`, `ARV+` store elapsed time after an interruption; other functions: not stated [V S10] |
 | KNX actuator (Elsner) | relay position after bus failure / after reset: no change / opened / closed. A running staircase timer: not stated [V S11] |
 | Shelly | `initial_state` off / on / `restore_last` / `match_input`; timers across a reboot: not stated [V S14] |
-| evok-node `Timer` today | "after a restart every timer is stopped" (12a §2.2) [V] |
+| kapsle `Timer` today | "after a restart every timer is stopped" (12a §2.2) [V] |
 
 The `Clock` (04 §4.1) is monotonic and per process, "never comparable across that boundary". A restart-surviving deadline therefore needs a wall-clock anchor, as HA's `finishes_at` and Shelly's `timer_started_at` are [I]. 04 §4.1 and basics/02 §4.2 keep wall-clock time out of durations — a tension for 12c [I].
 
@@ -109,7 +109,7 @@ The `Clock` (04 §4.1) is monotonic and per process, "never comparable across th
 - EVOK bug: `pending_id` starts at `0` but is cleared to `None`, and `pending` reports `pending_id != 0`. So after the first timed set finishes or is cancelled, `pending` stays `true` [V-src S15].
 - The master watchdog (research/02 §4.8) is a timeout on communication, not a timer function [V].
 
-## 6. evok-node today
+## 6. kapsle today
 
 | Where | What |
 |---|---|

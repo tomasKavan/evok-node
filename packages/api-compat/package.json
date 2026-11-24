@@ -1,5 +1,5 @@
 {
-  "name": "@evok-node/api-compat",
+  "name": "@kapsle/api-compat",
   "version": "0.0.0",
   "description": "The EVOK 3.x surface: REST, JSON, bulk, WebSocket, webhook, JSON-RPC. Owns the projection table.",
   "type": "module",
@@ -20,7 +20,7 @@
     "clean": "tsc -b --clean"
   },
   "dependencies": {
-    "@evok-node/messaging": "0.0.0"
+    "@kapsle/messaging": "0.0.0"
   },
   "publishConfig": {
     "access": "public"

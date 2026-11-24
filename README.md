@@ -1,17 +1,22 @@
-# evok-node
+# kapsle
 
-A Node.js/TypeScript PLC runtime for Unipi hardware — drivers, own APIs, home automation, rules and UIs. It replaces Unipi Technology's **EVOK** daemon, which has a long tail of open, known defects. It does not keep EVOK's API.
+A Node.js/TypeScript platform that encapsulates functionality — hardware drivers, devices, services, rules — behind one common interface offered to clients.
+
+Drivers expose endpoints; clients (WS API, Home API, UIs, Matter bridge) reach all of them the same way, with auth and ACL at the edge. Everything beyond the core comes as a plugin.
 
 Main features:
-- Flexible and extendible by plugins.
-- Strong on driver and API separation.
-- Rich web UI with inspector and device status and logs.
-- Home automation devices and rules, also exposed as a Matter bridge.
-- Home control UI and a mobile/desktop shell app.
+- Small core: messaging, config, plugin host, WS API, basic drivers (Modbus, KV, system…).
+- Plugins for everything else — installed from npm or uploaded, managed in the Inspector UI.
+- Strong separation of drivers and APIs.
+- Home automation devices and rules, exposed as a Matter bridge.
+- Inspector UI, Home control UI and a mobile/desktop shell app.
+- Multi-node sites: nodes link to each other, with a local or site-wide identity provider.
+
+Hardware support comes as plugins — e.g. `@kapsle/plugin-unipi` for Unipi PLCs, a replacement for Unipi Technology's EVOK daemon.
 
 ## Unipi devices user and administrators
 
-`evok-node` is distributed as Debian package. To install add this repository to your Unipi system.
+`kapsle` is distributed as Debian package. To install add this repository to your Unipi system.
 
 ```
 TBD - url where the repository with debian package will be

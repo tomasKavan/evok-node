@@ -54,7 +54,7 @@ are empty lists, so `get_current_user()` returns `True` for everybody. The only 
 is the default `127.0.0.1` bind plus nginx in front. Open issue **#149** asks for auth.
 `[V-src]`
 
-For evok-node: keep the unauthenticated local default (compat) but design the auth hook
+For kapsle: keep the unauthenticated local default (compat) but design the auth hook
 in from the start — retrofitting is what upstream is stuck on.
 
 ---
@@ -128,7 +128,7 @@ GET /rest/all                        → [ ... heterogeneous ... ]
 
 `prop` is a raw `getattr` on the Python object, rejected only if it starts with `_`. So
 `GET /rest/di/1_01/debounce` works, and so does `GET /rest/di/1_01/bitmask` — internal
-attributes are exposed. **evok-node should expose an explicit whitelist** derived from the
+attributes are exposed. **kapsle should expose an explicit whitelist** derived from the
 `full()` shape, and should treat undocumented attribute reads as `404`. `[V-src]`
 
 `/rest/all` enumerates, in this order: `di, ro, do, ai, ao, sensor, led, watchdog,
@@ -159,8 +159,8 @@ properties, out-of-range values and Modbus failures:
 
 `[V-src]` The exception *class name* is part of the observable contract
 (`DeviceNotFound`, `ValidationError`, `ModbusException`, `ValueError`, `KeyError`…).
-evok-node should emit a compatible envelope while adding a stable machine-readable code
-field alongside it (see `05-evok-node-design-notes.md`).
+kapsle should emit a compatible envelope while adding a stable machine-readable code
+field alongside it (see `05-kapsle-design-notes.md`).
 
 ### POST bodies per type (JSON-schema, `additionalProperties: false`)
 
@@ -421,7 +421,7 @@ sensor_get(circuit) | sensor_get_value(circuit) | sensor_set(circuit, interval)
 Caveats found by reading it: `[V-src]`
 
 - **The published docs are wrong.** `docs/apis/rpc.md` demonstrates `di_get` and `do_set`;
-  neither exists. The real names are `input_get` / `output_set`. evok-node should
+  neither exists. The real names are `input_get` / `output_set`. kapsle should
   implement **both** spellings.
 - `ai_set_bits`, `ai_set_gain`, `ai_set` pass kwargs (`bits`, `gain`, `interval`) that
   `AnalogInput.set()` does not accept → `TypeError`. Dead v1-era surface.
@@ -462,10 +462,10 @@ The cheapest way to be certain: build a **golden-transcript** test suite.
 1. Capture, from a real Unipi controller running EVOK 3.0.6, the full response to
    `GET /rest/all`, `GET /rest/<dev>/<circuit>` for every type, a WS session transcript,
    and a webhook capture. Store as fixtures.
-2. Replay against evok-node with a simulated Modbus slave seeded to the same register
+2. Replay against kapsle with a simulated Modbus slave seeded to the same register
    values; assert JSON deep-equality modulo a documented allowlist of intentional
    differences (§9).
 3. Keep `docs/apis/Evok_API_OAS.yaml` from upstream as a schema oracle — validate our
    responses against it in CI, and record every place we deliberately diverge.
 4. Run the upstream `examples/test_{rest,json,bulk,rpc,websocket,webhook}.py` scripts
-   against evok-node unmodified. They are small and make excellent acceptance tests.
+   against kapsle unmodified. They are small and make excellent acceptance tests.

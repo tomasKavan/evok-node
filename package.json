@@ -1,5 +1,5 @@
 {
-  "name": "evok-node",
+  "name": "kapsle",
   "version": "0.0.0",
   "private": true,
   "description": "A Node.js/TypeScript drop-in replacement for Unipi Technology's EVOK 3.x API",

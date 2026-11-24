@@ -5,4 +5,4 @@
  * resolvable entrypoint before any implementation lands. Delete it with the
  * first real export.
  */
-export const packageName: string = '@evok-node/rig';
+export const packageName: string = '@kapsle/rig';

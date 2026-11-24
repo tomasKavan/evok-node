@@ -72,7 +72,7 @@ Extensions support up to 115200 (`02-hardware-model.md` §5):
 Caveats before recommending it: the KB advises choosing the *lowest adequate* baud for the EMC
 environment, extensions provide no RS-485 bias resistors (the master end must), and the
 DIP-vs-software configuration precedence changes parity as a side effect. So this is a
-site-tunable, not a default — but evok-node should make it easy and should *report* the
+site-tunable, not a default — but kapsle should make it easy and should *report* the
 computed per-bus cycle time so the tradeoff is visible.
 
 ## 4. The bus is the budget, not the device

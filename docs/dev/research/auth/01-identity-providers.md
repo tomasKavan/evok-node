@@ -1,6 +1,6 @@
 # 01 — Identity providers
 
-**Research, not design.** External IdPs as the site IdP (authentik focus; Keycloak, Kanidm, Zitadel, Authelia, Pocket ID, Rauthy briefly) and Node libraries for evok-node's own local IdP and replica. Feeds 13a (M3.6).
+**Research, not design.** External IdPs as the site IdP (authentik focus; Keycloak, Kanidm, Zitadel, Authelia, Pocket ID, Rauthy briefly) and Node libraries for kapsle's own local IdP and replica. Feeds 13a (M3.6).
 
 Versions checked 2026-10-30: authentik 2026.8.5, Keycloak 26.8.1, Kanidm 1.11.2, Zitadel 4.20.0, Authelia 4.39.28, Pocket ID 2.19.1, Rauthy 0.37.2, oidc-provider 9.13.3, Node 24.22.x. Paths in tags such as `providers/scim` are files under the docs or source tree named in the source entry.
 
@@ -16,7 +16,7 @@ Versions checked 2026-10-30: authentik 2026.8.5, Keycloak 26.8.1, Kanidm 1.11.2,
 ### 1.2. Footprint and ARM64
 - Documented minimum: **2 CPU cores, 2 GB RAM** [V S5].
 - Server and outpost images are built for amd64 and arm64 [V-src S7 .github/workflows/_reusable-container-build.yml, ci-outpost.yml].
-- authentik does not fit on a 1 GB Patron next to evok-node: the documented minimum is 2 GB before PostgreSQL and evok-node are counted. It belongs on a NAS or server, so when the NAS is down authentik is down too [I]. See (05).
+- authentik does not fit on a 1 GB Patron next to kapsle: the documented minimum is 2 GB before PostgreSQL and kapsle are counted. It belongs on a NAS or server, so when the NAS is down authentik is down too [I]. See (05).
 
 ### 1.3. License
 - MIT, except `authentik/enterprise/` (own license) and `website/` (CC BY-SA 4.0) [V-src S7 LICENSE].
@@ -58,15 +58,15 @@ Example: parametric roles from entitlements. The entitlement is named `tenant:fl
 ents = request.user.app_entitlements(provider.application)
 return {
     "roles": [e.name for e in ents],                             # ["tenant:flat-3", "admin"]
-    "evok_roles": [e.attributes for e in ents if e.attributes],  # [{"role":"tenant","flat":3}]
+    "kapsle_roles": [e.attributes for e in ents if e.attributes],  # [{"role":"tenant","flat":3}]
 }
 ```
-The same from group attributes, where group "Flat 3 tenants" has `{"evok_roles":[{"role":"tenant","flat":3}]}` [I]:
+The same from group attributes, where group "Flat 3 tenants" has `{"kapsle_roles":[{"role":"tenant","flat":3}]}` [I]:
 ```python
 roles = []
 for g in request.user.all_groups():
-    roles += g.attributes.get("evok_roles", [])
-return {"evok_roles": roles}
+    roles += g.attributes.get("kapsle_roles", [])
+return {"kapsle_roles": roles}
 ```
 
 ## 4. authentik: flows, stages and auth levels
@@ -88,7 +88,7 @@ return {"evok_roles": roles}
   - `max_age` is honoured: re-authentication if the login event is older.
   - `prompt=login|none|consent` is honoured.
 - **Step-up:** an Authenticator Validation stage could sit in the provider's authorization flow (it runs per app after login) and be bound by a policy on `request.context["oauth_scopes"]` [I]. `amr` would still show only the login event, so the RP could not see the step-up [I]. [GAP] Settle it with a test token from such a flow.
-- For evok-node, authentik's auth-level signal is coarse (`pwd`, `mfa`, passkey). A door-unlock proof has to be collected by the api (03).
+- For kapsle, authentik's auth-level signal is coarse (`pwd`, `mfa`, passkey). A door-unlock proof has to be collected by the api (03).
 
 ## 5. authentik: protocol endpoints
 
@@ -114,7 +114,7 @@ return {"evok_roles": roles}
   - **When:** on every create, update or delete of a user or group and on membership changes, plus a full sync every hour. Work runs in the worker in batches of 100.
   - **Retries:** HTTP 429/503 and failed requests raise a transient error. The task is retried up to `AUTHENTIK_WORKER__TASK_MAX_RETRIES` times (default 5) [V-src S7 lib/sync/outgoing/tasks.py, providers/scim/clients/base.py, clients/exceptions.py; V S6 install-config/configuration].
   - **Scope:** users bound to the backchannel application (no binding means all users), plus optional group filters.
-  - **Arbitrary endpoint:** any reachable base URL with a static bearer token works. authentik reads `ServiceProviderConfig` (cached 1 h) to learn about filter, bulk and patch support. An evok-node SCIM endpoint is therefore possible, as long as authentik can reach the node [I].
+  - **Arbitrary endpoint:** any reachable base URL with a static bearer token works. authentik reads `ServiceProviderConfig` (cached 1 h) to learn about filter, bulk and patch support. A kapsle SCIM endpoint is therefore possible, as long as authentik can reach the node [I].
   - **Not pushed:** password hashes and authenticators. They are not in the mapping output [I].
 - **Events:** event actions include `login`, `login_failed`, `logout`, `user_write`, `password_set` and `model_created/updated/deleted` [V S6 sys-mgmt/events/event-actions].
   - Notification rules (filtered by policy) feed transports: local, email, generic **webhook** (POST JSON, with body and header mappings and a custom CA), Slack/Discord [V S6 sys-mgmt/events/transports].
@@ -208,15 +208,15 @@ return {"evok_roles": roles}
 | Several nodes refresh one session | Rotation by default; reusing a revoked refresh token gives `invalid_grant` plus a suspicious event (§5) | Conflict when two nodes refresh the same session [I]. Fixes: one refresher per client session, or `refresh_token_threshold` > 0, which keeps the token until it is near expiry [V-src S7]. |
 | Offline login by PIN | No PIN concept; password hashes are not readable by API or SCIM (§4, §6) | The replica must hold its own PIN verifier [I]. If 2N needs the PIN over LDAP, authentik has to hold it in a readable form, probably in clear [I][GAP]. |
 | Offline login by biometry/passkey | RP ID = authentik's host; no override; `credential_id` and public key not exposed (§6). WebAuthn: the RP ID must equal the origin's effective domain or be a registrable suffix of it, and https is required (except localhost) [V S21 §Terminology]. Related Origin Requests (`/.well-known/webauthn`) let other origins use one RP ID [V S21 §sctn-related-origins]. | **Does not map.** A replica on another host cannot use authentik passkeys, and it could not verify them anyway without the public key [I]. Node passkeys must be enrolled with the replica. See (06). |
-| Several auth levels | Fixed `acr`, coarse `amr`, `acr_values` ignored (§4) | Auth levels are computed by evok-node [I]. See (03). |
+| Several auth levels | Fixed `acr`, coarse `amr`, `acr_values` ignored (§4) | Auth levels are computed by kapsle [I]. See (03). |
 | Revocation push to replica | Back-channel logout (node must be reachable over HTTPS), logout webhooks, SSF (Ent.), polling `last_updated__gt` (§5, §6) | Usable as hints. The replica still needs short token lifetimes [I]. See (05). |
 | IdP down | Outposts keep only cached modes (§7) | The replica carries the node [I]. |
 
 ## 12. Proposals for 13a (not binding)
 
-- **P1 — authentik as authority only.** Use it for users, groups and role assignment, and as the online OIDC login. Keep auth levels, PIN and node passkeys in the evok-node replica.
-- **P2 — Roles as group attributes first.** A group (for example "Flat 3 tenants") carries `evok_roles: [{role, flat}]`. SCIM can push groups, and a scope mapping can emit the same claim. Application entitlements are cleaner per app, but they need API polling for the replica.
-- **P3 — Replica sync = an evok-node SCIM endpoint plus polling.** SCIM push on change and hourly full sync. REST polling for what SCIM lacks (entitlements, sessions). A logout/`model_*` webhook only as a "sync now" hint. Keep the replica protocol IdP-neutral, because Keycloak and Kanidm have no SCIM out.
+- **P1 — authentik as authority only.** Use it for users, groups and role assignment, and as the online OIDC login. Keep auth levels, PIN and node passkeys in the kapsle replica.
+- **P2 — Roles as group attributes first.** A group (for example "Flat 3 tenants") carries `kapsle_roles: [{role, flat}]`. SCIM can push groups, and a scope mapping can emit the same claim. Application entitlements are cleaner per app, but they need API polling for the replica.
+- **P3 — Replica sync = a kapsle SCIM endpoint plus polling.** SCIM push on change and hourly full sync. REST polling for what SCIM lacks (entitlements, sessions). A logout/`model_*` webhook only as a "sync now" hint. Keep the replica protocol IdP-neutral, because Keycloak and Kanidm have no SCIM out.
 - **P4 — One refresher per authentik session.** Either the shell app or a single node refreshes with authentik; or set `refresh_token_threshold`. Nodes then issue their own short node tokens. See (02).
 - **P5 — Enrol local credentials online.** PIN hashes and node passkeys are enrolled while authentik has confirmed the user, are stored by the replica, and are never pushed back to authentik.
 - **P6 — Local IdP library choice depends on clients.** Use `oidc-provider` only if third-party OIDC clients must log in to a node. Otherwise build a small token service on `jose` + `@simplewebauthn/server` + `crypto.argon2` (scrypt as fallback). Decide after (02) and (06).

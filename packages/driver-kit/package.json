@@ -1,5 +1,5 @@
 {
-  "name": "@evok-node/driver-kit",
+  "name": "@kapsle/driver-kit",
   "version": "0.0.0",
   "description": "Shared driver runtime: scan scheduling, reading state, handshake, deadlines, introspection assembly.",
   "type": "module",
@@ -20,7 +20,7 @@
     "clean": "tsc -b --clean"
   },
   "dependencies": {
-    "@evok-node/messaging": "0.0.0"
+    "@kapsle/messaging": "0.0.0"
   },
   "publishConfig": {
     "access": "public"

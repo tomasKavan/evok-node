@@ -1,4 +1,4 @@
-# `@evok-node/ui`
+# `@kapsle/ui`
 
 Compact status display with filter, sort and search; control and configuration; status rendered on PLC
 layout drawings. A replacement for `evok-web-jq`, not a port of it.

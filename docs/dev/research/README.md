@@ -1,8 +1,8 @@
-# evok-node research notes
+# kapsle research notes
 
 **This is research - not design document**. Holds gathered facts and deliberation results. Use it for context, but don't consider it as binding design guideline.
 
-Background research for **evok-node** — a Node.js / TypeScript drop-in replacement for
+Background research for **kapsle** — a Node.js / TypeScript drop-in replacement for
 Unipi Technology's EVOK API.
 
 Compiled 2026-07-27. Reference implementation studied: `UniPiTechnology/evok`
@@ -32,7 +32,7 @@ at commit `47c95c8` (branch `main`, latest tag **3.0.6**, 2025-09-02).
 | [`02-hardware-model.md`](02-hardware-model.md) | Unipi product families, sections/coprocessors, identification registers, Modbus register-map conventions, per-family behavioural forks. |
 | [`03-config-and-hw-definitions.md`](03-config-and-hw-definitions.md) | `config.yaml`, `autogen.yaml`, aliases file, `hw_definitions` schema — with the parsing rules and traps. |
 | [`04-known-bugs-and-lessons.md`](04-known-bugs-and-lessons.md) | Condensed bug archaeology and the design rules it implies, ordered by severity. |
-| [`05-evok-node-design-notes.md`](05-evok-node-design-notes.md) | Open design questions and decisions to make before implementation, incl. the low-level transport idea. |
+| [`05-kapsle-design-notes.md`](05-kapsle-design-notes.md) | Open design questions and decisions to make before implementation, incl. the low-level transport idea. |
 | [`06-register-maps.md`](06-register-maps.md) | The official Modbus map corpus in `docs/modbus-reg-map/`: inventory, CSV schema, the gaps it closed, and a correction to `02`. |
 | [`07-client-compatibility.md`](07-client-compatibility.md) | What must be byte-compatible for the Node-RED / Home Assistant baseline: 22 hard requirements from reading every known EVOK client, plus the surface nobody uses. |
 | [`08-latency-and-scan-budget.md`](08-latency-and-scan-budget.md) | Why a full xS11 read takes 16 ms, what the levers are, and the scan-scheduling constraints that follow. |

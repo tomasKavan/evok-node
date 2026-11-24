@@ -1,5 +1,5 @@
 {
-  "name": "@evok-node/driver-onboard",
+  "name": "@kapsle/driver-onboard",
   "version": "0.0.0",
   "description": "Driver for the controller's own I/O sections, over Modbus TCP to unipitcp.",
   "type": "module",
@@ -20,10 +20,10 @@
     "clean": "tsc -b --clean"
   },
   "dependencies": {
-    "@evok-node/messaging": "0.0.0",
-    "@evok-node/driver-kit": "0.0.0",
-    "@evok-node/modbus": "0.0.0",
-    "@evok-node/hw-definitions": "0.0.0"
+    "@kapsle/messaging": "0.0.0",
+    "@kapsle/driver-kit": "0.0.0",
+    "@kapsle/modbus": "0.0.0",
+    "@kapsle/hw-definitions": "0.0.0"
   },
   "publishConfig": {
     "access": "public"

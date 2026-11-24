@@ -1,4 +1,4 @@
-# `@evok-node/client`
+# `@kapsle/client`
 
 Reconnect, backoff and automatic resubscribe, so integrators stop reinventing it five different ways.
 

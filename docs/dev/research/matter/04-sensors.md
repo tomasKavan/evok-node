@@ -1,6 +1,6 @@
 # 04 — Sensors
 
-**Research, not design.** Matter Contact, Light, Occupancy, Temperature, Humidity and Air Quality Sensor: what the spec requires, value encodings, how real devices and controllers behave, Apple Home support, and which Unipi hardware and evok-node drivers can feed each type (§8a). Feeds 12c's sensor sections.
+**Research, not design.** Matter Contact, Light, Occupancy, Temperature, Humidity and Air Quality Sensor: what the spec requires, value encodings, how real devices and controllers behave, Apple Home support, and which Unipi hardware and kapsle drivers can feed each type (§8a). Feeds 12c's sensor sections.
 
 Spec data from the connectedhomeip data model, `data_model/1.5/` (S1, S2); spec prose from matter.js's generated cluster docs, which cite Matter 1.6.1 section numbers (S3). Up to `data_model/1.7/` these six device types change only by dropping Zigbee elements [V-src S1]. Their clusters do change after 1.5 [V-src S2, `1.6/`, `1.7/`]:
 
@@ -184,7 +184,7 @@ So a node-level battery on ep0 with an empty `EndpointList` belongs to every end
 
 ## 8a. What our sources deliver
 
-Unipi hardware and the other evok-node drivers that can feed these six types. Driver facts are from the design docs; hardware facts from Unipi documents.
+Unipi hardware and the other kapsle drivers that can feed these six types. Driver facts are from the design docs; hardware facts from Unipi documents.
 
 ### 8a.1. Source kinds
 

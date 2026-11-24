@@ -1,5 +1,5 @@
 {
-  "name": "@evok-node/main",
+  "name": "@kapsle/main",
   "version": "0.0.0",
   "description": "The daemon: config parsing, resource-exclusivity validation, spawning, supervision and reload.",
   "type": "module",
@@ -20,8 +20,8 @@
     "clean": "tsc -b --clean"
   },
   "dependencies": {
-    "@evok-node/messaging": "0.0.0",
-    "@evok-node/hw-definitions": "0.0.0"
+    "@kapsle/messaging": "0.0.0",
+    "@kapsle/hw-definitions": "0.0.0"
   },
   "publishConfig": {
     "access": "public"

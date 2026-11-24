@@ -1,6 +1,6 @@
 # HW Test rig service
 
-HW test rig is a set of hardware for physical testing of `evok-node` library. The service is a main controlling tool to setup and operate physical testing devices.
+HW test rig is a set of hardware for physical testing of `kapsle` library. The service is a main controlling tool to setup and operate physical testing devices.
 
 ## Architecture
 
@@ -21,14 +21,14 @@ HW test rig is a set of hardware for physical testing of `evok-node` library. Th
 ### Functions
 
 - on/off PLCs
-- install `evok` or `evok-node` on PLC (from repository or hot build)
-- running `evok` or `evok-node` based on given configuration
+- install `evok` or `kapsle` on PLC (from repository or hot build)
+- running `evok` or `kapsle` based on given configuration
 - error simulation
 - access to state of controlled endpoints (or sniffing)
 
 ### Controlling main PLC I/O and buses
 
-- Don't use evok or evok-node - use sysfs instead
+- Don't use evok or kapsle - use sysfs instead
 
 ### Messaging
 

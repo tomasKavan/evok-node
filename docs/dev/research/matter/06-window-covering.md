@@ -197,7 +197,7 @@ C-80 VENTAL on rails is one class higher than C-80 up to 4800 mm; on cables the 
 - On a local anemometer, a gust is computed: the highest 3 s average in the window. A DI counter read every 100–250 ms gives this (research/02 §4.9; `fast` poll: 100 ms onboard, 08 §8; 200 ms on an extension, 09 §4) [I].
 - A stale source is a separate timeout: how long without a fresh value before the device takes its "source lost" reaction. The forecast updates hourly at best (§4.4); MDT's monitoring window is 0–120 min (§4.3) [V S8, S15].
 
-## 5. Unipi hardware and evok-node today
+## 5. Unipi hardware and kapsle today
 
 - No cover function in Unipi firmware. DirectSwitch couples a DI only to the same-numbered DO/RO (research/02 §4.7) [V].
 - Master watchdog: on timeout the section reboots into its saved default configuration (research/02 §4.8) [V]; a relay then takes its saved default, normally off [I]. With the watchdog off, a daemon that dies mid-move leaves a relay on until the motor's limit switch [I].

@@ -217,7 +217,7 @@ Enum lists in S2 are not always in value order (e.g. "ADB_ON ADB_OFF", "RUN_INDI
 
 - **P1 — driver or definition.** Two patterns exist: a third-party Modbus definition with maker-prefixed kinds (07a §10.5, `dyp.ds1603da`) or a dedicated driver (`driver-mimb19n`, M3.3c). AirGENIO has bit fields, ‰ scaling, service registers that need a reset, and its own timer and clock — closer to a driver [I].
 - **P2 — read the fitted hardware at start** (10105, 10119, 10123, 10129, 10130, sensor flags) and expose only what exists.
-- **P3 — one owner of the schedule.** Either the unit's timer (21004) or evok-node rules, not both. If rules: set 21004 = 0 and keep the unit's clock in sync (17000…).
+- **P3 — one owner of the schedule.** Either the unit's timer (21004) or kapsle rules, not both. If rules: set 21004 = 0 and keep the unit's clock in sync (17000…).
 - **P4 — demand control in the PLC** from the rooms' IAQ CO₂, writing 21002 in manual mode (§4.1). The unit's own DCV stays unused.
 - **P5 — slow polling.** Status 15000–15049 in one or two FC 04 reads; SHARE 21001–21016 in one FC 03 read. Rate and gaps to be measured [I].
 

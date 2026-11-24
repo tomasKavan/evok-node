@@ -422,7 +422,7 @@ Boiler: 8 outdoor temperature, 4 boiler temperature, 3 burner output %, 13 press
 - The ISM8i stops sending every 1–3 days in some installs; no updates after hours — fixed by a BM firmware 3.0 or a restart of the ISM [V S52, S54]. Zero-byte packets seen [V S52].
 - Wolf's own ISM8i manual could not be fetched; IDs rest on source code and community CSVs [GAP].
 
-## 8. evok-node today
+## 8. kapsle today
 
 | Where | What |
 |---|---|

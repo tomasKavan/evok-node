@@ -52,7 +52,7 @@ They cross serialisation boundaries, so they must survive one. Never type-check 
 ## 3. Boundaries
 
 ### 3.1. Parse, don't validate
-Every external input — HTTP body, socket frame, config file, byte buffer — goes through a schema at entry and comes out typed. Nothing downstream re-checks, and nothing downstream sees `unknown`. A value a module declares — its config, an endpoint's value, a method's arguments, a form — goes through its `ValueType` ([03a](../evok-node/03a-Values-and-schemas.md)); everything else — an envelope frame, an HTTP body, a parsed byte buffer — through **zod**.
+Every external input — HTTP body, socket frame, config file, byte buffer — goes through a schema at entry and comes out typed. Nothing downstream re-checks, and nothing downstream sees `unknown`. A value a module declares — its config, an endpoint's value, a method's arguments, a form — goes through its `ValueType` ([03a](../kapsle/03a-Values-and-schemas.md)); everything else — an envelope frame, an HTTP body, a parsed byte buffer — through **zod**.
 
 ## 4. Time and effects
 
@@ -97,4 +97,4 @@ Mandatory minimum:
 
 ## 9. User-facing strings
 
-Every string a module ships for a human to read is `LocalizedText` (evok-node/04 §7), with English always present. A string a user typed is stored as typed and never translated.
+Every string a module ships for a human to read is `LocalizedText` (kapsle/04 §7), with English always present. A string a user typed is stored as typed and never translated.

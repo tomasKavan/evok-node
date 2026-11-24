@@ -1,8 +1,8 @@
 # Libraries
 
-Protocol libraries that evok-node drivers use but that are not evok-node packages. Each one lives in its **own repository**, is published on its own, and is usable outside evok-node. Its design is written here, before its repository exists, so that the driver design (`design/evok-node`) and the library design are reviewed together.
+Protocol libraries that kapsle drivers use but that are not kapsle packages. Each one lives in its **own repository**, is published on its own, and is usable outside kapsle. Its design is written here, before its repository exists, so that the driver design (`design/kapsle`) and the library design are reviewed together.
 
-A library holds a device's protocol: bytes, encodings, datapoints, a transport. A driver holds evok-node's side: config, endpoints, kinds, home templates. The rule for each pair: nothing in the library knows evok-node; nothing in the driver repeats the protocol.
+A library holds a device's protocol: bytes, encodings, datapoints, a transport. A driver holds kapsle's side: config, endpoints, kinds, home templates. The rule for each pair: nothing in the library knows kapsle; nothing in the driver repeats the protocol.
 
 | Doc | Library | Repository | Used by |
 |---|---|---|---|

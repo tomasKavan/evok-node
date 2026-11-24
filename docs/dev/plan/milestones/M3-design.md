@@ -6,7 +6,7 @@ Design the core of the system before core implementation ([M4](../roadmap.md)) s
 
 ## Document map
 
-Target numbering in `design/evok-node/`, M5's docs included. Renumbered in M3.14.
+Target numbering in `design/kapsle/`, M5's docs included. Renumbered in M3.14.
 
 | Doc | Content | Today |
 |---|---|---|
@@ -38,7 +38,7 @@ Target numbering in `design/evok-node/`, M5's docs included. Renumbered in M3.14
 ## Tasks
 
 ### M3.1 — Scope: retire compat API, revise goals and non-goals, fix broken paths   `area/scope`
-Drop EVOK API compatibility and the config migration tool. Rewrite goals and non-goals: evok-node is a PLC runtime with its own APIs, home automation, rules and UIs. Fix broken links across `docs/`, READMEs and fixtures.
+Drop EVOK API compatibility and the config migration tool. Rewrite goals and non-goals: kapsle is a PLC runtime with its own APIs, home automation, rules and UIs. Fix broken links across `docs/`, READMEs and fixtures.
 **Done when:** no document claims EVOK compatibility or a migration path; 14 is REMOVED; link check finds only links to not-yet-created packages.
 **Refs:** design README · root README · dev README · 01 §11 · basics/01 §3
 
@@ -83,7 +83,7 @@ The ISM8i protocol as a library of its own, in its own repository `tomasKavan/wo
 **Refs:** research/19 · design/libs README
 
 ### M3.3da — ISM8i driver   `area/heating`
-`driver-ism8i`: evok-node's side of the ISM8i, on `wolf-ism8`'s server — config, raw kinds for boiler, system, direct circuit, mixer circuits and modules 1–3, write mapping, liveness to `reachable`.
+`driver-ism8i`: kapsle's side of the ISM8i, on `wolf-ism8`'s server — config, raw kinds for boiler, system, direct circuit, mixer circuits and modules 1–3, write mapping, liveness to `reachable`.
 **Done when:** 12f designed.
 **Refs:** design/libs 01 · research/19 · 05a
 
@@ -123,7 +123,7 @@ Every plugin kind in the system in one place — drivers, apis, WS extensions, d
 **Refs:** 01 §10 · 02 §4 · 02a · 03 §8 · 03a · 05a · 12 · 12a · 13 §2 · 15
 
 ### M3.8 — WS API   `area/api`
-Renamed from nextgen. Relays internal messaging. `ws-kit` (13 §2): sessions, hello, relay, fan-out, WS extensions (the contract in 15). The Home API is built on it too. Auth and ACL as WS extensions using 13a, reacting to `actor` and `proof` (13 §5). The hello advertises `evokNodeVersion` (12a §4b). Session language (`hello.lang`, `Accept-Language`, `setLang`) and resolving `LocalizedText` at the edge (03a §4, 04 §7) as the `l10n` WS extension, in 13c. Message size, for a `.tgz` uploaded to `installPackage` (02b §12).
+Renamed from nextgen. Relays internal messaging. `ws-kit` (13 §2): sessions, hello, relay, fan-out, WS extensions (the contract in 15). The Home API is built on it too. Auth and ACL as WS extensions using 13a, reacting to `actor` and `proof` (13 §5). The hello advertises `kapsleVersion` (12a §4b). Session language (`hello.lang`, `Accept-Language`, `setLang`) and resolving `LocalizedText` at the edge (03a §4, 04 §7) as the `l10n` WS extension, in 13c. Message size, for a `.tgz` uploaded to `installPackage` (02b §12).
 **Done when:** 15 and 13c designed; 15 renamed; `api-nextgen` renamed in docs.
 **Refs:** 03 · 04 §7 · 03a §4 · 13 · 13a · 15
 
@@ -138,7 +138,7 @@ Numbering and reorganisation per the map above, M5's docs included — before co
 **Refs:** dev README §4 · AGENTS.md
 
 ### M3.15 — Packages & dependencies   `area/packages`
-Revisit package definitions and bootstrapping. What is exposed, in which package, and who uses it. Adjust dependency-cruiser. Plugin package bootstrapping (02b §12): the host's `@evok-node/*` seen from a plugin generation, `npm` on the PLC, the daemon's install path.
+Revisit package definitions and bootstrapping. What is exposed, in which package, and who uses it. Adjust dependency-cruiser. Plugin package bootstrapping (02b §12): the host's `@kapsle/*` seen from a plugin generation, `npm` on the PLC, the daemon's install path.
 **Done when:** basics/01 package list matches every design doc; `WORKSPACE_DEPS` covers every designed package.
 **Refs:** basics/01 · 01 §11 · 02b §9, §12 · `.dependency-cruiser.cjs`
 

@@ -10,20 +10,20 @@ Design documents are written `design 06 §5a`; bare numbers (`02 §4`, `05 P3`) 
 |---|---|---|
 | authentik needs ≥ 2 CPU and 2 GB RAM | it lives on a NAS or server, never on a PLC; "IdP down" then includes every NAS outage [I] | 01 §1.2 |
 | authentik is good at users, groups, attributes, OIDC login | use it as the **authority** for who exists and their roles | 01 §2, §3, §11 |
-| authentik has no PIN, one fixed `acr`, coarse `amr`, ignores `acr_values` | levels and proofs are evok-node's job | 01 §4, 03 §2.5 |
+| authentik has no PIN, one fixed `acr`, coarse `amr`, ignores `acr_values` | levels and proofs are kapsle's job | 01 §4, 03 §2.5 |
 | authentik passkeys are bound to its host; its API gives no public keys and no hashes | a replica cannot verify authentik credentials; a password only if it passes through the replica (LDAP bind), which OIDC login avoids | 01 §6, 05 §3.1 |
 | authentik rotates refresh tokens; a reused one fails | two nodes must not refresh the same authentik session, unless `refresh_token_threshold` is set | 01 §5, §11 |
 | the offline precedents checked create the offline credential after an online login on that machine [I] | offline login = credentials enrolled earlier on this node | 05 §2 |
 | a token the node signs for itself (`iss` = `aud` = node) is node-only by construction [I] | "valid on this node only" needs no extra mechanism | 02 §4 |
 | the server sees only that a device key signed after local UV — biometry or device passcode, it cannot tell; a browser at an IP address gets no WebAuthn | the strongest proof a node can get is a hardware key in the shell app, or a passkey on a node with a DNS name and a trusted certificate | 03 §3, §7, 06 §2, §4 |
-| a PIN either **identifies** a person or **confirms** a known one; the rules differ | decide which one evok-node checks | 03 §6 |
+| a PIN either **identifies** a person or **confirms** a known one; the rules differ | decide which one kapsle checks | 03 §6 |
 | a per-session table answers in ~0.2 µs (x86, measured); engines are slower | no policy engine on the hot path | 04 §2.2, §3 |
 | client credentials and `private_key_jwt` need the IdP online; pinned keys and mTLS do not [I] | PLC-to-PLC trust must not run through the IdP | 02 §6 |
 | a PLC without RTC restarts with the last saved time — behind, never ahead | offline expiry checks are lenient by the outage length | 02 §7 |
 
 ## 2. Proposed shape
 
-**One component, two directory sources.** The replica and the local IdP are the same driver; only where users and roles come from differs. Because a site IdP is never an evok-node, a node with a local IdP is a one-node site.
+**One component, two directory sources.** The replica and the local IdP are the same driver; only where users and roles come from differs. Because a site IdP is never a kapsle, a node with a local IdP is a one-node site.
 
 ```
                  site IdP (authentik, NAS) ── users, groups, role attributes
@@ -49,13 +49,13 @@ Design documents are written `design 06 §5a`; bare numbers (`02 §4`, `05 P3`) 
 
 - `driver-auth` keeps a **session table**. An access token is a short JWT the node signs: identity, session, level — **no roles** (roles come from the directory copy, 04 §4).
 - A refresh token is opaque, rotated with reuse detection; DPoP-bound when the client has a key store (02 §2.2, §2.3).
-- **Site login at a node (D2):** the shell presents an authentik ID token issued to the site's one evok client and key-bound to the shell's session key (authentik `bound_key`, 01 §5, 06 §2.5), with a DPoP proof for this node. The node checks it with the cached JWKS and opens its own session. A captured token is useless without the key; no per-node provider is needed.
+- **Site login at a node (D2):** the shell presents an authentik ID token issued to the site's one kapsle client and key-bound to the shell's session key (authentik `bound_key`, 01 §5, 06 §2.5), with a DPoP proof for this node. The node checks it with the cached JWKS and opens its own session. A captured token is useless without the key; no per-node provider is needed.
 - **The authentik session** is held and refreshed by the shell app (D3). Nodes keep no authentik refresh tokens; a node acting as BFF for a plain browser uses the ID token at login and keeps nothing else.
 - So **node-limited is the normal shape**. Lost while authentik is down: sessions on nodes not visited yet, and directory freshness.
 
 ```json
 { "typ": "at+jwt", "alg": "EdDSA", "kid": "basement-1" }
-{ "iss": "evok:site-a:basement", "aud": "evok:site-a:basement", "sub": "u-42", "client_id": "shell",
+{ "iss": "kapsle:site-a:basement", "aud": "kapsle:site-a:basement", "sub": "u-42", "client_id": "shell",
   "jti": "a7c…", "sid": "s-91c", "iat": 1793376000, "exp": 1793376600, "acr": "l1", "auth_time": 1793370000 }
 ```
 
@@ -98,7 +98,7 @@ type Scope   = 'site' | `node:${string}` | `zone:${string}` | `device:${string}/
 
 - **Parametric role = role + scope** in the assignment, the Kubernetes / Azure pattern (04 §1.2): `{ subject: 'group:flat3-tenants', role: 'tenant', scope: 'zone:flat3' }`. A scope covers what is below it.
 - **Zone** (D8): a site-wide name on a level, room or group (design 12a §6); a device is in the zones of its group, room and level. The IdP needs zone names only; `device:` scopes are node-local and belong to local assignments.
-- In authentik: group attribute `{ "evok": [{ "role": "tenant", "scope": "zone:flat3" }] }` (01 §3, P2).
+- In authentik: group attribute `{ "kapsle": [{ "role": "tenant", "scope": "zone:flat3" }] }` (01 §3, P2).
 - **Privilege of a call** from metadata: `$introspect`, GET, SUBSCRIBE, `effect: 'none'` → view; SET, `mutates` → operate; a method may raise it (`privilege: 'manage'` — thermostat `SystemMode`, Matter's split, 04 §5).
 - **Additive only**; boundaries live in the hierarchy (04 P3).
 - **Compiled per session:** `address → privilege bits` from assignments × the api's projection; rebuilt on assignment, introspection or level change; live subscriptions re-checked on rebuild (04 §3, the EMQX lesson). The same table filters introspection (04 P7).
@@ -162,7 +162,7 @@ type Scope   = 'site' | `node:${string}` | `zone:${string}` | `device:${string}/
 | D3 | Who holds the authentik session | shell app · each node (needs `refresh_token_threshold`) · BFF node for browsers | shell app; a BFF node only for a plain browser. Departs from "the replica refreshes" for the IdP session only — node sessions are still refreshed by the replica |
 | D4 | Level model | session levels · per-operation proof · both | both; levels `l1`, `l2`; freshness apart |
 | D5 | Unlock with a confirmation only | earlier door-lock decision (2026-10-25: logged-in user only confirms) vs today's input (unlock → biometry or PIN): keep `ack` · `ack` only after a `uv` ≤ 5 min · always `uv`/`pin` | `ack` only after a fresh `uv`; Google forbids ack-only (03 §5) |
-| D6 | The PIN evok-node checks | **kind:** confirming (pick yourself from a list, then PIN) · identifying (site-unique) — **door PIN:** separate from the 2N keypad PIN · the same (then clear at the IdP) — **where:** per node, enrolled online · hashed in an authentik attribute (write path, LDAP exposure) | confirming; separate from 2N; per node |
+| D6 | The PIN kapsle checks | **kind:** confirming (pick yourself from a list, then PIN) · identifying (site-unique) — **door PIN:** separate from the 2N keypad PIN · the same (then clear at the IdP) — **where:** per node, enrolled online · hashed in an authentik attribute (write path, LDAP exposure) | confirming; separate from 2N; per node |
 | D7 | Session lifetimes | online: access 10 min, idle 30 d, absolute? (AAL1 SHOULD reauth ≤ 30 d, 03 §1.1) · one-time local: single connection · ≤ 12 h | online 10 min / 30 d idle / 30 d absolute; one-time ≤ 12 h, no refresh, last online login here ≤ 14 d, 5 PIN failures then delays |
 | D8 | What a role scope points to | zone names · hierarchy ids · devices only | zones + `node:` + `device:` |
 | D9 | Calls relayed between PLCs | delegation, B trusts A's proof · end-to-end proof from the client to B · no `proof` methods across PLCs | delegation, B trusts A |

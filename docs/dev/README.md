@@ -1,4 +1,4 @@
-# evok-node for developers
+# kapsle for developers
 
 A Node.js/TypeScript PLC runtime for Unipi hardware — drivers, own APIs, home automation, rules and UIs.
 
@@ -16,7 +16,7 @@ Agents are also involved in testing CI/CD and issues intake. Boundaries for each
 
 ## 2. Working with this package and repo/git
 
-Users install Debian package from repository - see [User docu](/docs/user/README.md). Devlopers needs to clone this repository. Because of narrow and specific use, `evok-node` is not published to npm. TS client consuming [WS API](/docs/dev/design/evok-node/15-WS-API.md) is published.
+Users install Debian package from repository - see [User docu](/docs/user/README.md). Devlopers needs to clone this repository. Because of narrow and specific use, `kapsle` is not published to npm. TS client consuming [WS API](/docs/dev/design/kapsle/15-WS-API.md) is published.
 
 ```bash
 npm install
@@ -38,7 +38,7 @@ Official relases are tagged and build from `main` and released by maintainer onl
 
 ## 3. Architecture, coding basics and rules
 
-Because of agentic coding, the [design documentation](./design/evok-node/README.md) for each step must be completed and approved before coding. But agents can do gradual increments. The minimal coding step should be 1 design document (more if one doesn't make sense alone). Design documentation must be accurate - if you need divert, open an issue and discuss it. If you want to write new, please do the same.
+Because of agentic coding, the [design documentation](./design/kapsle/README.md) for each step must be completed and approved before coding. But agents can do gradual increments. The minimal coding step should be 1 design document (more if one doesn't make sense alone). Design documentation must be accurate - if you need divert, open an issue and discuss it. If you want to write new, please do the same.
 
 Design documentation is structured and each part has written list of prerequisities. This allows you to get familiar with only the right subset to solve the task.
 
@@ -52,11 +52,11 @@ Testing is important part of the process and extensively described in [`design/b
 
 1. **[`plan/`](plan/README.md)** — status of work. Roadmap, milestones.
 2. **[`design/basic`](./design/basics/README.md)** — How to work with repository and package, coding rules and principles.
-3. **[`design/evok-node`](./design/evok-node/README.md)** — The actual architecture and design of the app/daemon.
+3. **[`design/kapsle`](./design/kapsle/README.md)** — The actual architecture and design of the app/daemon.
 4. **[`design/simulator`](./design/simulator/README.md)** — Helper to simulate Unipi hardware for testing purposes. TCP and RTU modbus mocks.
 5. **[`design/test-rig`](./design/test-rig/README.md)** — Design of real HW test rig.
 6. **[`design/tooling`](./design/tooling/README.md)** — Other tooling and misc. (Might not exists until it's really needed).
-7. **[`research/`](research/README.md)** — the input `design/evok-node` was written from. Collection of findings. Reference and context, **not design guidelines**.
+7. **[`research/`](research/README.md)** — the input `design/kapsle` was written from. Collection of findings. Reference and context, **not design guidelines**.
 8. **[`modbus-reg-map/`](modbus-reg-map/README.md)** — official Unipi register maps. Ground truth, read-only, no prose.
 9. **[`design/libs`](./design/libs/README.md)** — Protocol libraries drivers use, each in its own repository (`wolf-ism8`, …). Designed here before the repository exists.
 

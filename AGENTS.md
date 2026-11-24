@@ -1,4 +1,4 @@
-# evok-node — how to work here as an agent
+# kapsle — how to work here as an agent
 
 Start with [`README.md`](/README.md) and get familiar with the structure by following links in there. No need to go deeper yet.
 
@@ -62,8 +62,8 @@ STOP and whine - path to be defined
 - Follow with /docs/dev/README.md 
 - Get familiar with READMEs and first chapters of design documentations (section 2 - 6).
 - Get familiar with all in `/docs/dev/design/basics`
-- Get familiar with system architecture basics (01, 02, 03, 05, 06 and 13) in `/docs/dev/design/evok-node`
-- Based on the task pick another specific captures from system design `/docs/dev/design/evok-node`
+- Get familiar with system architecture basics (01, 02, 03, 05, 06 and 13) in `/docs/dev/design/kapsle`
+- Based on the task pick another specific captures from system design `/docs/dev/design/kapsle`
 - If the task requires more study, see also relevant captures from research - `/docs/dev/research`
 - Check the current status `/docs/dev/plan/README.md` and don't forget to update it before you create PR.
 

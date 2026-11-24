@@ -1,13 +1,13 @@
 # Configuration, autogen, aliases, hardware definitions
 
-All four must be byte-compatible inputs for evok-node. This document is the parsing spec
+All four must be byte-compatible inputs for kapsle. This document is the parsing spec
 plus the traps found by reading `evok/config.py` and `evok/modbus_slave.py`.
 
 > **Clarified 2026-08-10 — which of the four the *daemon* reads.** "Byte-compatible input" no
 > longer means all four are read at runtime, and the distinction is load-bearing:
 >
 > - **§1 `config.yaml` and §3 aliases** are inputs to the **one-shot migration tool only**
->   (ADR-0006). The daemon reads its own `/etc/evok-node/config.yaml` and its own store, and has
+>   (ADR-0006). The daemon reads its own `/etc/kapsle/config.yaml` and its own store, and has
 >   no knowledge of these formats. Do not build a runtime fallback to `/etc/evok` into the config
 >   loader — that was an earlier design, and it was rejected.
 > - **§2 `autogen.yaml` and §4 `hw_definitions/*.yaml`** remain **runtime daemon inputs**, read
@@ -30,7 +30,7 @@ plus the traps found by reading `evok/config.py` and `evok/modbus_slave.py`.
 >   definitions. It is the only source of the AI/AO **mode enumerations** for CSV-only families, which makes
 >   the capture trip's copy blocking rather than merely useful.
 >
-> §4's "Definition-load validation evok-node should add" list is unaffected and still applies, to our format.
+> §4's "Definition-load validation kapsle should add" list is unaffected and still applies, to our format.
 
 ---
 
@@ -100,7 +100,7 @@ comm_channels:
   `xs/xm/xl/xg` (case-insensitive) and family is `unknown`.
 - Nothing validates: duplicate `slave-id` on one bus, duplicate device names across buses,
   duplicate circuit names, or two circuits mapping to the same coil. Open issue **#131**.
-  All four should be hard startup errors in evok-node.
+  All four should be hard startup errors in kapsle.
 
 ### `scan_frequency` semantics
 
@@ -270,7 +270,7 @@ relay — and it is open. See [`04-known-bugs-and-lessons.md`](04-known-bugs-and
 finding 1.1 and tier-1 rules 1–2 for the design rules. *(Cross-reference corrected 2026-08-10; it
 previously pointed at a non-existent §3.4.)*
 
-### Definition-load validation evok-node should add
+### Definition-load validation kapsle should add
 
 None of this exists upstream; all of it prevents a class of silent misbehaviour:
 

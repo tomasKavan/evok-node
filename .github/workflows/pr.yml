@@ -54,7 +54,7 @@ jobs:
       - uses: actions/checkout@fbc6f3992d24b796d5a048ff273f7fcc4a7b6c09 # v5.1.0
       - uses: ./.github/actions/setup
       # A hard precondition, not a second typecheck. dependency-cruiser resolves a
-      # workspace import through the `@evok-node/*` symlink to the target's
+      # workspace import through the `@kapsle/*` symlink to the target's
       # `dist/index.d.ts`, so with no `dist/` every workspace import reports as
       # unresolvable and the layering verdict is worthless rather than merely absent.
       # Verified: with `dist/` removed, a legitimate `core → protocol` import trips

@@ -1,4 +1,4 @@
-# `@evok-node/rig`
+# `@kapsle/rig`
 
 Drives the hardware-in-the-loop rig: relays, bus cuts, power control, `rig reset` to a known-good state.
 

@@ -135,7 +135,7 @@ Notes on the ones that are not straightforward:
 
 - **4.1** and **4.3** both need the rig, which is scheduled during N0–N3 — a schedule dependency, not
   an unverifiable gap, hence 4.1 is plain `test`. 4.1 additionally needs the RS-485 baud-encoding
-  question in [research/05 §7.4](../research/05-evok-node-design-notes.md) answered on hardware, which
+  question in [research/05 §7.4](../research/05-kapsle-design-notes.md) answered on hardware, which
   the rig can answer. **4.3** keeps the qualifier for a different reason: the master-watchdog
   behaviour fork between firmware 6.26 and 6.28 ([research/09](../research/09-test-hardware-coverage.md))
   needs two firmware versions present at once, which our units cannot provide.

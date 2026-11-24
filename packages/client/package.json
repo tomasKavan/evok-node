@@ -1,5 +1,5 @@
 {
-  "name": "@evok-node/client",
+  "name": "@kapsle/client",
   "version": "0.0.0",
   "description": "First-party TypeScript client for the nextgen API.",
   "type": "module",

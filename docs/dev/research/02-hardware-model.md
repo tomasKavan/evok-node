@@ -19,7 +19,7 @@ address; read this for the shape of the domain.
 - **1-Wire is not on Modbus at all** — it goes through OWFS/`owserver` (TCP 4304), with a
   DS2482 I²C bridge underneath and a Modbus coil for bus power.
 
-So evok-node needs exactly two hardware transports (Modbus TCP client, Modbus RTU client)
+So kapsle needs exactly two hardware transports (Modbus TCP client, Modbus RTU client)
 plus an optional OWFS client. Everything else — SPI, sysfs, `unipiid` — is *identity and
 diagnostics*, not a data path.
 
@@ -55,7 +55,7 @@ config, own reset. Model them as such.
 
 ## 3. Identity and self-description
 
-Three layers, and evok-node needs all three for different purposes.
+Three layers, and kapsle needs all three for different purposes.
 
 ### 3.1 Host-side: `unipiid` (Debian 13+) `[V]`
 

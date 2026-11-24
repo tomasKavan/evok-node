@@ -170,7 +170,7 @@ feature block. EVOK's format only supports the latter — an extension we'll nee
 | MWD timeout / enable | 2500 ms / off | n/a |
 
 Unipi 1.1's sheet carries an important note: **"configuration is not permanently saved, set
-on each power-on"** — there is no save-config coil, so evok-node must re-apply debounce, AI
+on each power-on"** — there is no save-config coil, so kapsle must re-apply debounce, AI
 config and similar on every start for that family.
 
 Bit numbering everywhere is **`0 = LSB, 15 = MSB`**.
@@ -222,7 +222,7 @@ overwrite.
    hardware confirmation (§2.5).
 3. **`Interrupt Mask` (register 1007)** — named on PLC maps, semantics undocumented. Possibly
    the basis for interrupt-driven rather than polled reads, which would matter for the
-   latency question in `05-evok-node-design-notes.md` §5. Worth investigating.
+   latency question in `05-kapsle-design-notes.md` §5. Worth investigating.
 4. **`(Internal) RS485 Full Mode Configuration`** (register 100, DWord, per-section only) and
    the `RS485 TERMIOS *` band (500–503) — how the internal serial lines are configured
    through Modbus. Relevant if we want to configure extension buses programmatically.

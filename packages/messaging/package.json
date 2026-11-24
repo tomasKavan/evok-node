@@ -1,5 +1,5 @@
 {
-  "name": "@evok-node/messaging",
+  "name": "@kapsle/messaging",
   "version": "0.0.0",
   "description": "The internal contract: message envelopes, introspection schemas, codecs, correlation, deadlines and cross-driver fan-in.",
   "type": "module",

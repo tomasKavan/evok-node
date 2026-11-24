@@ -1,4 +1,4 @@
-# `@evok-node/driver-extension`
+# `@kapsle/driver-extension`
 
 Unipi extensions (xS11, xS51, xG18, …) over Modbus RTU. **One instance per RS-485 line** — a driver owns
 exactly one transport endpoint, which is what stops two of them contending for `/dev/ttyNS0` (G-7).

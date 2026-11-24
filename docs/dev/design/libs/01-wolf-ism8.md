@@ -15,7 +15,7 @@ wolf-ism8
 
 The ISM8i is a TCP **client**: it connects to one configured IP and port (default 12004) and pushes values; the library is the server (research/19 §3). HTTP is used only by `info`.
 
-**For:** any Node application that talks to an ISM8i — evok-node's ISM8i driver (12f), a CLI, a test tool.
+**For:** any Node application that talks to an ISM8i — kapsle's ISM8i driver (12f), a CLI, a test tool.
 
 **Not for:**
 
@@ -140,7 +140,7 @@ interface ByteStream {
   close(): void;
 }
 
-interface Clock {                             // evok-node passes its own (04 §4); default: Date.now and timers
+interface Clock {                             // kapsle passes its own (04 §4); default: Date.now and timers
   now(): number;
   setTimeout(fn: () => void, ms: number): unknown;
   clearTimeout(handle: unknown): void;
@@ -202,7 +202,7 @@ class Ism8Session {
 
 ## 6. Server
 
-The transport used by evok-node: a TCP server the ISM8i connects to.
+The transport used by kapsle: a TCP server the ISM8i connects to.
 
 ```ts
 interface ServerOptions extends SessionOptions {
@@ -264,7 +264,7 @@ function fetchInfo(host: string, options?: { timeoutMs?: number }): Promise<{ fi
 ## 10. Repository
 
 - Created by Tomas before development; this design moves to its README then.
-- TypeScript, ESM and CommonJS builds, Vitest, ESLint — as evok-node, so the same tools work in both.
+- TypeScript, ESM and CommonJS builds, Vitest, ESLint — as kapsle, so the same tools work in both.
 - `NOTICE`: the DPT 9 encoder after wolf_ism8 (MIT, research/19 §9). No code from openHAB (EPL-2.0) or FHEM (no licence).
 
 ## 11. Open

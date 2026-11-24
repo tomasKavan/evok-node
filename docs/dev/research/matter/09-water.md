@@ -277,7 +277,7 @@ All [V] from the source named in the column. Loxone's room controller: [GAP] —
 - Grohe Sense Guard: closes the supply on a burst or leak; Sense sensors trigger it [V S52].
 - Matter's Boolean State has no latch: `StateValue` follows the detector. A latch lives in the controller (Loxone) [I].
 
-## 6. evok-node today
+## 6. kapsle today
 
 | Where | What |
 |---|---|
